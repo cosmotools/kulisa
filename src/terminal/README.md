@@ -45,8 +45,8 @@ Fit from host DOM dimensions, coalesced in `requestAnimationFrame`; apply resize
 does not expose a blank canvas. Hidden pages fit immediately because Windows occlusion can suspend frames indefinitely.
 
 Serialization omits cursor visibility and mouse encodings. Track `?25`, `?1006`, `?1015`, `?1016` through parser hooks,
-restore every value, and disable encodings before enabling the chosen one. Window moves use the same size-preserving
-`terminal:restore` path.
+restore every value, and disable encodings before enabling the chosen one. This serialization serves session
+switches within a UI. Live task-window moves keep the same UI and buffers without serialization.
 
 Use Unicode 11 widths and bundled JetBrains Mono/xterm CSS. Callers supply `TermStyle` through constructor/restyle;
 program colors use `minimumContrastRatio`. Center whole rows vertically to avoid inconsistent bottom gaps.
@@ -70,12 +70,15 @@ protocols only to receive file links, then allow only http(s) and paths, rejecti
 **Protocol replies.** Only each unopened renderer buffer answers device/status/color queries, including hidden
 tasks; visible Views consume queries without replying. `termHooks.colors` supplies palette; one detached 2 × 1 xterm
 initializes theme services. PTY packets carry dimensions for background buffers. Main's headless parser retains
-screen/modes but sends no replies.
+screen/modes but sends no replies. UI JS stalls delay these replies; UI process loss/reload loses its emulator state
+while owned PTYs continue. Issue #399 owns moving this service out of the UI. Raw output uses Electron IPC without
+a proven bounded backpressure contract; finite burst/stall checks do not establish an unlimited stall guarantee.
+Do not pause working PTYs from UI visibility, drop authoritative raw bytes, or add a second output-history store.
+UI reload reconstructs screens from future output, without automatically restarting/resuming agents.
 
 ## Its channels (`ipc.ts`)
 
-`pty:quote-paths` (invoke: shell literals for dropped files), `pty:in` (keys), `pty:resize` (the size shown), `pty:out` (output, to the window of the task it is in),
-`terminal:restore` (a task's terminals' contents, written into the buffers of the window it moves to),
+`pty:quote-paths` (invoke: shell literals for dropped files), `pty:in` (keys), `pty:resize` (the size shown), `pty:out` (output, to the owning task UI),
 `terminal:gone` (their buffers dropped). `src/shared/ipc.ts` joins them into all of the window's channels.
 
 `View.find(text, previous, incremental)` lazily loads xterm's MIT-licensed search addon and searches the shown

@@ -47,7 +47,7 @@ test('projects: one left in a window of its own comes back after a restart where
   const third = path.join(files.root, 'third');
   await openFolder(core, ui, third);
   const key = files.tkey('third', 1);
-  await invoke(ui, 'task:move', { key, terminalContents: {} });
+  await invoke(ui, 'task:move', { key });
   await expect.poll(() => core((k, t) => k.shell.windows[1]?.current?.key === t && k.settled(false, k.shell.windows[1]), key)).toBe(true);
   // Smaller than the window's minimum (setBounds passes below it, the human's drag does not): it comes back at it.
   await core((k) => k.shell.windows[1].win.setBounds({ x: 40, y: 50, width: 10, height: 10 }));

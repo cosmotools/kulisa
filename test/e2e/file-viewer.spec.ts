@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Artifact previews, resource limits and native PDF lifecycle (src/file-viewer/README.md).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,10 +12,10 @@ test('ordinary nested text results are read-only, searchable and follow live cha
   const file = path.join(artifacts, 'text-report', 'report.yml');
   fs.writeFileSync(file, `${'item: ordinary\n'.repeat(5000)}unique-last-line: found\n`);
   await showResources(ui, 'Artifacts');
-  await ui.getByRole('treeitem', { name: 'text-report', exact: true }).click();
-  const row = ui.getByRole('treeitem', { name: path.basename(file), exact: true });
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'text-report', exact: true }).click();
+  const row = (await taskPage(ui)).getByRole('treeitem', { name: path.basename(file), exact: true });
   await row.click();
-  const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true });
+  const preview = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true });
   const search = preview.getByRole('searchbox', { name: 'Find in file' });
   await expect(search).toBeVisible();
   await expect(preview.getByText('unique-last-line: found', { exact: true })).toHaveCount(0);
@@ -31,7 +32,7 @@ test('ordinary nested text results are read-only, searchable and follow live cha
   expect(await core(async (k) => { const state = await k.shell.task.editor.execute({ type: 'list' }); return 'tabs' in state ? state.tabs.length : -1; })).toBe(0);
   await search.fill('unique-last-line');
   fs.writeFileSync(path.join(artifacts, 'other.txt'), 'another result');
-  await expect(ui.getByRole('treeitem', { name: 'other.txt', exact: true })).toBeVisible();
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: 'other.txt', exact: true })).toBeVisible();
   await expect(search).toHaveValue('unique-last-line');
   fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('found', 'other'));
   await expect(search).toHaveValue('');
@@ -50,17 +51,17 @@ test('binary and oversized artifacts have explicit fallback; reads reject foreig
       large: await k.shell.task.saveArtifact(source, 'request.txt', 'x'.repeat(4 * 1024 * 1024 + 1)) };
   });
   await showResources(ui, 'Artifacts');
-  const row = (file: string) => ui.getByRole('treeitem', { name: path.basename(file), exact: true });
-  await row(created.binary).click();
-  const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true });
+  const row = async (file: string) => (await taskPage(ui)).getByRole('treeitem', { name: path.basename(file), exact: true });
+  await (await row(created.binary)).click();
+  const preview = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true });
   await expect(preview.getByRole('status')).toHaveText('No viewer is available for this file.');
   await expect(preview.getByRole('button', { name: 'Open in System Application' })).toBeVisible();
-  await row(created.large).click();
+  await (await row(created.large)).click();
   await expect(preview.getByRole('alert')).toHaveText('Text preview is limited to 4 MiB.');
   expect((await invoke(ui, 'task:artifact:read', { key: created.key, file: path.join(files.root, 'package.json'), offset: 0, length: 20 })).error).toMatch(/outside the results folder/);
   await preview.getByRole('button', { name: 'Delete', exact: true }).click();
-  await expect(ui.getByText('Artifact is no longer available', { exact: true })).toBeVisible();
-  await expect(row(created.large)).toHaveCount(0);
+  await expect((await taskPage(ui)).getByText('Artifact is no longer available', { exact: true })).toBeVisible();
+  await expect((await row(created.large))).toHaveCount(0);
 });
 
 function pdf() {
@@ -81,8 +82,8 @@ test('built-in PDF uses an isolated native viewer, survives menus, and releases 
   const folder = path.join(artifacts, 'pdf-report'); fs.mkdirSync(folder);
   const file = path.join(folder, 'result.pdf'); fs.writeFileSync(file, pdf());
   await showResources(ui, 'Artifacts');
-  await ui.getByRole('treeitem', { name: 'pdf-report', exact: true }).click();
-  const row = ui.getByRole('treeitem', { name: path.basename(file), exact: true });
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'pdf-report', exact: true }).click();
+  const row = (await taskPage(ui)).getByRole('treeitem', { name: path.basename(file), exact: true });
   await row.click();
   const current = () => core((k) => k.shell.windows[0].artifactViewer.native.contents?.id ?? null);
   await expect.poll(current).not.toBeNull();
@@ -95,9 +96,9 @@ test('built-in PDF uses an isolated native viewer, survives menus, and releases 
   })).toBe(1);
   expect(await core((k) => {
     const wc = k.shell.windows[0].artifactViewer.native.contents, preferences = (wc as typeof wc & { getLastWebPreferences(): Electron.WebPreferences }).getLastWebPreferences();
-    return { session: wc.session === k.shell.win.webContents.session, preload: preferences.preload ?? null, node: preferences.nodeIntegration, sandbox: preferences.sandbox };
+    return { session: wc.session === k.shell.windows[0].focusUi.session, preload: preferences.preload ?? null, node: preferences.nodeIntegration, sandbox: preferences.sandbox };
   })).toEqual({ session: false, preload: null, node: false, sandbox: true });
-  const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true });
+  const preview = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true });
   await preview.getByRole('searchbox', { name: 'Find in file' }).fill('Artifact PDF');
   await expect(preview.getByRole('status', { name: 'Search results' })).toHaveText('1 / 1');
   await preview.getByRole('searchbox', { name: 'Find in file' }).fill('needle');
@@ -110,7 +111,7 @@ test('built-in PDF uses an isolated native viewer, survives menus, and releases 
   await core((k) => k.press(k.shell.windows[0].artifactViewer.native.contents, 'f', k.CMD));
   await expect(preview.getByRole('searchbox', { name: 'Find in file' })).toBeFocused();
   await rightClick(ui, row);
-  await expect(menu(ui).getByRole('menuitem', { name: 'Open in System Application' })).toBeVisible();
+  await expect((await menu(ui)).getByRole('menuitem', { name: 'Open in System Application' })).toBeVisible();
   await closeMenu(ui);
   expect(await current()).toBe(first);
   await showResources(ui, 'Project');
@@ -126,7 +127,7 @@ test('built-in PDF uses an isolated native viewer, survives menus, and releases 
   await expect.poll(current).not.toBeNull();
   await call('task_artifacts_delete', { files: [folder] });
   await expect.poll(current).toBeNull();
-  await expect(ui.getByText('Artifact is no longer available', { exact: true })).toBeVisible();
+  await expect((await taskPage(ui)).getByText('Artifact is no longer available', { exact: true })).toBeVisible();
 });
 
 test('a caught task rendering failure releases its native PDF and refuses a stale reopen', async ({ core, ui }) => {
@@ -136,16 +137,16 @@ test('a caught task rendering failure releases its native PDF and refuses a stal
   await core((k) => k.ensureProfile('PDF.failure', 'about:blank'));
   const file = await core((k, content) => k.shell.task.saveArtifact({ kind: 'profile', id: 'viewer', tab: 't1' }, 'failure.pdf', content), pdf());
   await showResources(ui, 'Artifacts');
-  await ui.getByRole('treeitem', { name: path.basename(file), exact: true }).click();
+  await (await taskPage(ui)).getByRole('treeitem', { name: path.basename(file), exact: true }).click();
   await expect.poll(() => core((k) => k.shell.task.window.artifactViewer.native.contents?.id ?? null)).not.toBeNull();
   // Malformed tab data exercises the real React boundary while the core profile remains valid.
   await core((k) => {
     const t = k.shell.task, p = [...t.profiles.values()][0], data = p.info();
-    t.window.send('profile:state', { task: t.key, list: [{ ...data,
+    t.send('profile:state', { task: t.key, list: [{ ...data,
       tabs: data.tabs.map((tab, i) => i ? tab : { ...tab, title: {} as unknown as string }) }] });
   });
   try {
-    await expect(ui.locator(`[data-task-view="${key}"] [role="alert"]`)).toContainText('This task’s screen could not be displayed');
+    await expect((await taskPage(ui)).locator(`[data-task-view="${key}"] [role="alert"]`)).toContainText('This task’s screen could not be displayed');
     await expect.poll(() => core((k) => ({ failed: k.shell.task.viewFailed, pdf: k.shell.task.window.artifactViewer.native.contents?.id ?? null }))).toEqual({ failed: true, pdf: null });
     expect(await invoke(ui, 'task:artifact:pdf:open', { key, file, request: 'stale-after-failure', box: { x: 0, y: 0, width: 100, height: 100 } })).toHaveProperty('error');
     expect(await core((k) => k.shell.task.window.artifactViewer.native.contents?.id ?? null)).toBeNull();
@@ -172,7 +173,7 @@ test('leaving a PDF during loading stops subsequent file reads', async ({ core, 
   }, file);
   try {
     await showResources(ui, 'Artifacts');
-    await ui.getByRole('treeitem', { name: 'cancel-loading.pdf', exact: true }).click();
+    await (await taskPage(ui)).getByRole('treeitem', { name: 'cancel-loading.pdf', exact: true }).click();
     await expect.poll(() => core((k) => k.stash.pdfRead.offsets)).toEqual([0]);
     const before = files.log().length;
     await showResources(ui, 'Project');

@@ -68,6 +68,8 @@ Both call the same core actions and receive the same refusals. Identity changes 
 Settings or through `ProjectProfiles`. Missing handles require a reason in the table.
 Task file editing uses the human's recoverable editor drafts; agents keep their own filesystem tools and do not
 replace or resolve human drafts through MCP. Its core/handle ownership is listed in [tasks.md](tasks.md#actions-the-humans-and-the-agents).
+Task screen reload is also human-only: it reconstructs the human's display, without restarting the agent or changing
+task resources. Its handle and recovery limits are documented in [window.md](window.md#task-rendering-failures).
 
 | Action | The human | The agent | The core |
 |---|---|---|---|

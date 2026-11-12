@@ -25,7 +25,6 @@ import type { FileLink } from '../ipc';
 interface Buffer { term: Terminal; serialize: SerializeAddon; modes: Map<number, boolean>; scroll?: number }
 const buffers = new Map<string, Buffer>(); // terminal key -> its buffer
 const views = new Set<View>();
-export const xtermKeys = () => buffers.keys();
 // xterm measures the cell size when it opens: once the font is loaded (any size loads the face). Output written before is kept.
 const termFont = Promise.all(['16px', 'bold 16px'].map((f) => document.fonts.load(`${f} "JetBrains Mono"`))).catch(() => {});
 
@@ -120,7 +119,7 @@ function answerColor(key: string, ident: number, data: string) {
 }
 
 // What another xterm is given to show the same: the serialized buffer and the modes it leaves out.
-export function serialized(key: string) {
+function serialized(key: string) {
   const b = buffers.get(key);
   if (!b) return null;
   // Those off first: turning one of the mouse's encodings off sets the default encoding, whichever was on.
@@ -265,7 +264,7 @@ export class View {
       });
     });
   }
-  // Its terminal's buffer given another size (restoreTerminal): at it too, then fitted to its room as after show.
+  // An output packet carries the buffer's size; fit the visible place after applying it.
   // While the buffer is being put in, show's own resize takes it.
   sized(key: string, cols: number, rows: number) {
     if (key !== this.key || this.pending) return;
@@ -341,15 +340,6 @@ export class View {
   }
 }
 
-// A terminal coming from another window: its buffer at the size it had there, and its contents (serialized()). Also
-// when the window showed it first (its page may draw the task before this comes): made then at the room of a grid
-// not laid out yet, it would wrap the contents at 8 columns.
-export function restoreTerminal(key: string, { data, cols, rows }: { data: string; cols: number; rows: number }) {
-  const b = bufferOf(key, { cols, rows });
-  if (b.term.cols !== cols || b.term.rows !== rows) b.term.resize(cols, rows);
-  for (const v of views) v.sized(key, cols, rows);
-  output(key, data);
-}
 function output(key: string, data: string, size?: { cols: number; rows: number }) {
   const b = bufferOf(key, size);
   if (size && (b.term.cols !== size.cols || b.term.rows !== size.rows)) {

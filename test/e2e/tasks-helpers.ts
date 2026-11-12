@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // The state the e2e tests start from and reach through the core: the test project and its tasks, other projects and
 // repositories, the profiles in them (docs/tasks.md, docs/profiles.md). Made through the core, git and the window's
 // channels: making each is tested elsewhere.
@@ -149,7 +150,7 @@ export async function begin(core: Core, ui: Page, files: Files, { columns = fals
     }
     k.watchPty(k.shell.pty);
   }, only);
-  if (columns) await expect(ui.locator('[data-task-view][data-active] [data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
+  if (columns) await expect((await taskPage(ui)).locator('[data-task-view][data-active] [data-panel^="profile:"]')).toHaveCount(2); // a pane stacked behind another has no .pane drawn
   await notLoading(ui);
   await showResources(ui, 'Agents');
   // Unstack first: a page stacked behind another's tab is never laid out, and ensureProfile waits for that.

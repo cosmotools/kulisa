@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Zoom (the Kulisa zoom and a site's page zoom: docs/window.md, Zoom), tabs on sign-in pages, closing and opening
 // profiles, test users' sign-ins (docs/profiles.md).
 import fs from 'fs';
@@ -18,7 +19,7 @@ const cacheStorageFiles = (dir: string) => {
 // The tabs saved for a profile of the first task, by its id (a name may be made again here).
 // Ctrl+ a key (⌘ on macOS) where the keyboard is put first: Kulisa's window, or a profile's tab (its active one).
 const ctrl = (core: Core, where: string | null, key: string) => core((k, a) => {
-  const wc = a.where === null ? k.shell.win.webContents : k.profile(a.where).get().wc;
+  const wc = a.where === null ? k.shell.windows[0].focusUi : k.profile(a.where).get().wc;
   wc.focus(); k.press(wc, a.key, k.CMD);
 }, { where, key });
 // The Kulisa zoom set as a test starts from it (its keys and ☰'s row are the first test's).
@@ -40,7 +41,7 @@ test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, p
   await expect(ui.locator('#zoomReset')).toHaveText('110%');
   await expect(ui.locator('#zoomReset')).toBeVisible();
   await ui.locator('#windowMenu').click();
-  await expect(menu(ui)).toMatchAriaSnapshot(`
+  await expect((await menu(ui))).toMatchAriaSnapshot(`
     - menu:
       - /children: contain
       - group "Zoom"
@@ -48,14 +49,14 @@ test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, p
       - menuitem "Tasks bar"
       - menuitem "Language"
   `);
-  await expect(menu(ui).getByTestId('zoom-row')).toContainText('110%');
-  await menu(ui).getByRole('menuitem', { name: 'Zoom in' }).click(); // − 110% + in the menu, as in Chrome
+  await expect((await menu(ui)).getByTestId('zoom-row')).toContainText('110%');
+  await (await menu(ui)).getByRole('menuitem', { name: 'Zoom in' }).click(); // − 110% + in the menu, as in Chrome
   await expect.poll(async () => near(await uiZoom(core), 1.25)).toBe(true);
-  await expect(menu(ui).getByTestId('zoom-row')).toContainText('125%');
-  await expect(menu(ui), 'the menu stays open for more clicks').toBeVisible();
+  await expect((await menu(ui)).getByTestId('zoom-row')).toContainText('125%');
+  await expect((await menu(ui)), 'the menu stays open for more clicks').toBeVisible();
   await closeMenu(ui);
   await expect.poll(() => viewOn(core, ui, files, 'Sam.admin')).toBe(true);
-  await expect.poll(() => ui.evaluate(() => (window as any).__term.cols), { timeout: 3000 }).toBeLessThan(200); // the terminal refits
+  await expect.poll(async () => (await taskPage(ui)).evaluate(() => (window as any).__term.cols), { timeout: 3000 }).toBeLessThan(200); // the terminal refits
   await expect.poll(() => files.json('settings.json').uiZoom).toBe(1.25);
   // macOS: the window's buttons centered in the bar as it grows (made at 100%: a 44 pt bar), never below the height
   // the window was made with, where they would not take a click (docs/window.md, The title bar).
@@ -70,7 +71,7 @@ test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, p
   // At most 200% (docs/window.md, Zoom): the window's minimum grows with it, and at 300% passed a laptop's screen.
   await core((k) => k.shell.setUiZoom(2));
   await ctrl(core, null, '='); // taken and done as it is sent (shortcuts.ts)
-  expect(await core((k) => [k.shell.win.webContents.getZoomFactor(), k.shell.uiZoom]), 'Ctrl+= at 200% leaves it there').toEqual([2, 2]);
+  expect(await core((k) => [k.shell.windows[0].focusUi.getZoomFactor(), k.shell.uiZoom]), 'Ctrl+= at 200% leaves it there').toEqual([2, 2]);
   await core((k) => k.shell.setUiZoom(3));
   expect(await core((k) => k.shell.uiZoom), 'nor anything else takes it further').toBe(2);
   await zoomAt(core, 1);
@@ -150,7 +151,7 @@ test('page zoom: Ctrl+= in a page zooms that site in that profile only, shows on
   await expect.poll(async () => near(await core((k, id) => k.profile('Sam.admin').get(id).wc.getZoomFactor(), other), 1.25 * 1.1), { timeout: 3000 }).toBe(true);
   await core((k, id) => k.profile('Sam.admin').get(id).wc.close(), other);
   for (const z of await core((k) => k.profile('Elon.buyer').tabs.map((t) => t.wc.getZoomFactor()))) expect(near(z, 1.25), 'other profiles keep the Kulisa zoom').toBe(true);
-  const shown = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`).getByTitle(/^This site's zoom/);
+  const shown = (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`).getByTitle(/^This site's zoom/);
   await expect(shown).toHaveText('110%');
   const saved = files.json(files.pfile('task.json')).stage.items.filter((i: { type: string }) => i.type === 'profile').find((p: { id: string }) => p.id === sam);
   expect(saved.zoom).toEqual({ [`127.0.0.1:${PORT}`]: 1.1 });
@@ -191,7 +192,7 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   const saved = (): { id: string; closed?: boolean }[] => files.json(files.pfile('task.json')).stage.items.filter((i: { type: string }) => i.type === 'profile');
   await call('profile_create', { name: 'Cleo' });
   const cleo = await profileId(core, 'Cleo');
-  const header = ui.locator(`[data-task-view][data-active] [data-panel="profile:${cleo}"]`);
+  const header = (await taskPage(ui)).locator(`[data-task-view][data-active] [data-panel="profile:${cleo}"]`);
   const { dir: cleoDir, avatar } = await core((k) => { const p = k.profile('Cleo'); return { dir: p.dir, avatar: p.avatar }; });
   await call('browser_navigate', { profile: 'Cleo', url: `${SITE}/app/login?name=cleo` }); // a session cookie
   await call('browser_tab_new', { profile: 'Cleo', url: `${SITE}/app?second` });
@@ -215,12 +216,12 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   expect(listed).toEqual({ name: 'Cleo', description: null, avatar, closed: true, tabs: 2 });
   await expect(call('browser_snapshot', { profile: 'Cleo' })).rejects.toThrow(/closed.*profile_open/);
   // The window: the same check.
-  expect((await ui.evaluate((id) => (window as any).act('tab:new', { profile: id }), cleo)).error).toMatch(/Profile "Cleo" is closed/);
+  expect((await (await taskPage(ui)).evaluate((id) => (window as any).act('tab:new', { profile: id }), cleo)).error).toMatch(/Profile "Cleo" is closed/);
 
   // Open again from the task's tab's menu: a closed one says so.
-  const cleoRow = () => item(ui, 'Cleo');
+  const cleoRow = async () => (await item(ui, 'Cleo'));
   await taskMenu(ui);
-  await expect(cleoRow()).toContainText('closed · click to open');
+  await expect((await cleoRow())).toContainText('closed · click to open');
   await choose(ui, 'Cleo');
   // Its tabs open, and the agent's connection comes, after it is in the task.
   await expect.poll(() => core((k, id) => { const p = k.shell.profiles.get(id); return p?.tabs.length === 2 && !!p.context; }, cleo)).toBe(true);
@@ -240,7 +241,7 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
       ${[...names, 'Cleo'].map((n) => `- menuitem ${JSON.stringify(n)}`).join('\n      ')}
       - menuitem "Manage Profiles…"
   `);
-  await expect(cleoRow()).toContainText('closed · click to open');
+  await expect((await cleoRow())).toContainText('closed · click to open');
   await choose(ui, 'Cleo');
   await expect.poll(() => core((k, id) => k.shell.profiles.has(id), cleo)).toBe(true);
 });
@@ -331,7 +332,7 @@ test('closing the last tab of a profile leaves an empty tab, not a pane without 
   await deleteProfile(core, ui, 'Solo');
   await call('profile_create', { name: 'Solo' });
   const solo = await profileId(core, 'Solo');
-  const tabs = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${solo}"] [role="tab"]`);
+  const tabs = (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${solo}"] [role="tab"]`);
   for (const by of ['window', 'agent'] as const) {
     const only = await core((k) => k.profile('Solo').tabs[0].id);
     await call('browser_navigate', { profile: 'Solo', url: `${SITE}/app` });
@@ -342,7 +343,7 @@ test('closing the last tab of a profile leaves an empty tab, not a pane without 
     expect(await core((k) => k.profile('Solo').view.getVisible()), 'its page is shown').toBe(true);
     await expect(tabs).toHaveCount(1);
   }
-  const removed = ui.evaluate((id) => (window as any).act('profile:delete', { profile: id }), solo);
+  const removed = (await taskPage(ui)).evaluate((id) => (window as any).act('profile:delete', { profile: id }), solo);
   await answer(ui);
   await removed;
   await expect.poll(() => core((k, id) => k.shell.profiles.has(id), solo)).toBe(false);

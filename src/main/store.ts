@@ -23,6 +23,7 @@
 //   deleted-folders.json     folders of deleted profiles and tasks, removed at the next start (a session keeps
 //                            its files open while Kulisa runs)
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
+import type { TaskPresentation } from '../shared/ipc.ts';
 import fs from 'fs';
 import { writeFileAtomic } from './files.ts';
 import { readTabs, writeTabs } from '../browser/main/index.ts';
@@ -221,7 +222,8 @@ const taskDocumentSchema = z.object({
     layout: z.custom<TaskLayout['stage']>(),
   }),
   workspace: z.object({ stagePosition: z.enum(['left', 'right', 'above']).optional(), splitLayout: z.custom<TaskLayout['split']>().optional(),
-    developmentLayout: z.custom<TaskLayout['workspace'] | null>() }),
+    developmentLayout: z.custom<TaskLayout['workspace'] | null>(),
+    presentation: z.object({ workbenchItem: z.enum(['terminals', 'project', 'diff', 'artifacts']), selectedArtifact: z.string().nullable() }).optional() }),
 });
 type TaskDocument = z.infer<typeof taskDocumentSchema>;
 const taskFiles = ['agent.json', 'terminals.json', 'profiles.json', 'applications.json', 'layout.json'];
@@ -342,6 +344,15 @@ class TaskStore {
   saveStageTerminals(a: { next: number; list: StageTerminalConfig[] }) {
     this.update((d) => { d.stage.nextTerminalId = a.next; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'terminal'), ...a.list.map((config) => ({ ...config, type: 'terminal' as const }))]; });
   }
+  presentation(): TaskPresentation {
+    const d = this.document();
+    return { workbenchItem: d.workspace.presentation?.workbenchItem ?? 'terminals', selectedArtifact: d.workspace.presentation?.selectedArtifact ?? null,
+      stagePosition: d.workspace.stagePosition ?? 'above', stageLayout: d.stage.view ?? null, stageOverflow: d.stage.overflow, stageFollowPaused: false };
+  }
+  savePresentation(value: TaskPresentation) {
+    const presentation = taskDocumentSchema.shape.workspace.shape.presentation.parse(value);
+    this.update((d) => { d.workspace.presentation = presentation; });
+  }
   layout(): unknown {
     const d = this.document();
     return d.workspace.developmentLayout ? splitLayout({ version: 3, workspace: d.workspace.developmentLayout, stage: d.stage.layout,
@@ -350,7 +361,7 @@ class TaskStore {
   }
   saveLayout(layout: unknown) {
     const l = splitLayout(layout);
-    this.update((d) => { d.workspace = { developmentLayout: l?.workspace ?? null, stagePosition: l?.stagePosition ?? 'above', splitLayout: l?.split ?? null };
+    this.update((d) => { d.workspace = { ...d.workspace, developmentLayout: l?.workspace ?? null, stagePosition: l?.stagePosition ?? 'above', splitLayout: l?.split ?? null };
       d.stage.layout = l?.stage ?? null; d.stage.view = l?.stageLayout ?? null; d.stage.overflow = l?.stageOverflow ?? false; });
   }
   agent(): AgentFile {

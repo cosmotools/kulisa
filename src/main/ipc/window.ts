@@ -1,6 +1,6 @@
 // The window's own settings and what is drawn over it (docs/window.md): the Kulisa zoom, theme, the bar's place,
 // language; the pages hidden under HTML, a question's answer; About Kulisa; the Log page's log.
-import { app, BrowserWindow, dialog, shell as electronShell } from 'electron';
+import { app, dialog, shell as electronShell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { stepZoom } from '../../browser/main/index.ts';
@@ -39,7 +39,7 @@ export function registerWindow(ipc: Ipc) {
     return { ...readLog(e.sender), max: LOG_MAX, old: old?.toISOString() ?? null };
   });
   handle('log:save', async (e) => {
-    const win = BrowserWindow.fromWebContents(e.sender), options = { defaultPath: path.join(app.getPath('downloads'), 'kulisa.log') };
+    const win = at(e)?.win, options = { defaultPath: path.join(app.getPath('downloads'), 'kulisa.log') };
     const { canceled, filePath } = await (win ? dialog.showSaveDialog(win, options) : dialog.showSaveDialog(options));
     if (canceled || !filePath) return { file: null };
     try { fs.copyFileSync(logFile(), filePath); return { file: filePath }; } catch (err) { return { error: `Not saved: ${(err as Error).message}` }; }
@@ -49,12 +49,39 @@ export function registerWindow(ipc: Ipc) {
   handle('language:get', () => shell.languageInfo());
   handle('language:set', (_e, code) => shell.setLanguage(code));
   handle('theme:set', (_e, theme) => ['dark', 'light', 'system'].includes(theme) && shell.setTheme(theme));
-  handle('stage:follow:set', (_e, follow) => { if (typeof follow === 'boolean') shell.setStageFollow(follow); });
+  handle('stage:follow:set', (e, follow) => {
+    if (typeof follow !== 'boolean') return;
+    // Enabling an already enabled preference resumes following in the selected task.
+    if (shell.stageFollow === follow) at(e)?.task?.send('stage:follow:state', follow);
+    else shell.setStageFollow(follow);
+  });
   handle('bar:set', (_e, bar) => ['top', 'bottom'].includes(bar) && shell.setBar(bar));
   handle('zoom:ui', (_e, dir) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
+  handle('task:ready', (e) => shell.taskUiOf(e.sender)?.view?.connect());
+  handle('task:reload', (e, key) => at(e)?.tabs.find((t) => t.key === key)?.view?.reload());
+  handle('task:drained', (e, sequence) => shell.taskUiOf(e.sender)?.view?.acknowledgeDrain(sequence));
+  handle('shell:cover', (e, covered) => at(e)?.coverShell(covered));
+  handle('shell:ask', (e, question) => at(e)?.ask(question) ?? null);
+  handle('shell:dialog', (e, request) => {
+    const window = at(e), task = window?.tabs.find((t) => t.key === request.task);
+    if (!task?.shown()) return;
+    const terminal = request.kind === 'stageTerminalSettings' ? task.stageTerminals.info().find((t) => t.id === request.terminal.id)
+      : task.developmentTerminalsInfo().list.find((t) => t.id === request.terminal.id);
+    if (terminal) window!.send('shell:dialog', { ...request, terminal } as typeof request);
+  });
+  handle('task:command', (e, { task: key, ...command }) => { const task = at(e)?.task; if (task?.key === key) task.send('task:command', command); });
+  on('shell:workspace', (e, { task, viewport, ...bounds }) => {
+    const window = at(e); if (!window) return;
+    if (!task || task !== window.task?.key) return;
+    const z = window.ui.getZoomFactor(), [width, height] = window.win.getContentSize();
+    if (!viewport || Math.abs(Math.round(viewport.width * z) - width!) > 1
+      || Math.abs(Math.round(viewport.height * z) - height!) > 1) return;
+    window.placeWorkspace({ x: Math.round(bounds.x * z), y: Math.round(bounds.y * z), width: Math.round(bounds.width * z), height: Math.round(bounds.height * z) });
+  });
+  on('task:presentation', (e, value) => shell.taskUiOf(e.sender)?.present(value));
   handle('views:pictures', (e) => at(e)?.pictures());
-  handle('views:hidden', (e, hidden, opts?) => at(e)?.hideViews(hidden, opts));
-  handle('task:view-failed', (e, failure) => at(e)?.failTaskView(failure));
+  handle('views:hidden', (e, hidden, opts?) => { const task = shell.taskUiOf(e.sender); return task?.shown() ? task.window?.hideViews(hidden, { ...opts, task: task.key }) : undefined; });
+  handle('task:view-failed', (e, failure) => { const task = shell.taskUiOf(e.sender); if (task?.key === failure.task) task.window?.failTaskView(failure); });
   on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer)); // where it was asked
   on('settings:open', (e, a) => { const w = at(e); if (w) shell.openSettings(a, w); });
   on('settings:close', () => log.info('[settings] closed'));

@@ -6,7 +6,7 @@ import { EventEmitter } from 'events';
 import electron from 'electron';
 import { chromium } from 'playwright-core';
 import type { Browser, BrowserContext, Page } from 'playwright-core';
-import type { BrowserWindow, Rectangle, Session, WebContents, WebContentsView as View } from 'electron';
+import type { BaseWindow, Rectangle, Session, WebContents, WebContentsView as View } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import type { SavedTabs } from './storage.ts';
@@ -70,7 +70,8 @@ let dialogs = 0; // pages' dialogs, numbered: the human's answer goes to the one
 interface DialogInfo { dialogType: 'alert' | 'confirm'; messageText: string; frame: { url: string; parent: unknown } }
 
 class Profile extends EventEmitter {
-  win: BrowserWindow; id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean;
+  private ui: () => WebContents;
+  win: BaseWindow; id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean;
   dir: string; task: string; baseZoom: number; blank: string; siteZoom: Record<string, number>; session: Session;
   tabs: Tab[]; active: string | null; closedUrls: string[]; bounds: Bounds;
   clip?: Bounds;
@@ -83,7 +84,7 @@ class Profile extends EventEmitter {
   // path) are fixed at creation; a rename changes the name only.
   // win: focus and window actions. parent: the native host, with layout coordinates relative to it (moveTo).
   // task: its task's key (profiles of different tasks share ids).
-  constructor(win: BrowserWindow, cfg: ProfileConfig, { task, parent = win.contentView }: { task: string; parent?: Electron.View }) {
+  constructor(win: BaseWindow, cfg: ProfileConfig, { task, parent = win.contentView, ui }: { task: string; parent?: Electron.View; ui: () => WebContents }) {
     super();
     this.win = win;
     this.id = cfg.id; this.name = cfg.name; this.avatar = cfg.avatar; this.description = cfg.description || '';
@@ -102,6 +103,7 @@ class Profile extends EventEmitter {
     this.deleted = false;
     this.busyAt = 0;
     this.parent = parent;
+    this.ui = ui;
     this.view = new electron.View();
     this.view.setVisible(false);
     this.parent.addChildView(this.view);
@@ -236,7 +238,7 @@ class Profile extends EventEmitter {
     const { wc } = tab;
     tab.view.setVisible(false);
     // The keyboard stays where the human put it in the window: the page takes it only from them (page-focus.ts).
-    guardFocus(wc, () => this.win);
+    guardFocus(wc, () => ({ win: this.win, ui: this.ui() }));
     const update = () => {
       if (wc.isDestroyed()) return;
       // Still on the about:blank its page comes after (_open): the strip keeps the address and title it has.
@@ -349,7 +351,7 @@ class Profile extends EventEmitter {
     if (picture && !picture.isEmpty()) dialog.picture = `data:image/jpeg;base64,${picture.toJPEG(90).toString('base64')}`;
     this._show(); this.emit('changed');
     // The keys to the dialog, as they were the page's (Enter: OK, Esc: Cancel).
-    if (tab.id === this.active && this.shown && !this.win.isDestroyed()) this.win.webContents.focus();
+    if (tab.id === this.active && this.shown && !this.win.isDestroyed()) this.ui().focus();
   }
   // The human's answer (OK: true) to the dialog they saw (dialog: its id), not to one that came after it.
   answerDialog(id: string, dialog: number, ok: boolean) {
@@ -431,12 +433,13 @@ class Profile extends EventEmitter {
   focusTab(tab: Tab) { if (tab.wc.isDestroyed()) return; allowFocus(tab.wc); tab.wc.focus(); }
 
   // Its pages into another window (its project moved there), hidden until that window lays them out.
-  moveTo(win: BrowserWindow, parent = win.contentView) {
+  moveTo(win: BaseWindow, parent = win.contentView, ui = this.ui) {
     this.view.setVisible(false);
-    this.parent.removeChildView(this.view);
+    if (parent !== this.parent) this.parent.removeChildView(this.view);
+    this.ui = ui;
     this.win = win; this.hidden = true; this.clip = undefined;
+    if (parent !== this.parent) parent.addChildView(this.view);
     this.parent = parent;
-    this.parent.addChildView(this.view);
     const t = this.get(); if (t && !t.discarded) this._place(t);
     this.emit('changed');
   }

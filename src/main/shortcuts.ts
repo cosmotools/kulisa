@@ -2,6 +2,7 @@
 // a profile's page comes here first; the hold keys the human changes.
 import { app } from 'electron';
 import { stepZoom } from '../browser/main/index.ts';
+import type { OpenTasks } from './open-tasks.ts';
 import type { AppWindow } from './window.ts';
 import { held, holdable, keymap, list as keyList, match } from './keys.ts';
 import { handle, on } from './ipc.ts';
@@ -11,7 +12,7 @@ import type { Shell } from './shell.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import type { Result } from '../shared/result.ts';
 
-export function installShortcuts(shell: Shell, { appDevTools }: { appDevTools: boolean }) {
+export function installShortcuts(shell: Shell, { appDevTools, tasks }: { appDevTools: boolean; tasks: OpenTasks }) {
   const store = shell.store;
   const at = (e: IpcMainEvent) => shell.windowOf(e.sender);
   // ---------- keyboard shortcuts (keys.ts) ----------
@@ -25,7 +26,8 @@ export function installShortcuts(shell: Shell, { appDevTools }: { appDevTools: b
     const preview = shell.windows.find((w) => w.artifactViewer.native.contents === wc);
     const w = preview ?? shell.windowOf(wc), t = !w && shell.tabOf(wc);
     if (!w && !t) return; // DevTools, a tab of a task not on screen
-    const zone = preview ? 'window' : w ? w.keyZone : 'page';
+    const owner = shell.taskUiOf(wc);
+    const zone = w?.shellCovered ? w.keyZone : preview ? 'window' : owner ? owner.view!.keyZone : w ? w.keyZone : 'page';
     // A key held alone (the dictation's): its press and its release, wherever the keyboard is but a dialog (the
     // shortcuts' dialog takes a key there to make it the one). Left to the page too (no preventDefault: a press
     // taken had its release withheld by Chromium, and the key types nothing).
@@ -44,13 +46,21 @@ export function installShortcuts(shell: Shell, { appDevTools }: { appDevTools: b
     const win = w || (t as { w: AppWindow }).w;
     const step = ZOOM[hit.id];
     if (step !== undefined) return hit.id.startsWith('zoom.') ? shell.setUiZoom(stepZoom(shell.uiZoom, step)) : t && t.profile.zoomSite(t.tab.id, step);
-    if (hit.id === 'devtools.app') return win.toggleDevTools();
+    if (hit.id === 'devtools.app') return win.toggleDevTools(owner?.view?.ui ?? win.ui);
     if (hit.id === 'devtools.tab') return t && t.profile.toggleDevTools(t.tab.id);
-    if (hit.window) win.win.webContents.focus();
-    win.send('command:run', { id: hit.id, n: hit.n, profile: t ? t.profile.id : pane, tab: t ? t.tab.id : null, task: win.task?.key ?? null, page: !!t });
+    if (hit.id === 'task.n' || hit.id === 'task.next' || hit.id === 'task.previous') {
+      const i = hit.id === 'task.n' ? hit.n! - 1 : (win.tabs.indexOf(win.task!) + (hit.id === 'task.next' ? 1 : -1) + win.tabs.length) % win.tabs.length;
+      const target = win.tabs[i]; if (target) void tasks.serial(() => tasks.showTask(target));
+      return;
+    }
+    if (hit.id === 'task.new') { void tasks.serial(() => tasks.createTask(win.task?.project, win)); return; }
+    const global = hit.id === 'task.menu' || hit.id === 'shortcuts';
+    if (hit.window) (global ? win.ui : win.focusUi).focus();
+    const send = global ? win.send.bind(win) : win.task?.send.bind(win.task);
+    send?.('command:run', { id: hit.id, n: hit.n, profile: t ? t.profile.id : pane, tab: t ? t.tab.id : null, task: win.task?.key ?? null, page: !!t });
   }
   app.on('web-contents-created', (_e, wc) => wc.on('before-input-event', (e, input) => onKey(wc, e, input)));
-  on('keys:zone', (e, zone) => { const w = at(e); if (w) w.keyZone = String(zone); });
+  on('keys:zone', (e, zone) => { const w = at(e); if (w) { const task = shell.taskUiOf(e.sender); if (task?.view) task.view.keyZone = String(zone); else w.keyZone = String(zone); } });
   // A hold key changed by the human (Keyboard Shortcuts): kept in settings.json, every window told.
   handle('keys:set', (_e, { id, code }): Result<{ keys: Sent.Shortcut[] }> => {
     if (!table.some((b) => b.hold && b.id === id)) return { error: `not a key to change: ${id}` };
@@ -59,7 +69,7 @@ export function installShortcuts(shell: Shell, { appDevTools }: { appDevTools: b
     const keys = { ...store.settings().keys, [id]: code };
     store.saveSettings({ ...store.settings(), keys });
     table = keymap(undefined, keys);
-    for (const w of shell.windows) w.send('keys:state', shell.keys());
+    for (const w of shell.windows) { w.send('keys:state', shell.keys()); for (const task of w.tabs) task.send('keys:state', shell.keys()); }
     return { keys: shell.keys() };
   });
 

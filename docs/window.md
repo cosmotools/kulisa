@@ -3,6 +3,36 @@
 Window layout, focus, controls, logging and IPC. Project/task lifecycle: [tasks.md](tasks.md); profiles:
 [profiles.md](profiles.md); component conventions: [ui.md](ui.md), including [Workbench terminology](ui.md#workbench-terminology).
 
+## Native ownership
+
+A task window is a `BaseWindow` with an explicit, persistent shell `WebContentsView`. The shell owns bars,
+navigation, Settings and window-modal dialogs. Each visited task lazily creates one retained plain `View` group
+containing its UI `WebContentsView`, profile containers and optional native previews as siblings. Browser views
+must not be children of the task UI WCV: that composition produced black panes on Linux Wayland.
+`main/task-view.ts` owns this narrow native attachment; `Task` retains domain resources, PTYs, Editor and storage.
+
+The opaque OS window normally draws the shell below the selected task group, which occupies only the workspace.
+Global overlays raise the already-loaded shell. Its explicit native `#00000000` background and transparent HTML
+workspace reveal the live task below while intercepting pointer input. Raise acknowledgement precedes popper
+readiness; coverage lasts through overlay exit. Lowering restores the task's focus. Global coverage cancels local
+transients without waiting for task JS; it needs no full-task screenshot. Local menus retain the snapshot handoff below.
+
+`index.html`/`main.tsx` boot the shell; `task.html`/`task-view/main.tsx` boot one immutable task identity. Keep shell
+stores/dialog listeners out of task imports, and task grids/controllers out of shell imports. Main validates the
+current sender frame and UI owner. Task resources/output go only to that UI; the shell receives navigation data
+and a small selected-task label/count/presentation summary. Every task UI handshake refreshes global preferences
+and initial task facts before process startup/output; URL preferences only seed the first paint.
+Task navigation keys use main's tab order, independently of task JS. File dialogs use the native owner explicitly.
+
+Closing a task drains healthy UI Editor/layout work for at most one second, then flushes core accepted edits,
+saves profile tabs before destroying them, stops owned sessions and explicitly closes its UI webContents.
+Shutdown callers share one completion promise; native window destruction closes all owned shell/task contents.
+Default Electron background throttling remains enabled; no idle task UI eviction or freezing is implemented.
+
+The available automated native tests run on Linux X11. The author's remaining platform checks are native Wayland,
+Windows and macOS: transparent raise/lower over profiles, modal dimming/outside clicks/exit, focus/IME,
+resize/DPI, title-bar controls and live window moves. API support alone does not establish these results.
+
 ## The title bar
 
 One 44 px row (`TITLE_BAR_HEIGHT`, `TopBar.tsx`): colored project logo, optional tasks' bar, Stage, Settings, ☰ and
@@ -35,21 +65,18 @@ Stage headers move environments within Stage; Workbench drag/drop is disabled. W
 use a fixed left edge with native tabs and collapse; behavior and constraints: [tasks.md](tasks.md#the-workbench).
 The outer Workbench minimum includes this edge group because Dockview's central minimum excludes edges.
 
-Hidden TaskViews use `content-visibility: hidden`, `inert` and `aria-hidden` to retain UI state without rendering or
-accepting input. Window controls address the selected task; pane actions stay bound to their owning TaskView.
-Task switching cancels pending focus/drag requests; closing releases subscriptions and Stage terminal Views.
-Project Explorer and Diff receive the task's active state to pause background polling. The [Editor](../src/editor/README.md)
-also pauses disk polling while hidden; its core-owned autosave continues independently of the rendered view.
+Hidden native task groups retain their UI, stores, terminal buffers and controllers until closure. Explicit
+activity pauses Project Explorer, Diff and Editor disk polling and cancels transient focus/drag requests; core
+Editor autosave continues. Native visibility alone does not pause protocol parsing. Each task has its own development
+xterm View; Stage terminal Views remain with their panes. Buffer rendering and sizing:
+[terminal](../src/terminal/README.md#the-window-renderer).
 
-The outer host stays observable outside skipped contents, keeping hidden grids sized with the window. Nested grids
-receive parent dimensions through `api.layout()` with autoresizing disabled to avoid waiting for hidden observers.
-Native-page geometry reports are task-scoped and coalesced per frame, independent of saving and menu coverage.
-The first report permits native pages to show; prepared tasks use stored bounds, swapping native visibility in one
-main-process turn to avoid an empty frame.
-
-One development xterm belongs to the window and moves into the selected TaskView. Its host stays measurable
-until a pending terminal starts, even while Agents is hidden. Buffer rendering and sizing: [terminal](../src/terminal/README.md#the-window-renderer). Stage terminal Views stay with their panes. Inline renderers
-retain React state when Stage tabs detach inactive DOM; task switching retains each selected tab's DOM.
+The shell reports workspace bounds in CSS pixels; main converts to native coordinates and sizes every retained
+group without waiting for hidden renderer layout. Nested grids receive parent dimensions through `api.layout()`
+with autoresizing disabled. Profile reports use task-local CSS coordinates and the owning UI's zoom. A viewport
+revision and matching dimensions reject stale placement after resize, zoom or transfer. Native pages stay hidden
+until matching layout; new task UI is visible so its first layout can run. Prepared groups swap in one main turn.
+Hidden observers can settle on return; terminal fitting retains its timer fallback when frames are suspended.
 
 Artifacts' optional native PDF view joins window overlay hiding, menu pictures and global key routing; leaving its
 file/view/task closes it. Its independent adapter and resource bounds belong to [File Viewer](../src/file-viewer/README.md).
@@ -71,7 +98,7 @@ file/view/task closes it. Its independent adapter and resource bounds belong to 
 - Load saved settings before creating grids; early Stage commands await restoration and retain their order.
   Reveal after both nested grids mount at their final dimensions, keeping content loading from shifting the layout.
   Persist all three grids through `toJSON`/`fromJSON`, plus Stage view/overflow/position; debounce 300 ms and flush on
-  hide/close and before moving a task to another window, while the source still owns it. Observe completed
+  deactivation/close. Live window moves retain the grids and reflow for destination geometry. Observe completed
   layouts/maximization and Workbench edge dimensions, which central layout events omit.
   Empty Stage stays mounted, hidden through Gridview's API to preserve its size. Position/view changes move native
   panels/groups, retaining their contents. `shared/stage-layout.ts` imports flat layouts and legacy fractions;
@@ -96,10 +123,18 @@ animations for reduced motion.
 
 ### Task rendering failures
 
-Each retained TaskView has a React Error Boundary; construction stays inside it, subscriptions begin after commit.
-A failed screen releases UI resources while agents, PTYs and browser profiles continue. Main keeps its native pages
-hidden until task closure, including after delayed layout/visibility messages or moving windows. Preserve healthy
-tasks' controllers and stores. There is no automatic remount; React boundaries do not contain hangs or renderer crashes.
+Each task has a React Error Boundary; construction stays inside it, subscriptions begin after commit. A React
+failure releases UI resources while renderer terminal buffers, core PTYs and browser profiles survive. Main latches
+the failure and hides native pages, including after delayed placement or a window move.
+
+A crashed task process, or one reported unresponsive by Chromium, exposes a shell fallback. Native hang detection is
+conditional; the task tab's menu always provides Reload task screen, including when no unresponsive event arrives.
+Reloading drains received input for at most one second, terminates the unusable UI renderer and reloads only that UI;
+it never unloads the Task or relaunches agents/profiles. Core accepted Editor edits/drafts survive; reconstructed
+terminal screens show future output without a replay store. React failure does not automatically remount.
+Renderer-owned terminal replies stop during a JS stall and are unavailable after process loss until reconstruction;
+a live PID does not guarantee useful CLI progress. Transport/service limits belong to
+[terminal](../src/terminal/README.md#the-window-renderer) and issue #399.
 
 ### Stage terminals
 

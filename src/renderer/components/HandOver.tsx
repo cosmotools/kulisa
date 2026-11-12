@@ -10,7 +10,8 @@ import { Avatar, AvatarGroup, AvatarImage, Badge, Button, Dialog, DialogContent,
   FieldDescription, FieldLabel, FieldTitle, Progress, RadioGroup, RadioGroupItem, Spinner, Alert, AlertDescription } from '@ui';
 import { agentMark } from './AgentMark';
 import { shownTask, store, useWindow } from '../lib/store';
-import { act, useTask } from '../task-view';
+import { actionsFor } from '../lib/actions';
+import type { TaskSummary } from '../../shared/ipc';
 import { registerDialog } from '../lib/dialogs';
 import { avatarSrc, plural } from '../lib/common';
 import { refused } from '../../shared/result';
@@ -19,6 +20,7 @@ import type { DevelopmentTerminalInfo } from '../../shared/types';
 // No part read for this long: an agent that thinks before it reads, or never does.
 const IDLE = 30_000;
 interface HandOverState {
+  summary?: TaskSummary; task?: string;
   from: DevelopmentTerminalInfo | null; chosen: string | undefined; going: boolean; error: string;
   handed: number | null; // the new agent's tab once open
   read: { part: number; parts: number } | null; // what it has read
@@ -35,8 +37,8 @@ async function hand() {
   const { from, chosen, going } = state.getState();
   if (!from || !chosen || going) return;
   state.setState({ going: true });
-  inTask = store.getState().current;
-  const r = await act('agent:handover:start', { id: from.id, agent: chosen });
+  inTask = state.getState().task ?? null;
+  const r = await actionsFor(inTask)('agent:handover:start', { id: from.id, agent: chosen });
   if (!state.getState().going) return; // closed meanwhile: the tab is there, behind
   if (refused(r)) { state.setState({ going: false, error: r.error || 'The agent did not start.' }); return; }
   seen = false;
@@ -49,7 +51,7 @@ const waitIdle = () => { clearTimeout(idle); idle = window.setTimeout(show, IDLE
 function show() {
   clearTimeout(idle);
   const { handed } = state.getState();
-  if (handed !== null && store.getState().current === inTask) void act('development-terminal:show', { id: handed });
+  if (handed !== null && store.getState().current === inTask) void actionsFor(inTask)('development-terminal:show', { id: handed });
   state.setState({ handed: null, going: false });
   close();
 }
@@ -60,7 +62,7 @@ kulisa.on('agent:handover:progress', ({ task, id, part, parts: all }) => {
 });
 // It needs the human (a permission, a sign-in, a limit: its hooks say it waits), or its tab is gone (once it was there:
 // the window may hear of it after the answer).
-kulisa.on('development-terminal:state', (terminals) => {
+kulisa.on('agent:handover:state', (terminals) => {
   const { handed } = state.getState();
   if (handed === null) return;
   if (terminals.task !== inTask) return;
@@ -73,21 +75,22 @@ kulisa.on('development-terminal:state', (terminals) => {
 export function HandOver() {
   const [open, setOpen] = useState(false);
   const { from, chosen, going, error, read } = useStore(state);
-  const agents = useWindow(useShallow((s) => agentsOf(s))), profiles = useTask((s) => s.profiles);
-  const branch = useWindow((s) => shownTask(s)?.branch), shells = useTask((s) => s.developmentTerminals.list).filter((t) => !t.agent);
+  const agents = useWindow(useShallow((s) => agentsOf(s))), snapshot = useStore(state, (s) => s.summary);
+  const profiles = snapshot?.profiles ?? [], shells = snapshot?.shells ?? [];
+  const branch = useWindow((s) => shownTask(s, state.getState().task)?.branch);
   useEffect(() => {
     close = () => setOpen(false);
     registerDialog('handover', {
-      async open(t) {
+      async open(t, task = store.getState().current ?? undefined) {
         // Another agent first (the reason to hand over is most often this one's limit), else another account, else the same.
         const list = agentsOf(), cli = t.agent!.cli;
         const pick = (list.find((a) => a.cli !== cli) || list.find((a) => a.id !== t.agent!.account) || list[0])?.id;
-        state.setState({ from: t, chosen: pick, going: false, handed: null, read: null, error: '' });
+        state.setState({ task, summary: store.getState().summary ?? undefined, from: t, chosen: pick, going: false, handed: null, read: null, error: '' });
         setOpen(true);
       },
     });
   }, []);
-  const to = agents.find((a) => a.id === chosen), tabs = profiles.reduce((n, p) => n + p.tabs.length, 0);
+  const to = agents.find((a) => a.id === chosen), tabs = profiles.reduce((n, p) => n + p.tabs, 0);
   const progress = !going || !to ? '' : read ? `${parts(to.name).agent} is reading “${from?.name}”: part ${read.part} of ${read.parts}` : `${parts(to.name).agent} is starting…`;
   const onClose = () => { if (state.getState().going) show(); else setOpen(false); };
   return <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -107,7 +110,7 @@ export function HandOver() {
             {profiles.length > 0 && <div role="listitem"><Badge variant="outline"><AvatarGroup>{profiles.map((p) => <Avatar key={p.id} className="size-3"><AvatarImage src={avatarSrc(p.avatar)} alt={p.name} /></Avatar>)}</AvatarGroup>
               {`${plural(profiles.length, 'profile')}, signed in`}</Badge></div>}
             {tabs > 0 && <div role="listitem"><Badge variant="outline"><GlobeIcon />{plural(tabs, 'tab')}</Badge></div>}
-            {shells.length > 0 && <div role="listitem"><Badge variant="outline"><SquareTerminalIcon />{`${shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal')}, running`}</Badge></div>}
+            {shells.length > 0 && <div role="listitem"><Badge variant="outline"><SquareTerminalIcon />{`${shells.length === 1 ? shells[0]! : plural(shells.length, 'terminal')}, running`}</Badge></div>}
             <div role="listitem"><Badge variant="outline"><BookOpenIcon />the whole conversation</Badge></div>
           </div>
           <div className="flex min-w-0 flex-col items-center gap-0.5 text-center">

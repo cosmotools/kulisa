@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Task screens retain their grids and local UI while another task is shown.
 import { test, expect } from './fixtures.ts';
 import fs from 'node:fs';
@@ -11,36 +12,41 @@ test('returning to a task keeps its grid instance and expanded Project folders',
   const first = await keyAt(core, 1), second = await keyAt(core, 2);
   fs.mkdirSync(path.join(files.project, 'retained-folder'));
   fs.writeFileSync(path.join(files.project, 'retained-folder', 'kept.txt'), 'retained');
-  await ui.getByRole('treeitem', { name: 'retained-folder', exact: true }).click();
-  await expect(ui.getByRole('treeitem', { name: 'kept.txt', exact: true })).toBeVisible();
-  const original = await ui.evaluate(() => {
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'retained-folder', exact: true }).click();
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: 'kept.txt', exact: true })).toBeVisible();
+  const original = await (await taskPage(ui)).evaluate(() => {
     const w = window as any;
     w.__firstGrid = w.__dock;
     w.__firstStage = w.__stage;
     return !!w.__firstGrid && !!w.__firstStage;
   });
   expect(original).toBe(true);
+  const retained = await taskPage(ui, first);
   await invoke(ui, 'task:show', second);
   await notLoading(ui);
-  expect(await ui.evaluate(() => (window as any).__dock !== (window as any).__firstGrid), 'tasks own independent live grids').toBe(true);
+  expect(await taskPage(ui)).not.toBe(retained);
   const size = await core((k) => k.shell.win.getSize());
-  const width = await ui.evaluate(() => (window as any).__firstGrid.width as number);
+  const nativeWidth = await core((k, key) => k.shell.taskByKey(key).view.group.getBounds().width, first);
+  const width = await retained.evaluate(() => (window as any).__firstGrid.width as number);
   try {
     await core((k, size) => k.shell.win.setSize(size[0] - 100, size[1]), size);
-    await expect.poll(() => ui.evaluate(() => (window as any).__firstGrid.width), {
-      message: 'the outer task host observes resizing even while its contents are skipped',
-    }).toBe(width - 100);
+    await expect.poll(() => core((k, key) => k.shell.taskByKey(key).view.group.getBounds().width, first), {
+      message: 'hidden native task groups receive the new workspace bounds',
+    }).toBe(nativeWidth - 100);
+    await invoke(ui, 'task:show', first);
+    await notLoading(ui);
+    await expect.poll(() => retained.evaluate(() => (window as any).__firstGrid.width)).toBe(width - 100);
   } finally {
     await core((k, size) => k.shell.win.setSize(size[0], size[1]), size);
-    await expect.poll(() => ui.evaluate(() => (window as any).__firstGrid.width)).toBe(width);
+    await invoke(ui, 'task:show', first);
+    await notLoading(ui);
+    await expect.poll(() => retained.evaluate(() => (window as any).__firstGrid.width)).toBe(width);
   }
-  await invoke(ui, 'task:show', first);
-  await notLoading(ui);
-  expect(await ui.evaluate(() => {
+  expect(await (await taskPage(ui)).evaluate(() => {
     const w = window as any;
     return w.__dock === w.__firstGrid && w.__stage === w.__firstStage;
   }), 'returning reveals the retained development and Stage grids').toBe(true);
-  await expect(ui.getByRole('treeitem', { name: 'kept.txt', exact: true }), 'expanded Project folders survive switching').toBeVisible();
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: 'kept.txt', exact: true }), 'expanded Project folders survive switching').toBeVisible();
 });
 
 for (const boundary of ['switch', 'close', 'arrange'] as const) test(`a first layout delayed across ${boundary} belongs to its own task`, async ({ core, ui, call }) => {
@@ -72,12 +78,12 @@ for (const boundary of ['switch', 'close', 'arrange'] as const) test(`a first la
     await notLoading(ui);
     await frames(ui);
     if (boundary === 'arrange') {
-      const stage = await ui.locator('[data-task-view][data-active]').getByTestId('stage').boundingBox(), development = await ui.locator('[data-task-view][data-active] [data-development-grid]').boundingBox();
+      const stage = await (await taskPage(ui)).locator('[data-task-view][data-active]').getByTestId('stage').boundingBox(), development = await (await taskPage(ui)).locator('[data-task-view][data-active] [data-development-grid]').boundingBox();
       expect(stage.x).toBeGreaterThanOrEqual(development.x + development.width - 1);
     } else {
-      await expect(ui.locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
+      await expect((await taskPage(ui)).locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
       expect(await core((k) => k.shell.task.key)).toBe(second);
-      if (boundary === 'close') await expect(ui.locator(`[data-task-view="${first}"]`)).toHaveCount(0);
+      if (boundary === 'close') await expect((await taskPage(ui)).locator(`[data-task-view="${first}"]`)).toHaveCount(0);
       if (boundary === 'switch') {
         await invoke(ui, 'task:show', first); await notLoading(ui); await frames(ui);
         await expect.poll(() => core((k) => !!k.shell.task.pty)).toBe(true);
@@ -111,7 +117,7 @@ test('an outgoing menu capture cannot hide a task after switching away and back'
       k.stash.taskViewCapture.requested = true; await gate; k.stash.taskViewCapture.completed = true; return {};
     };
   });
-  await ui.locator('#windowMenu').click();
+  await (await taskPage(ui)).locator('[data-profile]').first().getByRole('button', { name: 'More', exact: true }).click();
   try {
     await expect.poll(() => core((k) => k.stash.taskViewCapture.requested)).toBe(true);
     await invoke(ui, 'task:show', second);
@@ -135,14 +141,14 @@ test('a Stage terminal keeps its renderer, output and search state across task s
   await notLoading(ui);
   const first = await core((k) => k.shell.task.key);
   await call('terminal_run', { name: 'Retained.shell', command: 'node -e "console.log(\'retained-stage\'); setInterval(()=>{},1000)"' });
-  const pane = ui.locator('[data-stage-terminal]');
+  const pane = (await taskPage(ui)).locator('[data-stage-terminal]');
   await pane.locator('.xterm-helper-textarea').focus();
   await pane.locator('.xterm-helper-textarea').press('Control+Shift+F');
   await pane.getByRole('textbox', { name: 'Find in terminal', exact: true }).fill('retained-stage');
   const renderer = await pane.locator('.xterm').elementHandle();
   const key = await core((k) => k.shell.task.stageTerminals.info()[0].key);
   const second = await newTask(core, ui);
-  await expect(ui.locator(`[data-task-view="${first}"] .xterm`)).toHaveCount(1);
+  await expect((await taskPage(ui, first)).locator(`[data-task-view="${first}"] .xterm`)).toHaveCount(1);
   expect(await renderer.evaluate((el) => el.isConnected), 'hiding a task keeps its terminal renderer attached').toBe(true);
   await invoke(ui, 'task:show', first);
   await notLoading(ui);
@@ -166,16 +172,16 @@ test('hidden task screens keep their own Resources section and release terminal 
   await invoke(ui, 'task:show', first);
   await notLoading(ui);
   await showResources(ui, 'Agents');
-  const original = await ui.getByRole('region', { name: 'Agents', exact: true }).elementHandle();
+  const original = await (await taskPage(ui)).getByRole('region', { name: 'Agents', exact: true }).elementHandle();
   await invoke(ui, 'task:show', second);
   await notLoading(ui);
-  await expect(ui.getByRole('region', { name: 'Project', exact: true })).toBeVisible();
-  await expect(ui.locator('[data-testid="terminal"] .xterm'), 'one development renderer per window').toHaveCount(1);
+  await expect((await taskPage(ui)).getByRole('region', { name: 'Project', exact: true })).toBeVisible();
+  await expect((await taskPage(ui)).locator('[data-testid="terminal"] .xterm'), 'one development renderer in each task page').toHaveCount(1);
   await invoke(ui, 'task:show', first);
   await notLoading(ui);
-  await expect(ui.getByRole('region', { name: 'Agents', exact: true })).toBeVisible();
+  await expect((await taskPage(ui)).getByRole('region', { name: 'Agents', exact: true })).toBeVisible();
   expect(await original.evaluate((el) => el.isConnected), 'the Resources content is retained').toBe(true);
   await invoke(ui, 'task:close', second);
-  await expect(ui.locator('[data-task-view]')).toHaveCount(1);
+  await expect((await taskPage(ui)).locator('[data-task-view]')).toHaveCount(1);
   await original?.dispose();
 });

@@ -52,6 +52,6 @@ export default defineConfig({
     cssTarget: 'chrome150',
     chunkSizeWarningLimit: 2000, // xterm, dockview, React and Radix in one bundle, read from disk: no network to split it for
     sourcemap: true, // Kulisa's own DevTools, running from source; packaged builds leave them out (forge.config.ts)
-    rolldownOptions: { input: { index: resolve(renderer, 'index.html'), master: resolve(renderer, 'master.html'), thumbnail: resolve(renderer, 'thumbnail.html') } },
+    rolldownOptions: { input: { index: resolve(renderer, 'index.html'), task: resolve(renderer, 'task.html'), master: resolve(renderer, 'master.html'), thumbnail: resolve(renderer, 'thumbnail.html') } },
   },
 });

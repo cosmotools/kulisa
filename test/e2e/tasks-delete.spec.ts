@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Tasks deleted through Delete Task… and the sidebar (docs/tasks.md).
 import fs from 'fs';
 import path from 'path';
@@ -41,7 +42,7 @@ test('tasks: Delete Task… asks first, saying what goes and any work not in mai
   const empty = await newTask(core, ui);
   await call('task_worktree', {}, { task: empty });
   const profile = await core(async (k, url) => (await k.ensureProfile('Sam.admin', url)).id, `${SITE}/app`);
-  const shot = await ui.evaluate(async (id) => (window as any).act('tab:screenshot', { profile: id, kind: 'visible' }), profile);
+  const shot = await (await taskPage(ui)).evaluate(async (id) => (window as any).act('tab:screenshot', { profile: id, kind: 'visible' }), profile);
   expect(shot.error).toBeUndefined();
   expect(fs.existsSync(shot.file)).toBe(true);
   const transcript = path.join(files.root, 'task-3-transcript.jsonl');

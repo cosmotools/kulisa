@@ -72,8 +72,8 @@ test('the window and the agent act on one core: an address read the same way, th
   // An action of the window names its task: one sent for a task no longer shown (the human just switched)
   // is refused, not done in the one shown now.
   const tabs = () => core((k) => k.profile('Sam.seller').tabs.length), before = await tabs();
-  expect((await invoke(ui, 'tab:new', { task: `${files.pid('project')}/2`, profile: sam })).error).toMatch(/not on screen/);
-  expect((await invoke(ui, 'tab:new', { profile: sam })).error).toMatch(/not on screen/);
+  expect((await invoke(ui, 'tab:new', { task: `${files.pid('project')}/2`, profile: sam })).error).toMatch(/not on screen|no longer owns/);
+  expect((await invoke(ui, 'tab:new', { profile: sam })).error).toMatch(/not on screen|no longer owns/);
   expect(await tabs()).toBe(before);
 });
 

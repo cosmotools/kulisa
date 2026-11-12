@@ -8,8 +8,7 @@ const at = createStore<SettingsAt | null>()(() => null);
 kulisa.on('settings:show', (a) => at.setState({ ...a }, true));
 export const useSettings = () => useStore(at);
 
-// At a project's page (none: the shown task's), a profile's (section 'profiles'), the log or About.
-export const openSettings = (section: SettingsAt['section'] = 'projects', id?: string | null) => kulisa.send('settings:open', { section, id: id ?? null });
+export { openSettings } from './open-settings';
 
 // Closed (its ×, Esc, the gear): Settings saves what is typed first, and may stay (an agent installing).
 let leave: (() => Promise<void>) | null = null;

@@ -1,3 +1,4 @@
+import { taskPage, menuPage, inputPage } from './pages.ts';
 // A project of several repositories (docs/tasks.md, Several repositories): a task's worktree made on demand, another
 // repository added to a task and removed from it, by the human and by the agent, and the project's folders.
 import fs from 'fs';
@@ -30,7 +31,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   await showResources(ui, 'Project');
   const pid = files.pid('api'), first = await core((k) => k.shell.task.key), firstId = first.split('/')[1];
   const of = (key: string) => core((k, t) => { const x = k.shell.taskByKey(t); return { folder: x.folder, worktrees: x.worktrees.map((c) => ({ repo: c.repo, folder: c.folder, branch: c.branch })), addable: x.addable(), dirs: x.dirs() }; }, key);
-  const tree = ui.locator('[data-task-view][data-active] [data-resources]');
+  const tree = (await taskPage(ui)).locator('[data-task-view][data-active] [data-resources]');
   const resources = tree.locator('[role="treeitem"][aria-level="1"]');
   const rows = async (want: [string, string, boolean][]) => {
     await expect(resources).toHaveCount(want.length);
@@ -39,9 +40,9 @@ test('projects: several repositories: a task works in the main tree until it mak
       const row = tree.getByRole('treeitem', { name: label, exact: true });
       await expect(row).toBeVisible();
       await rightClick(ui, row);
-      await expect(ui.getByRole('menuitem', { name: 'Open Folder', exact: true })).toBeVisible();
-      await expect(ui.getByRole('menuitem', { name: 'Remove Repository', exact: true })).toHaveCount(removable ? 1 : 0);
-      await ui.keyboard.press('Escape');
+      await expect((await menuPage(ui)).getByRole('menuitem', { name: 'Open Folder', exact: true })).toBeVisible();
+      await expect((await menuPage(ui)).getByRole('menuitem', { name: 'Remove Repository', exact: true })).toHaveCount(removable ? 1 : 0);
+      await (await inputPage(ui)).keyboard.press('Escape');
     }
   };
   const copyOf = async (name: string) => (await of(first)).worktrees.find((c) => path.basename(c.repo) === name).folder;
@@ -75,7 +76,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   // waits for the human (Enter would answer the question), once it no longer does.
   await setState(core, first, 'waiting');
   await rightClick(ui, `#taskTabs [data-task="${first}"]`);
-  await expect(menu(ui)).toMatchAriaSnapshot(`
+  await expect((await menu(ui))).toMatchAriaSnapshot(`
     - /children: contain
     - text: Add Repository
     - menuitem "web"
@@ -177,7 +178,7 @@ test('projects: several repositories: a task works in the main tree until it mak
   fs.writeFileSync(path.join(webCopy2, 'b.txt'), 'work');
   const removeWeb = async (yes: boolean) => {
     await rightClick(ui, `#taskTabs [data-task="${first}"]`);
-    await expect(menu(ui)).toMatchAriaSnapshot(`
+    await expect((await menu(ui))).toMatchAriaSnapshot(`
       - /children: contain
       - text: Remove Repository
       - menuitem "web"

@@ -56,7 +56,7 @@ function Configuration({ terminal, task, close }: { terminal: StageTerminal; tas
 export function StageTerminalSettings() {
   const [editing, setEditing] = useState<{ terminal: StageTerminal; task: string | null } | null>(null);
   useEffect(() => registerDialog('stageTerminalSettings', {
-    open(terminal) { setEditing({ terminal, task: store.getState().current }); },
+    open(terminal, task = store.getState().current ?? undefined) { setEditing({ terminal, task: task ?? null }); },
   }), []);
   return <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
     <DialogContent aria-describedby={undefined}>

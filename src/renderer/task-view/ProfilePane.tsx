@@ -13,7 +13,7 @@ import { screenshot, togglePick, useTask, useTaskStore, useTaskActions, useTaskA
 import { avatarSrc, keyText, withKeys } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
 import { grow, useStrip } from '../lib/strip';
-import { openSettings } from '../lib/settings';
+import { openSettings } from '../lib/open-settings';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
 import './ProfilePane.css';
 

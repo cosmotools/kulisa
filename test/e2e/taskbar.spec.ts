@@ -1,3 +1,4 @@
+import { taskPage, inputPage, menuPage } from './pages.ts';
 // The tasks' bar: a tab per open task, switching between them (by a click, a press, the keys), more tabs than it holds, the agent's state on a tab, its + (docs/tasks.md, docs/window.md).
 import path from 'path';
 import type { Page } from '@playwright/test';
@@ -22,10 +23,11 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   // A tab's right-click menu: the shown one's has its profiles; then renaming, its folder, moving to another window,
   // closing, deleting, and its project's submenu. Show Folder opens the task's worktree in the file manager.
   await rightClick(ui, taskTab(ui, first));
-  await expect(menu(ui)).toMatchAriaSnapshot(`
+  await expect((await menu(ui))).toMatchAriaSnapshot(`
     - menu:
       - menuitem "Rename…"
       - menuitem "Show Folder"
+      - menuitem "Reload task screen"
       - menuitem "Move to New Window"
       - menuitem "Close"
       - menuitem "Delete Task…"
@@ -40,7 +42,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   try {
     await rightClick(ui, taskTab(ui, second));
     // Its open and closed profiles.
-    await expect(menu(ui)).toMatchAriaSnapshot(`
+    await expect((await menu(ui))).toMatchAriaSnapshot(`
       - menu:
         - text: Profiles
         - menuitem "Sam.admin"
@@ -49,6 +51,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
         - menuitem "Manage Profiles…"
         - menuitem "Rename…"
         - menuitem "Show Folder"
+        - menuitem "Reload task screen"
         - menuitem "Move to New Window"
         - menuitem "Close"
         - menuitem "Delete Task…"
@@ -118,7 +121,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await state('done', 'the session ending after a done turn: it stays');
   await core((k, a) => k.shell.taskByKey(a.second).caption(a.SAM, 'from the second task'), { second, SAM });
   await ipcSettled(ui);
-  await expect(ui.locator(`[data-task-view][data-active] [data-panel="profile:${SAM}"] [role="status"]`), 'not on the first task\'s pane').toHaveText('Idle');
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [data-panel="profile:${SAM}"] [role="status"]`), 'not on the first task\'s pane').toHaveText('Idle');
   // Done says "come and see" until the human sees that task.
   await post('stop');
   await state('done');
@@ -131,12 +134,13 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await bothOn(core, ui, files);
 });
 
-test('tasks: switching shows the other grid at once, its pages live once it is laid out; a menu opened as the grid goes keeps them pictures under it', async ({ core, ui, files, call }) => {
+test('tasks: switching shows the other grid at once, its pages live once it is laid out; a global menu opened during the switch covers live pages', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin'), ELON = files.idOf('Elon.buyer');
-  const live = async () => (await ui.locator('[data-testid="snapshot"]').count()) === 0 && viewOn(core, ui, files, 'Sam.admin');
-  // No frame without a grid between the two: the one on screen stays until the next one is built.
-  await ui.evaluate(() => {
+  const live = async () => (await (await taskPage(ui)).locator('[data-testid="snapshot"]').count()) === 0 && viewOn(core, ui, files, 'Sam.admin');
+  // Each native UI keeps its own DOM. Observe both at their frames, and the native selection at each main turn.
+  const screens = await Promise.all([taskPage(ui, first), taskPage(ui, second)]);
+  for (const screen of screens) await screen.evaluate(() => {
     const w = window as any;
     w.__empty = 0; w.__watching = true;
     const frame = () => {
@@ -146,9 +150,23 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
     };
     requestAnimationFrame(frame);
   });
-  await invoke(ui, 'task:show', second);
-  await expect.poll(live).toBe(true);
-  expect(await ui.evaluate(() => { const w = window as any; w.__watching = false; return w.__empty; }), 'frames with no grid').toBe(0);
+  await core((k) => {
+    const w = k.shell.windows[0], update = w.taskAvailability;
+    k.stash.nativeSwitch = [];
+    k.stash.restoreAvailability = () => { w.taskAvailability = update; };
+    w.taskAvailability = () => {
+      update.call(w);
+      k.stash.nativeSwitch.push(w.task.view.group.getVisible() && w.win.contentView.children.at(-1) === w.task.view.group);
+    };
+  });
+  try {
+    await invoke(ui, 'task:show', second);
+    await expect.poll(live).toBe(true);
+    for (const screen of screens) expect(await screen.evaluate(() => {
+      const w = window as any; w.__watching = false; return w.__empty;
+    }), 'frames with no task grid').toBe(0);
+    expect(await core((k) => k.stash.nativeSwitch), 'native groups switch without an empty selection').toEqual([true]);
+  } finally { await core((k) => k.stash.restoreAvailability()); }
   await bothOn(core, ui, files);
   // Chromium may deliver even a live page's frame after the fallback deadline. Use a real image, but move the
   // capture completions and deadline clock ourselves so rendering speed cannot decide which branch is covered.
@@ -195,8 +213,7 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
     { firstAt: 200, before: false, after: true, sam: false, elon: true, keys: [ELON] },
     { firstAt: null, before: false, after: true, sam: false, elon: false, keys: [] },
   ]);
-  // A menu opened as the grid left is taken down, before the next one is laid out, keeps the pages under it pictures,
-  // not shown over it once the grid is. Pressed (a menu opens on the press) as the window hears of it: a click from the
+  // A shell menu opened during the switch stays above the newly laid-out task. Pressed (a menu opens on the press) as the window hears of it: a click from the
   // test would come once the grid is laid out.
   await ui.evaluate((target) => {
     let once = true;
@@ -207,13 +224,13 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
     });
   }, first);
   await invoke(ui, 'task:show', first);
-  await expect(menu(ui)).toBeVisible();
+  await expect((await menu(ui))).toBeVisible();
   await notLoading(ui);
-  // The laid-out task grid asks the main process to show its pages unless a menu covers them:
+  // The laid-out task grid reveals its pages below the raised shell:
   // done once the window has drawn its frames and its channel gone there and back.
   await frames(ui);
   await ipcSettled(ui);
-  expect(await core((k) => [...k.shell.profiles.values()].every((p) => !p.view.getVisible())), 'the pages stay under the menu').toBe(true);
+  expect(await core((k) => { const w = k.shell.windows[0]; return w.shellCovered && w.win.contentView.children.at(-1) === w.shellView && [...w.profiles.values()].every((p) => p.view.getVisible()); }), 'the shell covers live pages').toBe(true);
   await closeMenu(ui);
   await expect.poll(live).toBe(true);
 });
@@ -226,15 +243,15 @@ test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one bef
   };
   await focusWindow(core, ui);
   // The terminal shown (dockview's overlay, laid out) before it takes the keyboard.
-  await expect(termKeys(ui)).toHaveCSS('visibility', 'visible');
-  await termKeys(ui).focus();
-  await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
+  await expect((await termKeys(ui))).toHaveCSS('visibility', 'visible');
+  await (await termKeys(ui)).focus();
+  await expect.poll(() => core((k) => (k.shell.windows[0].shellCovered ? k.shell.windows[0].keyZone : k.shell.task.view.keyZone))).toBe('terminal');
   // ⌘⌥2 on macOS: ⌘⇧3…5 are its screenshots.
-  await core((k, mac) => k.press(k.shell.win.webContents, '2', ...(mac ? ['meta', 'alt'] as const : ['control', 'shift'] as const)), MAC);
+  await core((k, mac) => k.press(k.shell.windows[0].focusUi, '2', ...(mac ? ['meta', 'alt'] as const : ['control', 'shift'] as const)), MAC);
   await shown(2);
-  await core((k) => k.press(k.shell.win.webContents, 'PageUp', k.CMD, 'shift'));
+  await core((k) => k.press(k.shell.windows[0].focusUi, 'PageUp', k.CMD, 'shift'));
   await shown(1);
-  await core((k) => k.press(k.shell.win.webContents, 'PageDown', k.CMD, 'shift'));
+  await core((k) => k.press(k.shell.windows[0].focusUi, 'PageDown', k.CMD, 'shift'));
   await shown(2);
   await taskTab(ui, await keyAt(core, 1)).click();
   await shown(1);
@@ -340,7 +357,7 @@ test("tasks: a double click on a task's tab is its Rename…, the shown one's an
     await expect(renaming.getByRole('textbox', { name: 'Name' })).toHaveValue(name);
     await notLoading(ui);
     await expect(renaming, 'still open once the grid is shown').toBeVisible();
-    await ui.keyboard.press('Escape');
+    await (await inputPage(ui)).keyboard.press('Escape');
     await expect(renaming).toHaveCount(0);
   }
 });
@@ -365,15 +382,15 @@ test('menus: one longer than the window has stays in it and scrolls', async ({ c
     await expect.poll(() => ui.evaluate(() => innerHeight)).toBeLessThanOrEqual(400); // Playwright knows no viewport here (noDefaults)
     const languages = await windowSubmenu(ui, 'Language');
     await expect(languages).toBeInViewport({ ratio: 1 });
-    await ui.keyboard.press('Home');
+    await (await inputPage(ui)).keyboard.press('Home');
     const choices = languages.getByRole('menuitemradio');
     await expect(choices.first()).toBeInViewport({ ratio: 1 });
     await expect(choices.last()).not.toBeInViewport();
-    await ui.keyboard.press('End');
+    await (await inputPage(ui)).keyboard.press('End');
     await expect(choices.last()).toBeInViewport({ ratio: 1 });
-    await ui.keyboard.press('Home');
+    await (await inputPage(ui)).keyboard.press('Home');
     await expect(choices.first()).toBeInViewport({ ratio: 1 });
-    await ui.keyboard.press('Escape');
+    await (await inputPage(ui)).keyboard.press('Escape');
     await closeMenu(ui);
   } finally { await resize(core, before); }
 });
@@ -387,7 +404,7 @@ test("tasks: with one project the bar's + makes a new task of it in one click", 
   await ui.locator('#newTask').click();
   await expect(ui.getByRole('tooltip'), 'gone as it is pressed').toBeHidden();
   await expect.poll(() => core((k, a) => k.shell.current.tasks.size === a.before + 1 && k.shell.task?.key !== a.first && k.settled(), { before, first }), { timeout: 20000 }).toBe(true);
-  await expect(ui.getByRole('menu'), 'no menu: made at once').toHaveCount(0);
+  await expect((await menuPage(ui)).getByRole('menu'), 'no menu: made at once').toHaveCount(0);
   await expect(ui.locator('#taskTabs [role="tab"]')).toHaveCount(before + 1);
   await taskTab(ui, first).click();
   await nthShown(core, 1);
@@ -404,18 +421,18 @@ test("tasks: with several projects the bar's + asks which (one not loaded too), 
   // The bar's + asks which project: each with its icon, the shown task's first (worked in last). Plus2, not loaded yet,
   // gets its first task.
   await ui.locator('#newTask').click();
-  await expect(menu(ui)).toMatchAriaSnapshot(`
+  await expect((await menu(ui))).toMatchAriaSnapshot(`
     - menu:
       - menuitem "project"
       - menuitem "Plus2"
   `);
-  await expect(item(ui, 'project'), 'no key on its row').not.toContainText(MAC ? '⇧⌘N' : 'Ctrl+Shift+N');
-  await expect(item(ui, 'Plus2').getByTestId('project-icon')).toBeVisible();
+  await expect((await item(ui, 'project')), 'no key on its row').not.toContainText(MAC ? '⇧⌘N' : 'Ctrl+Shift+N');
+  await expect((await item(ui, 'Plus2')).getByTestId('project-icon')).toBeVisible();
   // Its logo's curtain keeps its color on the hovered row, which colors all in it.
-  const curtain = item(ui, 'Plus2').getByTestId('project-icon').locator('path').first();
+  const curtain = (await item(ui, 'Plus2')).getByTestId('project-icon').locator('path').first();
   const fill = await curtain.evaluate((p) => getComputedStyle(p).fill);
-  await item(ui, 'Plus2').hover();
-  await expect(item(ui, 'Plus2')).toBeFocused();
+  await (await item(ui, 'Plus2')).hover();
+  await expect((await item(ui, 'Plus2'))).toBeFocused();
   await expect(curtain).toHaveCSS('fill', fill);
   await choose(ui, 'Plus2');
   const on = () => core((k, id) => k.shell.current?.id === id && k.settled(), made.id);

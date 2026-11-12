@@ -6,7 +6,7 @@ import { CHECKOUT, menu, choose, closeSettings, invoke, seen } from './helpers.t
 
 test("☰ → Report a Problem… opens Settings at the Log page: the log so far and live, each line with its time and tag, Follow; what to show and a text filter; Copy All, Save As… (a file), Open Folder; Report… → On GitHub… opens a new issue with the environment filled in", async ({ core, ui, sui, files }) => {
   await ui.locator('#windowMenu').click();
-  await expect(menu(ui)).toBeVisible();
+  await expect((await menu(ui))).toBeVisible();
   await choose(ui, 'Report a Problem…');
   const s = await sui();
   const log = s.getByRole('log', { name: 'Log' }), line = log.locator('[data-tag]'), lines = () => line.allTextContents();
@@ -163,7 +163,7 @@ test('a delayed update from an older log snapshot is ignored while the current s
     });
   }, stream);
   await filter.fill('stale-before-snapshot');
-  await seen(s, 'stale-log-update', () => core((k, old) => k.shell.win.webContents.send('log:lines', {
+  await seen(s, 'stale-log-update', () => core((k, old) => k.shell.windows[0].focusUi.send('log:lines', {
     stream: old, text: '[2026-01-01T12:00:00.000+00:00] [info] [task] stale-before-snapshot\n',
   }), stream));
   await expect(log.getByText('Nothing matches.', { exact: true })).toBeVisible();

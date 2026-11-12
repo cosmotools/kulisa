@@ -39,17 +39,17 @@ export function registerTasks(ipc: Ipc) {
   }));
   // to: the id of the window it goes to (window.ts), none for a new one.
   const windowById = (to?: number | null) => (to ? shell.windows.find((w) => w.id === to) : null);
-  handle('task:move', (_e, { key, to, terminalContents }) => serial(() => {
+  handle('task:move', (_e, { key, to }) => serial(() => {
     const target = windowById(to);
-    return to && !target ? { error: 'that window is closed' } : moveTask(shell.taskByKey(key), terminalContents, target);
+    return to && !target ? { error: 'that window is closed' } : moveTask(shell.taskByKey(key), target);
   }));
-  handle('project:task:move-all', (e, { id, to, terminalContents }) => serial(() => {
+  handle('project:task:move-all', (e, { id, to }) => serial(() => {
     const target = windowById(to);
-    return to && !target ? { error: 'that window is closed' } : moveAll(shell.open.get(id), at(e), terminalContents, target ?? null);
+    return to && !target ? { error: 'that window is closed' } : moveAll(shell.open.get(id), at(e), target ?? null);
   }));
   // A task's tab dragged (components/TaskBar.tsx): let go on this window's tabs, or where no window took it.
-  handle('task:drop', (e, { key, index, terminalContents }) => serial(() => dropTask(shell.taskByKey(key), at(e), index, terminalContents)));
-  handle('task:drag-out', (_e, { key, terminalContents }) => serial(() => dragOut(shell.taskByKey(key), terminalContents)));
+  handle('task:drop', (e, { key, index }) => serial(() => dropTask(shell.taskByKey(key), at(e), index)));
+  handle('task:drag-out', (_e, { key }) => serial(() => dragOut(shell.taskByKey(key))));
   handle('app:quit', (e) => serial(() => quit(at(e))));
   handle('project:delete', (e, { id }) => serial(() => deleteProject(id, at(e))));
   // A task of any project (the bar shows every open task).
@@ -141,14 +141,14 @@ export function registerTasks(ipc: Ipc) {
   handle('task:artifact:pdf:find', (e, { request, query, forward }) => at(e)?.artifactViewer.find(request, query, forward) ?? { matches: 0, active: 0 });
   handle('task:artifact:send', (_e, { key, file }) => taskAt(key, (task) => task.sendArtifact(file)));
   handle('task:artifact:drag', async (e, { key, file }) => {
-    const w = at(e), task = w?.task;
+    const w = at(e), task = w?.task, frame = e.senderFrame;
     if (!task || task.key !== key) return { error: 'that task is not on screen' };
     const r = await task.findArtifact(file);
     if (refused(r)) return r;
     const artifact = r.artifact;
     const thumb = (await task.artifacts()).find((a) => a.file === artifact.file)?.thumb;
     const icon = thumb ? nativeImage.createFromDataURL(thumb) : await app.getFileIcon(artifact.file, { size: 'small' });
-    if (w?.task !== task || e.sender.isDestroyed()) return { error: 'that task is not on screen' };
+    if (w?.task !== task || task.window !== w || e.sender.isDestroyed() || e.sender.mainFrame !== frame) return { error: 'that task is not on screen' };
     e.sender.startDrag({ file: artifact.file, icon });
     return {};
   });

@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Several projects and windows: a tab per task in the bar, Move to New Window, tabs dragged (docs/window.md, The tasks'
 // bar; docs/tasks.md, Windows).
 import fs from 'fs';
@@ -16,7 +17,7 @@ async function makeOther(core: Core, ui: Page, files: Files) {
   if (hasOther(files)) return;
   await openFolder(core, ui, otherFolder(files));
   await core((k) => k.shell.task.createProfile('Sam.seller'));
-  await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(1);
+  await expect((await taskPage(ui)).locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(1);
   await closeProject(ui, files, 'other');
   await expect.poll(() => core((k, a) => !k.shell.open.has(a.other) && k.shell.current?.id === a.project && k.settled(),
     { other: files.pid('other'), project: files.pid('project') })).toBe(true);
@@ -59,8 +60,8 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
       agent: [...k.shell.open.get(project).tasks.values()][0].pty === g.firstPty, title: k.shell.win.getTitle(), resumed: k.shell.resumedSession };
   }, ids.project)).toEqual({ profiles: 0, kept: true, agent: true, title: 'New Task · other — Kulisa', resumed: null }); // the first project's pages keep running, hidden, and its agent; a new project has no conversation to resume
   await expect.poll(() => tabProjects(ui, files)).toEqual(['project', 'other *']);
-  await expect(ui.locator('[data-task-view][data-active]').getByTestId('terminal')).toHaveCount(1);
-  await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(0);
+  await expect((await taskPage(ui)).locator('[data-task-view][data-active]').getByTestId('terminal')).toHaveCount(1);
+  await expect((await taskPage(ui)).locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(0);
   // A tab per task, its project's icon on it, its name in its tooltip.
   const tabs = ui.locator('#taskTabs [role="tab"]');
   await expect(tabs).toHaveText(['task-1', 'New Task']);
@@ -97,9 +98,9 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   expect(await sidebarTasks(ui, 'project')).toEqual(['task-1']);
   await closeSidebar(ui);
   // Ctrl+Shift+A opens it from anywhere; again closes it.
-  await core((k) => k.press(k.shell.win.webContents, 'A', k.CMD, 'shift'));
+  await core((k) => k.press(k.shell.windows[0].focusUi, 'A', k.CMD, 'shift'));
   await expect(sidebar(ui)).toBeVisible();
-  await core((k) => k.press(k.shell.win.webContents, 'A', k.CMD, 'shift'));
+  await core((k) => k.press(k.shell.windows[0].focusUi, 'A', k.CMD, 'shift'));
   await expect(sidebar(ui)).toHaveCount(0);
   await ui.evaluate(() => (window as any).__tabPlaces.clear()); // a new tab is a tab more in the bar, as a task's: watched from here on
   await showProject(ui, files, 'other');
@@ -107,7 +108,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
   // The tab's right-click: the task's rows, then its project's in a submenu of its name (the project has no tab of
   // its own).
   await rightClick(ui, projectTabSel(files, 'other'));
-  await expect(menu(ui)).toMatchAriaSnapshot(`
+  await expect((await menu(ui))).toMatchAriaSnapshot(`
     - text: Profiles
     - menuitem "Sam.seller"
     - separator
@@ -115,6 +116,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
     - separator
     - menuitem "Rename…"
     - menuitem "Show Folder"
+    - menuitem "Reload task screen"
     - separator
     - menuitem "Move to New Window"
     - separator
@@ -124,8 +126,8 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
     - menuitem "other"
   `);
   await choose(ui, 'other');
-  await expect(anyMenu(ui)).toHaveCount(2);
-  await expect(submenu(ui)).toMatchAriaSnapshot(`
+  await expect((await anyMenu(ui))).toHaveCount(2);
+  await expect((await submenu(ui))).toMatchAriaSnapshot(`
     - menuitem "New Task"
     - separator
     - menuitem "Move All Tasks to New Window"
@@ -142,7 +144,7 @@ test('projects: another folder opens in a tab of its own, with its own profiles 
     e.shell.openPath = async (dir: string) => { g.shown.push(dir); return ''; };
   });
   try {
-    await choose(ui, 'Show Data Folder', submenu(ui));
+    await choose(ui, 'Show Data Folder', (await submenu(ui)));
     await expect.poll(() => core((k) => k.stash.grid.shown.length)).toBe(1);
   } finally { await core((k) => { k.electron.shell.openPath = k.stash.grid.openPath; }); }
   expect(await core((k) => k.stash.grid.shown)).toEqual([path.join(files.userData, 'projects', files.pid('other'))]);
@@ -250,14 +252,14 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   }, ids.seller)).toEqual({ window: true, title: 'New Task · other — Kulisa', agent: true, profile: true, page: true }); // the same agent, the same profile, its page moved
   await expect.poll(async () => {
     const b = await box(ui2, `[role="region"][data-profile="${ids.seller}"] [data-testid="page"]`);
-    return !!b && core((k, w) => { const g = k.stash.grid, view = g.seller.view; return view.getVisible() && Math.abs(view.getBounds().width - Math.round(w * g.second.win.webContents.getZoomFactor())) <= 1; }, b.width);
+    return !!b && core((k, w) => { const g = k.stash.grid, view = g.seller.view; return view.getVisible() && Math.abs(view.getBounds().width - Math.round(w * g.second.taskUi.getZoomFactor())) <= 1; }, b.width);
   }).toBe(true);
   await expect.poll(() => termText(ui2)).toContain(`agent: rc of ${other}`);
   // What it showed comes as it was, not cut at a default width; the agent never gets another width meanwhile (it
   // would draw its prompt again for it, leaving the old one behind).
   // The run of = alone: on Windows ConPTY draws the echoed line again with what was before it on the row. Read from
   // xterm's buffer: its canvas has no text for Playwright.
-  const lines = await ui2.evaluate(() => {
+  const lines = await (await taskPage(ui2)).evaluate(() => {
     const b = (window as any).__term.buffer.active;
     return Array.from({ length: b.length }, (_, i) => b.getLine(i)).filter((l: any) => l.translateToString(true).includes('===')).map((l: any) => [/=+/.exec(l.translateToString(true))[0].length, l.isWrapped]);
   });
@@ -292,7 +294,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   // Back into the first window (Move to Window, as a browser moves a tab; the other window named by its shown
   // task): the only tab of the second, so it closes.
   await rightClick(ui2, projectTabSel(files, 'other'));
-  await expect(menu(ui2)).toMatchAriaSnapshot(`
+  await expect((await menu(ui2))).toMatchAriaSnapshot(`
     - text: Profiles
     - menuitem "Sam.seller"
     - separator
@@ -300,6 +302,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
     - separator
     - menuitem "Rename…"
     - menuitem "Show Folder"
+    - menuitem "Reload task screen"
     - separator
     - menuitem "Move to New Window" [disabled]
     - 'menuitem "Move to Window: task-1"'

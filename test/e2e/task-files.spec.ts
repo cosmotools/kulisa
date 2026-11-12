@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Results from ordinary filesystem writes and independent agent contexts (docs/tasks.md, Artifacts and temporary files).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,17 +17,17 @@ test('ordinary nested results update live, including empty folders, moves and de
   fs.writeFileSync(path.join(artifacts, 'html', 'index.html'), '<h1>Ready</h1>');
   fs.writeFileSync(path.join(tmp, 'scratch.txt'), 'working');
   expect(JSON.parse((await call('task_artifacts', { area: 'temporary' })).text).entries.some((a: { file: string }) => a.file === path.join(tmp, 'scratch.txt'))).toBe(true);
-  const folder = ui.getByRole('treeitem', { name: 'html', exact: true });
+  const folder = (await taskPage(ui)).getByRole('treeitem', { name: 'html', exact: true });
   await expect(folder).toBeVisible(); await folder.click();
-  await expect(ui.getByRole('treeitem', { name: 'assets', exact: true })).toBeVisible();
-  const index = ui.getByRole('treeitem', { name: 'index.html', exact: true });
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: 'assets', exact: true })).toBeVisible();
+  const index = (await taskPage(ui)).getByRole('treeitem', { name: 'index.html', exact: true });
   await expect(index).toContainText('1 KB');
   fs.writeFileSync(path.join(artifacts, 'html', 'index.html'), 'x'.repeat(2048));
   await expect(index).toContainText('2 KB');
   fs.renameSync(path.join(artifacts, 'html', 'index.html'), path.join(artifacts, 'html', 'report.html'));
   await expect(index).toHaveCount(0);
-  await expect(ui.getByRole('treeitem', { name: 'report.html', exact: true })).toBeVisible();
-  await expect(ui.getByRole('treeitem', { name: 'scratch.txt', exact: true })).toHaveCount(0);
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: 'report.html', exact: true })).toBeVisible();
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: 'scratch.txt', exact: true })).toHaveCount(0);
   await rightClick(ui, folder); await choose(ui, 'Delete'); await expect(folder).toHaveCount(0);
   expect(fs.existsSync(path.join(artifacts, 'html'))).toBe(false);
   expect(fs.existsSync(path.join(tmp, 'scratch.txt'))).toBe(true);
@@ -72,17 +73,17 @@ test('artifacts sort folders first and newest modified first, updating live with
   }
   stamp('z-new.txt', 2000); stamp('a-folder', 1000); stamp('z-folder', 2000); stamp('a-folder/nested', 5000);
   await showResources(ui, 'Artifacts');
-  const rows = ui.locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem');
+  const rows = (await taskPage(ui)).locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem');
   const order = async () => Promise.all((await rows.all()).map((row) => row.getAttribute('data-item-path')));
   await expect.poll(order).toEqual(['z-folder/', 'a-folder/', 'z-new.txt', 'a-old.txt']);
-  await ui.getByRole('treeitem', { name: 'a-folder', exact: true }).click();
-  await ui.getByRole('treeitem', { name: '10.txt', exact: true }).click();
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'a-folder', exact: true }).click();
+  await (await taskPage(ui)).getByRole('treeitem', { name: '10.txt', exact: true }).click();
   await expect.poll(order).toEqual(['z-folder/', 'a-folder/', 'a-folder/nested/', 'a-folder/2.txt', 'a-folder/10.txt', 'z-new.txt', 'a-old.txt']);
   fs.writeFileSync(path.join(artifacts, 'a-folder/10.txt'), 'updated nested result');
   stamp('a-folder/10.txt', 3000);
   fs.writeFileSync(path.join(artifacts, 'a-old.txt'), 'updated result'); stamp('a-old.txt', 3000);
   await expect.poll(order).toEqual(['z-folder/', 'a-folder/', 'a-folder/nested/', 'a-folder/10.txt', 'a-folder/2.txt', 'a-old.txt', 'z-new.txt']);
-  await expect(ui.getByRole('treeitem', { name: '10.txt', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: '10.txt', exact: true })).toHaveAttribute('aria-selected', 'true');
 });
 
 test('conversation IDs determine temporary paths across task closure and app restart; a new conversation gets a new folder', async ({ core, ui, call, restart }) => {
@@ -127,19 +128,19 @@ test('changed image contents refresh previews and duplicate basenames keep gener
   const pictures = await core((k) => [0, 255].map((value) => k.electron.nativeImage.createFromBitmap(Buffer.from([value, 0, 0, 255]), { width: 1, height: 1 }).toPNG().toString('base64')));
   const file = path.join(artifacts, 'preview.png'); fs.writeFileSync(file, Buffer.from(pictures[0], 'base64'));
   await showResources(ui, 'Artifacts');
-  const row = ui.getByRole('treeitem', { name: 'preview.png', exact: true });
+  const row = (await taskPage(ui)).getByRole('treeitem', { name: 'preview.png', exact: true });
   await expect(row.locator('[data-item-section=icon] use')).toHaveAttribute('href', /^#artifact-thumbnail-/);
   const symbol = await row.locator('[data-item-section=icon] use').getAttribute('href');
-  const picture = ui.locator(`${symbol} image`), before = await picture.getAttribute('href');
+  const picture = (await taskPage(ui)).locator(`${symbol} image`), before = await picture.getAttribute('href');
   fs.writeFileSync(file, Buffer.from(pictures[1], 'base64'));
   await expect(picture).not.toHaveAttribute('href', before);
   for (const folder of ['before', 'after']) {
     fs.mkdirSync(path.join(artifacts, folder)); fs.copyFileSync(file, path.join(artifacts, folder, 'comparison.png'));
   }
   for (const folder of ['before', 'after']) {
-    await ui.getByRole('treeitem', { name: folder, exact: true }).click();
+    await (await taskPage(ui)).getByRole('treeitem', { name: folder, exact: true }).click();
   }
-  const copies = ui.getByRole('treeitem', { name: 'comparison.png', exact: true });
+  const copies = (await taskPage(ui)).getByRole('treeitem', { name: 'comparison.png', exact: true });
   await expect(copies).toHaveCount(2);
   for (const copy of await copies.all()) await expect(copy.locator('[data-item-section=icon] use')).not.toHaveAttribute('href', /^#artifact-thumbnail-/);
 });
@@ -153,9 +154,9 @@ test('a large results folder keeps DOM rows and MCP response pages bounded', asy
     const file = path.join(folder, `file-${String(i).padStart(4, '0')}.txt`);
     fs.writeFileSync(file, 'result'); fs.utimesSync(file, 1000, 1000);
   }
-  await ui.getByRole('treeitem', { name: 'many', exact: true }).click();
-  await expect(ui.getByRole('treeitem', { name: 'file-0000.txt', exact: true })).toBeVisible();
-  expect(await ui.getByRole('treeitem').count()).toBeLessThan(80);
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'many', exact: true }).click();
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: 'file-0000.txt', exact: true })).toBeVisible();
+  expect(await (await taskPage(ui)).getByRole('treeitem').count()).toBeLessThan(80);
   const page = JSON.parse((await call('task_artifacts', { offset: 4999, limit: 2 })).text);
   expect(page.total).toBe(5001); expect(page.entries).toHaveLength(2);
   await expect(call('task_artifacts', { limit: 201 })).rejects.toThrow();
@@ -170,9 +171,9 @@ test('File Folders opens the shared tmp parent in the file manager', async ({ co
     k.electron.shell.openPath = async (file: string) => { k.stash.opened.push(file); return ''; };
   });
   try {
-    await ui.getByRole('button', { name: 'File Folders', exact: true }).click();
-    await menu(ui).getByRole('menuitem', { name: 'Temporary Files', exact: true }).hover();
-    await choose(ui, 'All Temporary Files', submenu(ui));
+    await (await taskPage(ui)).getByRole('button', { name: 'File Folders', exact: true }).click();
+    await (await menu(ui)).getByRole('menuitem', { name: 'Temporary Files', exact: true }).hover();
+    await choose(ui, 'All Temporary Files', (await submenu(ui)));
     await expect.poll(() => core((k) => k.stash.opened)).toEqual([path.dirname(tmp)]);
   } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
 });

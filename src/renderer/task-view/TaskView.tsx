@@ -1,6 +1,5 @@
 // A live screen per visited task, retained until its tab closes (docs/window.md, The grid).
 import { memo, Suspense, useEffect, useLayoutEffect, useState, useRef } from 'react';
-import { useStore } from 'zustand';
 import { DockviewReact, GridviewReact, Orientation, type IDockviewPanelProps, type IGridviewPanelProps } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
 import { TerminalSquareIcon, PlusIcon, CheckIcon } from 'lucide-react';
@@ -19,7 +18,7 @@ import { registerTaskGrid } from './controller';
 import { TaskGrid } from './grid';
 import { TaskBoundary } from './TaskBoundary';
 import { useWindow } from '../lib/store';
-import { TaskContext, tasks, useTask, useTaskActive, useTaskGrid, type TaskStore } from './state';
+import { TaskContext, taskStore, useTask, useTaskActive, useTaskGrid, type TaskStore } from './state';
 import { profileLaunchers } from './profiles';
 import { useStrip } from '../lib/strip';
 import { avatarSrc } from '../lib/common';
@@ -27,7 +26,6 @@ import { newStageTerminal } from './environments';
 import { panelView } from './terminals';
 import { termStyle, uiTextSize, useShade } from '../lib/theme';
 import './Grid.css';
-export { StageMenu } from './StageMenu';
 
 const components = { terminal: DevelopmentContent, resources: Resources };
 const tabComponents = { resources: ResourceIcon };
@@ -110,7 +108,7 @@ const TaskView = memo(function TaskView({ state, active }: { state: TaskStore; a
   }, [grid]);
   useLayoutEffect(() => {
     const unregister = registerTaskGrid(grid);
-    // The host remains observable while content-visibility skips the grids inside it.
+    // The native host may resize while hidden; returning reveals the same grid instance.
     const resized = new ResizeObserver(grid.resize);
     resized.observe(host.current!.closest('[data-task-view]')!);
     return () => { resized.disconnect(); unregister(); };
@@ -121,17 +119,13 @@ const TaskView = memo(function TaskView({ state, active }: { state: TaskStore; a
     <TaskContext value={grid}>{loaded && <Screen />}</TaskContext>
   </div>;
 });
-export function TaskViews() {
-  const retained = useStore(tasks), current = useWindow((s) => s.current), loading = useTask((s) => s.loading);
-  const tabs = useWindow((s) => s.projects.tabs);
-  const shade = useShade();
+export function TaskScreen() {
+  const state = taskStore(), active = useWindow((s) => s.active), shade = useShade();
+  const failed = useWindow((s) => !!s.projects.tabs[0]?.viewFailed);
   useEffect(() => panelView.restyle(termStyle()), [shade]);
-  return <main id="dock" className="relative isolate min-h-0 min-w-0" aria-busy={loading || undefined}>
-    {Object.entries(retained).map(([key, state]) => <section key={key} data-task-view={key} data-active={key === current || undefined}
-      aria-hidden={key !== current || undefined} inert={key !== current || undefined} className="absolute inset-0">
-      <TaskBoundary task={state} failed={!!tabs.find((t) => t.key === key)?.viewFailed}>
-        <TaskView state={state} active={key === current} />
-      </TaskBoundary>
-    </section>)}
+  return <main id="dock" className="relative isolate h-screen min-h-0 min-w-0 bg-background text-sm text-foreground">
+    <section data-task-view={state.getState().key} data-active={active || undefined} className="absolute inset-0">
+      <TaskBoundary task={state} failed={failed}><TaskView state={state} active={active} /></TaskBoundary>
+    </section>
   </main>;
 }

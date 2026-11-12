@@ -3,7 +3,7 @@
 // is open wait their turn (lib/ask.ts); the main process's (shell.ask) are asked here and answered back.
 import { useState } from 'react';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Button } from '@ui';
-import { useAsking } from '../lib/ask';
+import { useAsking } from '../lib/shell-ask';
 import type { Question } from '../../shared/types';
 
 export function Ask() {

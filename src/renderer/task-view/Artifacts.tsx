@@ -2,9 +2,8 @@
 import { useMemo, useState } from 'react';
 import { Button, Empty, EmptyHeader, EmptyTitle } from '@ui';
 import { FileViewer, createViewerRegistry, textViewer, pdfViewer, imageViewer, markdownViewer, audioViewer, videoViewer, type FileSource, type PdfHost, type DocumentHost, type MediaHost } from '../../file-viewer/renderer';
-import { useTask, useTaskStore } from './state';
+import { useTask, useTaskStore, useTaskActive } from './state';
 import { uiTextSize, useShade } from '../lib/theme';
-import { useSettings } from '../lib/settings';
 
 const registry = createViewerRegistry([pdfViewer, imageViewer, markdownViewer, audioViewer, videoViewer, textViewer]);
 let focusPdfSearch: (() => void) | null = null;
@@ -28,7 +27,7 @@ export function Artifacts() {
   const file = artifact?.directory ? undefined : artifact?.file, revision = artifact?.revision, size = artifact?.bytes ?? 0;
   const picture = useTask((s) => s.pictures['artifact-pdf']);
   const shade = useShade(), [fontSize] = useState(uiTextSize);
-  const mediaVisible = !useSettings();
+  const mediaVisible = useTaskActive();
   const source = useMemo(() => file ? artifactSource(key, file, size, revision!, navigation) : null, [file, revision, size, key, navigation]);
   const appearance = useMemo(() => ({ shade: shade === 'dark' ? 'dark' as const : 'light' as const, fontSize, fontFamily: '"JetBrains Mono", monospace' }), [shade, fontSize]);
   const pdf = useMemo<PdfHost>(() => ({

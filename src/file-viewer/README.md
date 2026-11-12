@@ -84,14 +84,14 @@ custom zoom leaves the presets unselected. Surrounding application actions remai
   confinement and the original revision. There is no full-file
   buffer, file-size cap, HTTP server or disk preview copy. Chromium owns demuxing/decoder buffers and media caches;
   bounded reads are not a fixed total-RAM guarantee. Leaving, replacement, renderer failure/reload, deletion or window
-  closure revokes the URL and aborts streams. Settings coverage also disposes playback; returning never autoplays. Renderer disposal pauses playback, removes src and unloads the decoder.
+  closure revokes the URL and aborts streams. Global shell coverage also disposes playback; returning never autoplays. Renderer disposal pauses playback, removes src and unloads the decoder.
 
 The PDF native adapter has no preload, Node integration, profile session or filesystem access. One shared in-memory
 session serves only live, unguessable document URLs; other requests except Chromium's internal PDF resources are
 denied. Permissions, popups, navigation and downloads are refused. Built-in save/print workflows are outside this
 integration; the host provides system opening. No HTTP preview server, converters or disk copies.
 The adapter owns native views and retained PDF bytes; `close()` removes both. The host supplies bounds in CSS pixels,
-brief overlay hiding and focus/key policy. The renderer follows position-only grid changes as well as resizes,
+an explicit native parent, owning UI zoom, brief overlay hiding and focus/key policy. The renderer follows position-only grid changes as well as resizes,
 sending placement only when bounds change. A PDF uses Chromium's additional renderer processes; retain one native
 view per window and close it when leaving its file/view/task instead of caching hidden documents.
 

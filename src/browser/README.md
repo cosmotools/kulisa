@@ -8,13 +8,14 @@ This [Kulisa package](../../docs/packages.md) imports no task, project, profile 
 `main/index.ts` exports `Profile`, configuration/tab types, navigation helpers, cookie synchronization, focus and
 storage operations. `ipc.ts` defines host-visible state; there is no renderer half.
 
-- Hosts supply the window, optional native parent (default: the window's content view), profile configuration,
+- Hosts supply a native `BaseWindow`, a callback resolving the appropriate UI focus target, optional native parent (default: the window's content view), profile configuration,
   absolute data folder/session, site zoom and opaque ownership key (`task`, for automation and screenshot namespacing).
   They coordinate tab restoration, proxy attachment, persistence, sign-in/discard policy, membership and folder removal.
 - `Profile` owns one persistent native `View` containing all live tabs, their listeners, active-tab selection, ten
   closed addresses, Playwright connection and discard/load lifecycle. Its `View` provides group visibility and clips
   pages; child bounds preserve the full viewport with an offset inside it. Layout coordinates are relative to the
-  supplied host. Moving windows reparents the group, hidden until layout. Close disconnects, detaches the container and
+  supplied host. Moving windows reparents the group only when its parent changes, hidden until layout.
+  A moved task group retains its profile children while `moveTo` updates the window reference. Close disconnects, detaches the container and
   closes tabs; destroy also wipes the session. The container adds no renderer process or retained buffer.
 - `readTabs`/`writeTabs`: `Kulisa Tabs.json`. `SessionCookies`: encrypted `Kulisa Session Cookies.bin`.
   `copyProfile` copies a flushed master excluding caches and the open cookie database; masters/copies share formats.
@@ -26,7 +27,8 @@ storage operations. `ipc.ts` defines host-visible state; there is no renderer ha
 
 Return unsolicited page focus to the host. Treat input within 150 ms before or after page focus as human intent
 (macOS clicks can follow focus). A delayed return must respect any newer Kulisa focus assignment. Log each decision
-under `[focus]` with its reason.
+under `[focus]` with its reason. Hosts register shell/task UI targets with `registerWindowUi`; focus history belongs
+to the native window. A delayed return rechecks the current host, so transfer/overlay changes cannot restore an old target.
 
 ## Sign-ins kept in step
 

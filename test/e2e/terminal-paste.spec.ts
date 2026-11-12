@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Image paste through the OS's Paste action and the terminal's menu (docs/window.md, The terminal).
 import { test, expect } from './fixtures.ts';
 import { choose, showResources, focusWindow, rightClick, termKeys } from './helpers.ts';
@@ -6,7 +7,7 @@ for (const menu of [false, true]) {
   test(`clipboard image: ${menu ? 'the terminal menu' : "the OS's Paste action"} sends the agent's image shortcut once`, async ({ core, ui }) => {
     await showResources(ui, 'Agents');
     // ConPTY requests focus reporting; exercise it on every platform.
-    await ui.evaluate(() => new Promise<void>((done) => (window as any).__term.write('\x1b[?1004h', done)));
+    await (await taskPage(ui)).evaluate(() => new Promise<void>((done) => (window as any).__term.write('\x1b[?1004h', done)));
     await ui.locator('#windowMenu').focus();
     await core(async (k) => {
       const t = k.shell.task.promptTarget();
@@ -24,13 +25,13 @@ for (const menu of [false, true]) {
     });
     try {
       await focusWindow(core, ui);
-      await termKeys(ui).focus();
+      await (await termKeys(ui)).focus();
       if (menu) {
         await rightClick(ui, '[data-testid="terminal"] .xterm-screen');
         await choose(ui, 'Paste');
       } else {
         // macOS runs the Edit menu's role outside page key events; paste() is that role's action.
-        await core((k) => k.shell.win.webContents.paste());
+        await core((k) => k.shell.windows[0].focusUi.paste());
       }
       // Focus reports share the PTY input; only pasted bytes belong to this assertion.
       await expect.poll(() => core((k) => Buffer.from(k.stash.input.join('').replace(/\x1b\[[IO]/g, '')).toJSON().data)).toEqual([0x16]);

@@ -3,9 +3,12 @@ import { LayoutDashboardIcon, Columns3Icon, Rows3Icon, PanelsTopLeftIcon, PanelL
 import { Button, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@ui';
 import { ButtonMenu } from '../components/Menus';
 import { useWindow } from '../lib/store';
-import { act, useTask } from './state';
-import { setStageFollowing } from './controller';
-import { environmentItems } from './environments';
+import { actionsFor } from '../lib/actions';
+import { store } from '../lib/store';
+import { environmentItems } from '../lib/task-summary';
+const act: ReturnType<typeof actionsFor> = (channel, ...args) => actionsFor(store.getState().current)(channel, ...args);
+const useTask = <T,>(select: (s: import('../../shared/ipc').TaskPresentation) => T) => useWindow((s) => select(s.summary?.presentation ?? { workbenchItem: 'terminals', selectedArtifact: null, stagePosition: 'above', stageLayout: null, stageOverflow: false, stageFollowPaused: false }));
+const setStageFollowing = (follow: boolean) => kulisa.invoke('stage:follow:set', follow);
 import type { MenuItem } from '../lib/menu';
 import type { StageLayout, StagePosition } from '../../shared/ipc';
 

@@ -291,6 +291,11 @@ positions.
   Human project folders remain.
 - A tab's project submenu includes New Task, Move All Tasks, Project Settings, Show Data Folder and Close All Tasks.
 
+If a task's screen stops responding or crashes, its tab and running processes remain available. Choose **Reload task
+screen** in the task tab’s right-click menu. This rebuilds its screen and keeps received file edits, drafts and browser tabs. Terminal screens then show new output;
+programs that wait for terminal replies may need attention. Reload does not restart an agent or resume another copy.
+You can still switch tasks or close the affected task from its tab.
+
 ### Several windows
 
 - **Move to New Window** in a tab's right-click menu, or drag the tab out of the window, e.g. to a second monitor.

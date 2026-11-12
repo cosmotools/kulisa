@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Projects (docs/tasks.md, Projects; docs/window.md, Settings): Project Settings… and Settings.
 import fs from 'fs';
 import path from 'path';
@@ -221,13 +222,13 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   await notLoading(ui);
   const bare = await core((k) => k.shell.task.key);
   await showResources(ui, 'Agents');
-  await expect(ui.getByRole('navigation', { name: 'New terminal' })).toMatchAriaSnapshot(`
+  await expect((await taskPage(ui)).getByRole('navigation', { name: 'New terminal' })).toMatchAriaSnapshot(`
     - navigation "New terminal":
       - button "Fake agent"
       - button "Terminal"
   `);
   // A project with no profiles: one tile, Add Profile…, its page in Settings.
-  const launchProfiles = ui.locator('#dock').getByRole('navigation', { name: 'Open an environment' });
+  const launchProfiles = (await taskPage(ui)).locator('#dock').getByRole('navigation', { name: 'Open an environment' });
   await expect(launchProfiles.getByRole('button')).toHaveText(['Stage Terminal', 'Add Profile…']);
   await launchProfiles.getByRole('button', { name: 'Add Profile…', exact: true }).click();
   s = await sui();
@@ -240,16 +241,16 @@ test("projects: the projects' manager (Project Settings…) changes its name and
   if (await ui.locator(':focus').count()) await ui.locator(':focus').blur();
   await focusWindow(core, ui);
   // Ctrl+` gives the launcher the keyboard. Opens nothing: no agent.
-  await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
-  await expect(ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button').first()).toBeFocused();
+  await core((k) => k.press(k.shell.windows[0].focusUi, '`', 'control'));
+  await expect((await taskPage(ui)).getByRole('navigation', { name: 'New terminal' }).getByRole('button').first()).toBeFocused();
   expect(await developmentTerminals(), 'nothing opened').toBe(0);
   // With a profile open, the terminals' panel is a strip: Ctrl+` opens its +.
   await call('profile_create', { name: 'Bo.bare' }, { task: bare });
-  await expect(ui.locator('[data-task-view][data-active]').getByTestId('development-terminals').getByRole('button', { name: 'New terminal', exact: true })).toHaveCount(1);
-  await expect(ui.getByRole('navigation', { name: 'New terminal' })).toHaveCount(0);
+  await expect((await taskPage(ui)).locator('[data-task-view][data-active]').getByTestId('development-terminals').getByRole('button', { name: 'New terminal', exact: true })).toHaveCount(1);
+  await expect((await taskPage(ui)).getByRole('navigation', { name: 'New terminal' })).toHaveCount(0);
   await focusWindow(core, ui);
-  await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
-  await expect(menu(ui)).toMatchAriaSnapshot(`
+  await core((k) => k.press(k.shell.windows[0].focusUi, '`', 'control'));
+  await expect((await menu(ui))).toMatchAriaSnapshot(`
     - menuitem "Fake agent · ann@shop.com"
     - separator
     - menuitem "Terminal"
@@ -282,23 +283,15 @@ test("projects: the title bar's gear shows Settings over the window at the shown
   const closed = path.join(files.root, 'closed');
   fs.mkdirSync(closed, { recursive: true });
   const closedId = await core((k, f) => { const p = k.shell.store.projectFor(f); k.shell.sendProjects(); return p.id; }, closed);
-  // The pages hidden once, when it is drawn: hidden before, their panes show empty until it comes.
-  await core((k) => {
-    const w = k.shell.windows[0], hide = w.hideViews.bind(w);
-    k.stash.drawn = [];
-    w.hideViews = async (hidden: boolean, o: unknown) => {
-      if (hidden) k.stash.drawn.push(await w.win.webContents.executeJavaScript('!!document.getElementById("settings")'));
-      return hide(hidden, o);
-    };
-  });
   // Shown once it is filled (its page): as it came, it jumped.
   await ui.locator('#settingsButton').click();
   const s = await sui();
   expect(await s.locator('#settings main [data-row]').count() > 0).toBe(true);
   await pageOf(s, 'project');
-  // The pages hidden under it, as under a dialog (they draw above the window's HTML).
-  await expect.poll(() => core((k) => k.profile('Sam.admin').view.getVisible())).toBe(false);
-  expect(await core((k) => { delete k.shell.windows[0].hideViews; return k.stash.drawn; }), 'once, Settings drawn').toEqual([true]);
+  await expect.poll(() => core((k) => {
+    const w = k.shell.windows[0];
+    return w.shellCovered && w.win.contentView.children.at(-1) === w.shellView && k.profile('Sam.admin').view.getVisible();
+  }), 'Settings covers live task pages').toBe(true);
   // The other project is closed: its configuration all the same; a profile made and let go there (asked first).
   await openThing(s, 'projects', closedId);
   await pageOf(s, 'closed');
@@ -328,13 +321,13 @@ test("projects: Settings is its window's, at that window's project, its question
   const fourth = path.join(files.root, 'fourth');
   await openFolder(core, ui, fourth);
   const key = files.tkey('fourth', 1);
-  await invoke(ui, 'task:move', { key, terminalContents: {} });
+  await invoke(ui, 'task:move', { key });
   await expect.poll(() => core((k, t) => k.shell.windows[1]?.current?.key === t && k.settled(false, k.shell.windows[1]), key)).toBe(true);
   await backTo(core, ui, files, 'project');
   const there = await otherPage(ui);
   await notLoading(there);
   // Opened from the second window: at its shown task's project.
-  await expect.poll(async () => (await there.evaluate(() => document.hasFocus())) || (await core((k) => k.focus(k.shell.windows[1].win)), false)).toBe(true);
+  await focusWindow(core, there);
   await there.evaluate(() => (window as any).kulisa.send('settings:open', { section: 'projects', id: null }));
   const s = await sui();
   await pageOf(s, 'fourth');

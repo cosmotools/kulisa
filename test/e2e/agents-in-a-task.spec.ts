@@ -1,3 +1,4 @@
+import { taskPage, inputPage } from './pages.ts';
 // Several agents in a task (tasks.ts; docs/tasks.md, "Several agents"): a tab and a conversation each; the task handed
 // from one to another. The test agent (custom) and the fake one (two accounts) are two CLIs, their transcripts both in
 // Claude Code's format (app.ts).
@@ -30,7 +31,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await showResources(ui, 'Agents');
   const tabs = () => terminalRows(ui);
   // A terminal's tab's state, and the task's tab's.
-  const tabIs = (id: number, state: string) => expect(ui.locator(`[data-task-view][data-active] [data-resources] [data-terminal="${id}"] [data-state]`)).toHaveAttribute('data-state', state);
+  const tabIs = async (id: number, state: string) => expect((await taskPage(ui)).locator(`[data-task-view][data-active] [data-resources] [data-terminal="${id}"] [data-state]`)).toHaveAttribute('data-state', state);
   const taskIs = (state: string) => expect(ui.locator(`#taskTabs [data-task="${key}"] [data-state]`)).toHaveAttribute('data-state', state);
   const conversations = () => files.json(files.pfile('task.json', taskId)).agents.conversations;
   type Term = { id: number; agent: string | undefined; pty: boolean };
@@ -50,8 +51,8 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
 
   // +: the project's accounts, then Terminal; one chosen opens in a tab of its own, in front, a new conversation.
   const AGENTS = ['Fake agent · a@switch.test', 'Fake agent · b@switch.test'];
-  await ui.getByRole('region', { name: 'Agents', exact: true }).getByRole('button', { name: 'New terminal' }).click();
-  await expect(menu(ui)).toMatchAriaSnapshot(`
+  await (await taskPage(ui)).getByRole('region', { name: 'Agents', exact: true }).getByRole('button', { name: 'New terminal' }).click();
+  await expect((await menu(ui))).toMatchAriaSnapshot(`
     - menu:
       - menuitem "Fake agent · a@switch.test"
       - menuitem "Fake agent · b@switch.test"
@@ -63,7 +64,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   expect(JSON.parse(fs.readFileSync(path.join(a.dir, '.claude.json'), 'utf8')).projects[copy]?.hasTrustDialogAccepted).toBe(true);
   expect(fs.existsSync(path.join(a.dir, 'skills', 'kulisa', 'SKILL.md')), "Kulisa's skill in the account's folder").toBe(true);
   const fake = (await newest()).id;
-  await expect(ui.locator(`[data-task-view][data-active] [data-resources] [data-terminal="${fake}"] svg[data-mark="generic"]`), 'an agent without a mark of its own: the generic one').toHaveAttribute('data-mark', 'generic');
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [data-resources] [data-terminal="${fake}"] svg[data-mark="generic"]`), 'an agent without a mark of its own: the generic one').toHaveAttribute('data-mark', 'generic');
   expect(conversations().map((c: { agent: string }) => c.agent)).toEqual(['custom', a.id]);
   expect(files.json(files.pfile('task.json', taskId)).development.list.map((t: { id: number }) => t.id)).toEqual([bash, fake]);
   expect(await target(), 'a pick goes to the agent shown').toBe(fake);
@@ -92,7 +93,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await tabIs(fake, '');
   await hook(bash, 'tool-done');
   expect(await core((k, w) => k.shell.taskByKey(w.key).developmentTerminals.get(w.bash).state, { key, bash }), 'a tool finished after the turn ended changes nothing').toBe('done');
-  await ui.locator(`[data-task-view][data-active] [data-resources] [data-terminal="${bash}"]`).getByRole('button', { name: 'bash', exact: true }).click();
+  await (await taskPage(ui)).locator(`[data-task-view][data-active] [data-resources] [data-terminal="${bash}"]`).getByRole('button', { name: 'bash', exact: true }).click();
   await tabIs(bash, '');
   await taskIs('');
   expect(await target()).toBe(bash);
@@ -130,7 +131,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   const pty = await core((k, w) => { const t = k.shell.taskByKey(w.key).developmentTerminals.get(w.id); return { agent: t.agent.id, cols: t.pty.spawnSize.cols, last: t.pty.spawnArgs.at(-1) }; }, { key, id: handed });
   // In front under the dialog from its start, as + opens one: a tab behind has no size, and its xterm would lay out what
   // the agent drew for the terminals' size in 80 columns, broken.
-  await expect.poll(() => ui.evaluate(() => (window as any).__term?.cols)).toBe(pty.cols); // xterm's own: its canvas has no text to read
+  await expect.poll(async () => (await taskPage(ui)).evaluate(() => (window as any).__term?.cols)).toBe(pty.cols); // xterm's own: its canvas has no text to read
   expect(pty.agent).toBe(b.id);
   expect(pty.last).toBe('Go on with the work of conversation 2 of this task ("Pay with cards"). Read it whole with the kulisa task_history tool (conversation 2) before anything else. Then tell me in a few lines what is done and what is next, and go on with it.');
   await expect(progress).toHaveText('Fake agent is starting…');
@@ -145,7 +146,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   // asks: answered yes.
   for (const how of ['waiting', 'show']) {
     await rightClick(ui, `[data-task-view][data-active] [data-resources] [data-terminal="${fake}"]`);
-    await expect(menu(ui)).toMatchAriaSnapshot(`
+    await expect((await menu(ui))).toMatchAriaSnapshot(`
       - menu:
         - menuitem "Change agent…"
         - menuitem "New Conversation"
@@ -176,13 +177,13 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
   await renamed(bin, `${bin}.away`);
   try {
     const opened = act(ui, 'development-terminal:open', { agent: a.id }); // it answers once the human has chosen
-    await expect(ui.getByRole('status').filter({ hasText: /^Starting / }), "numbered: a's other tab is open").toHaveText('Starting Fake agent 2…');
+    await expect((await taskPage(ui)).getByRole('status').filter({ hasText: /^Starting / }), "numbered: a's other tab is open").toHaveText('Starting Fake agent 2…');
     const choose = ui.getByRole('dialog', { name: 'Choose the Agent' });
     await expect(choose).toBeVisible();
     await choose.getByRole('button', { name: 'Cancel' }).click();
     await opened;
     await expect.poll(tabs).toEqual(['bash', 'Pay with cards', 'Fake agent', 'bash 2 *']);
-    await expect(ui.getByRole('status').filter({ hasText: /^Starting / })).toHaveCount(0);
+    await expect((await taskPage(ui)).getByRole('status').filter({ hasText: /^Starting / })).toHaveCount(0);
   } finally { await renamed(`${bin}.away`, bin); }
   // All closed, no profile open: the big buttons, an account's email under its agent's name, no keys; the first has
   // the keyboard, Tab moves to the next, Enter opens it.
@@ -192,7 +193,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
     await answer(ui);
     await closed;
   }
-  const launchers = ui.getByRole('navigation', { name: 'New terminal' }).getByRole('button');
+  const launchers = (await taskPage(ui)).getByRole('navigation', { name: 'New terminal' }).getByRole('button');
   await expect(launchers).toHaveCount(3);
   for (const [i, [name, email, title]] of [['Fake agent', 'a@switch.test', 'Fake agent · a@switch.test'], ['Fake agent', 'b@switch.test', 'Fake agent · b@switch.test'], ['Terminal', '', 'Terminal']].entries()) {
     await expect(launchers.nth(i)).toHaveAccessibleName(name);
@@ -200,12 +201,12 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
     await expect(launchers.nth(i)).toHaveAttribute('title', title);
   }
   // Under them the project's profiles, a button each.
-  await expect(ui.locator('#dock').getByRole('navigation', { name: 'Open an environment' }).getByRole('button')).toHaveText(['Stage Terminal', 'Sam.admin', 'Elon.buyer', 'Dora']);
+  await expect((await taskPage(ui)).locator('#dock').getByRole('navigation', { name: 'Open an environment' }).getByRole('button')).toHaveText(['Stage Terminal', 'Sam.admin', 'Elon.buyer', 'Dora']);
   await expect(launchers.first()).toBeFocused();
   await focusWindow(core, ui);
-  await ui.keyboard.press('Tab');
+  await (await inputPage(ui)).keyboard.press('Tab');
   await expect(launchers.nth(1)).toBeFocused();
-  await ui.keyboard.press('Enter');
+  await (await inputPage(ui)).keyboard.press('Enter');
   await expect.poll(async () => { const ts = await terms(); return ts.length === 1 && ts[0].agent === b.id; }, { timeout: 20000 }).toBe(true);
 
   // Deleting the task forgets every conversation, each in its account's folder.

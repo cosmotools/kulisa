@@ -1,4 +1,4 @@
-// Task grids retained by their open TaskViews; window controls address the selected one.
+// One committed task grid per immutable task UI; scoped events address that grid (docs/window.md).
 import { store } from '../lib/store';
 import { taskStore } from './state';
 import type { TaskGrid } from './grid';
@@ -6,44 +6,49 @@ import { closeLayers } from '../lib/cover';
 import { forgetFrozen } from './views';
 import { forgetTerminals } from '../../terminal/renderer';
 import { panelId } from './layout';
-const grids = new Map<string, TaskGrid>();
+let attached: TaskGrid | null = null;
 export function registerTaskGrid(grid: TaskGrid) {
   grid.connect();
-  grids.set(grid.key, grid);
-  return () => { if (grids.get(grid.key) === grid) grids.delete(grid.key); grid.dispose(); };
+  attached = grid;
+  return () => { if (attached === grid) attached = null; grid.dispose(); };
 }
-export const taskGrid = (task: string | null) => grids.get(task ?? '');
+export const taskGrid = (task: string | null) => attached?.key === task ? attached : undefined;
 const current = () => taskGrid(store.getState().current);
+kulisa.on('task:dismiss', () => {
+  void closeLayers('menus');
+  for (const pane of current()?.panes.values() ?? []) pane.cancelAddress();
+});
 export const pane = (id: string) => current()?.panes.get(id);
 export const dockApi = () => current()?.development.api ?? null;
 export const stageApi = () => current()?.stage.api ?? null;
-export const showPane = (task: string, id: string) => taskGrid(task)?.stage.api?.getPanel(panelId(id))?.api.setActive();
-export async function setStageFollowing(follow: boolean) {
-  await kulisa.invoke('stage:follow:set', follow);
-  taskStore().setState({ stageFollowPaused: false });
-  if (follow) current()?.stage.follow();
-}
 kulisa.on('page:press', ({ task }) => {
   if (task === store.getState().current) for (const profile of taskStore().getState().profiles) pane(profile.id)?.cancelAddress();
 });
-kulisa.on('stage:arrange', (event) => { void grids.get(event.task)?.arrange(event); });
+kulisa.on('stage:arrange', (event) => { void taskGrid(event.task)?.arrange(event); });
 store.subscribe((next, previous) => {
   if (previous.current && next.current !== previous.current) {
-    grids.get(previous.current)?.deactivate();
+    taskGrid(previous.current)?.deactivate();
     void closeLayers(); forgetFrozen();
   }
 });
-kulisa.on('stage:activity', ({ task, environment }) => { if (task === store.getState().current) grids.get(task)?.stage.environmentActivity(environment); });
-kulisa.on('agent:caption', ({ task, profile, caption }) => { if (caption && task === store.getState().current) grids.get(task)?.stage.environmentActivity(panelId(profile)); });
+kulisa.on('stage:activity', ({ task, environment }) => { if (task === store.getState().current) taskGrid(task)?.stage.environmentActivity(environment); });
+kulisa.on('agent:caption', ({ task, profile, caption }) => { if (caption && task === store.getState().current) taskGrid(task)?.stage.environmentActivity(panelId(profile)); });
 kulisa.on('stage:follow:state', (stageFollow) => {
-  store.setState({ stageFollow }); taskStore().setState({ stageFollowPaused: false });
+  taskStore().setState({ stageFollowPaused: false });
   if (stageFollow) current()?.stage.follow();
 });
 kulisa.on('task:closed', forgetTerminals);
-kulisa.on('task:editor:state', ({ task, state }) => grids.get(task)?.development.receiveEditor(state));
+kulisa.on('task:editor:state', ({ task, state }) => taskGrid(task)?.development.receiveEditor(state));
 kulisa.on('task:artifact:selected', ({ task, file }) => {
-  if (task === store.getState().current) grids.get(task)?.development.showArtifact(file);
+  if (task === store.getState().current) taskGrid(task)?.development.showArtifact(file);
 });
 kulisa.on('terminal:gone', forgetTerminals);
 document.addEventListener('dragend', () => current()?.finishDrag(), true);
 document.addEventListener('drop', () => setTimeout(() => current()?.finishDrag()), true);
+
+store.subscribe((next, previous) => {
+  if (next.covered && !previous.covered) {
+    void closeLayers('menus'); forgetFrozen();
+    taskStore().setState({ developmentTerminalFocus: null, stageTerminalFocus: null, pictures: {}, picking: {}, captions: {} });
+  }
+});

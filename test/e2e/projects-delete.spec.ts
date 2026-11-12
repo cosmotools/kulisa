@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Projects (docs/tasks.md, Projects): Delete Project…, and New Project's ways to take the code.
 import fs from 'fs';
 import { fakeAgent } from './agent-helpers.ts';
@@ -88,8 +89,8 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
       return !!c && files.named(c) === folder;
     }, { timeout: 10000 }).toBe(true); // git cloning can take seconds
     await notLoading(ui);
-    await expect(ui.getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await expect(ui.locator('[data-task-view][data-active]').getByTestId('development-terminals')).toBeVisible();
+    await expect((await taskPage(ui)).getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect((await taskPage(ui)).locator('[data-task-view][data-active]').getByTestId('development-terminals')).toBeVisible();
   };
   await newProject('On disk');
   const source = np.getByRole('textbox', { name: /^(Folder on disk|Repository URL)$/ });

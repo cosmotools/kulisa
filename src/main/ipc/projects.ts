@@ -1,6 +1,6 @@
 // The windows' handles on projects (docs/tasks.md, Projects): New Project, and a project's page in Settings: its
 // name, local addresses, code, agents and profiles (projects.ts).
-import { BrowserWindow, dialog, shell as electronShell } from 'electron';
+import { dialog, shell as electronShell } from 'electron';
 import path from 'path';
 import { addFolder, cloneRepo, defaultFolder, removeFolder, foldersInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, createProject, folderStateOf, githubOf, setGitHub } from '../projects.ts';
 import { labelError } from '../../shared/names.ts';
@@ -79,7 +79,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   const settingsOf = async (id: string, r: Result) => (refused(r) ? r : { ...(await foldersInfo(store.projects().find((x) => x.id === id)!)) });
   handle('project:folder:add', async (e, { id, folder }) => {
     if (!folder) {
-      const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender)!, { title: 'Add a repository or folder to the project', properties: ['openDirectory'] });
+      const r = await dialog.showOpenDialog(at(e)?.win!, { title: 'Add a repository or folder to the project', properties: ['openDirectory'] });
       if (r.canceled || !r.filePaths[0]) return {};
       folder = r.filePaths[0];
     }

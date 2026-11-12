@@ -6,7 +6,7 @@ import { Alert, AlertDescription, Button, Input } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../components/Menus';
 import { store } from '../lib/store';
 import { actionsFor, useTaskStore, useTask, useTaskActions, useTaskActive } from './state';
-import { dialog } from '../lib/dialogs';
+import { dialog } from '../lib/task-dialogs';
 import { dialogsShown } from '../lib/cover';
 import { focusStageTerminal } from './environments';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
@@ -29,7 +29,7 @@ const actions = (terminal: StageTerminal, task: string): MenuItem[] => [
   runAction(terminal, task),
   { label: 'Stop', enabled: terminal.status === 'running' || terminal.status === 'starting', run: () => actionsFor(task)('stage-terminal:stop', { id: terminal.id }) },
   '-',
-  { label: 'Settings…', run: async () => { const d = await dialog('stageTerminalSettings'); if (store.getState().current === task) d.open(terminal); } },
+  { label: 'Settings…', run: async () => { const d = await dialog('stageTerminalSettings'); if (store.getState().current === task) await d.open(terminal); } },
   { label: 'Fit to pane', run: () => actionsFor(task)('stage-terminal:configure', { id: terminal.id, size: null }) },
   { label: 'Close Stage terminal', run: () => actionsFor(task)('stage-terminal:close', { id: terminal.id }) },
 ];
@@ -67,7 +67,7 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
     let cancelled = false;
     api.setActive();
     void termFocus(focus.key, () => !cancelled && owner.getState().stageTerminalFocus === focus
-      && store.getState().current === taskKey && api.isVisible && document.hasFocus() && !dialogsShown()).then(() => {
+      && store.getState().current === taskKey && !store.getState().covered && api.isVisible && document.hasFocus() && !dialogsShown()).then(() => {
       if (!cancelled && owner.getState().stageTerminalFocus === focus && view.current?.el.contains(document.activeElement)) owner.setState({ stageTerminalFocus: null });
     });
     return () => { cancelled = true; };

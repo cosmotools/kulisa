@@ -1,21 +1,20 @@
 // A tasks' window's terminals (docs/window.md, The terminal): the terminals themselves are src/terminal's, keyed
 // "<task>#<id>" as in the main process; here the terminals' side: the shown task's terminal in front (task-view/DevelopmentTerminals.tsx),
-// links into its profiles, terminals moving to another window, their menus.
+// links into its profiles and terminal menus. The task UI itself moves between windows.
 import { store, shownTask } from '../lib/store';
 import { actionsFor, taskStore } from './state';
 import { termStyle } from '../lib/theme';
 import { keyText } from '../lib/common';
 import { menuAt, type MenuItem } from '../lib/menu';
-import { dialog } from '../lib/dialogs';
+import { dialog } from '../lib/task-dialogs';
 import { taskGrid } from './controller';
 import { refused } from '../../shared/result';
-import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
+import { termCopy, termHooks, termPaste, View } from '../../terminal/renderer';
 import type { DevelopmentTerminalInfo } from '../../shared/types';
 
 // The terminal in front of the shown task's terminals: where the keyboard goes (Ctrl+`), what the tests read.
 const frontKey = () => { const { task, front } = taskStore().getState().developmentTerminals; return task && front !== null ? `${task}#${front}` : null; };
-// The terminals' panel's xterm, one for the window: task-view/DevelopmentTerminals.tsx puts it in whichever grid is shown and
-// gives it the theme's colors.
+// One development View per task UI; its session changes within this task and its identity survives window transfer.
 export const panelView = new View(termStyle());
 export const shownTerm = () => (taskGrid(store.getState().current)?.development.screen() === 'terminals' && panelView.key && panelView.key === frontKey() ? panelView.term : null);
 
@@ -59,14 +58,6 @@ termHooks.openFile = (e, path) => {
     ...file.executable ? [] : [{ label: 'Open', run: () => kulisa.invoke('file:open', file.path) }],
     { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file.path) }]));
 };
-
-// Their contents as escape sequences (xterm's serialize addon, as VS Code keeps terminals across reloads), which
-// another window writes into new terminals: a project moving there keeps what its agents showed. Each with its size:
-// written into a terminal of another size (xterm's default before it fits its panel), the lines of an agent's screen
-// would be cut and its prompt drawn in pieces.
-export const terminalsOf = (task: string) => Object.fromEntries([...xtermKeys()].filter((key) => key.startsWith(`${task}#`))
-  .map((key) => [key, serialized(key)!]));
-kulisa.on('terminal:restore', (list) => { for (const [key, t] of Object.entries(list)) restoreTerminal(key, t); });
 
 kulisa.on('development-terminal:focus', () => focusDevelopmentTerminal());
 

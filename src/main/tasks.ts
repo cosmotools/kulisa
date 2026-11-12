@@ -3,6 +3,7 @@
 // grid and its terminals, its agents in some of them. Its project's window shows one task at a time; the others keep
 // running, those of the other open projects too. A task loads (profiles, terminals) the first time it is shown, so a
 // restart does not start every one at once.
+import type { TaskView } from './task-view.ts';
 import { session } from 'electron';
 import fs from 'fs';
 import path from 'path';
@@ -37,7 +38,7 @@ import type { GitError } from './worktrees.ts';
 import type { Shell, AgentChoice } from './shell.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import { refused } from '../shared/result.ts';
-import type { StageLayout, StagePosition } from '../shared/ipc.ts';
+import type { Arg, Events, TaskPresentation, StageLayout, StagePosition } from '../shared/ipc.ts';
 import type { Result } from '../shared/result.ts';
 
 type AgentState = 'working' | 'waiting' | 'done' | null;
@@ -73,14 +74,25 @@ class Task {
   get editor() {
     return this.editorWorkspace ??= new EditorWorkspace({
       directory: this.store.file('editor'), roots: () => this.resources().map((r) => r.folder),
-      changed: (state) => this.window?.send('task:editor:state', { task: this.key, state }),
+      changed: (state) => this.send('task:editor:state', { task: this.key, state }),
       activity: (action, file) => log.info(`[editor] ${action} ${summary({ task: this.key, file })}`),
     });
   }
   stageTerminals: StageTerminals;
   shell: Shell; project: Project; entry: TaskEntry; id: string; key: string; store: TaskStore;
   window: AppWindow | null; // the one whose tab it is (window.ts)
+  closing = false;
   loaded: boolean; terminalsLoaded: boolean;
+  view?: TaskView;
+  private presentationTimer?: NodeJS.Timeout;
+  presentation: TaskPresentation;
+  send<C extends keyof Events>(channel: C, ...data: Arg<Events[C]>) { this.view?.send(channel, ...data); }
+  present(value: TaskPresentation) {
+    this.presentation = value; this.window?.sendTaskSummary();
+    clearTimeout(this.presentationTimer);
+    this.presentationTimer = setTimeout(() => this.savePresentation(), 300);
+  }
+  private savePresentation() { clearTimeout(this.presentationTimer); this.store.savePresentation(this.presentation); }
   viewFailed = false; // Runtime only; moving windows must not silently retry a failed React screen.
   gitChecked: Promise<void>; // its project's repositories looked at as it loads (Project.checkGit), awaited by its agents
   _copying: Promise<unknown>; // its copies made one at a time (copying)
@@ -105,11 +117,12 @@ class Task {
       key: this.key, saved: this.store.stageTerminals(), isOpen: () => this.loaded,
       launchContext: () => ({ cwd: this.folder, env: this.env() }),
       save: (value) => this.store.saveStageTerminals(value),
-      changed: (list) => { if (this.shown()) this.window?.send('stage-terminal:state', { task: this.key, list }); },
-      output: (channel, data) => this.window?.send(channel, data),
-      forget: (key) => this.window?.send('terminal:gone', [key]),
+      changed: (list) => { this.send('stage-terminal:state', { task: this.key, list }); this.window?.sendTaskSummary(); },
+      output: (channel, data) => this.send(channel, data),
+      forget: (key) => this.send('terminal:gone', [key]),
     });
     this.front = null; this.lastAgent = null;
+    this.presentation = this.store.presentation();
     this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;
   }
@@ -119,13 +132,13 @@ class Task {
     if (overflow !== undefined && typeof overflow !== 'boolean') return { error: 'overflow must be true or false' };
     if (!this.shown()) return { error: 'this task is not on screen; ask the human to show it before arranging its stage' };
     if (position !== undefined && !['left', 'right', 'above'].includes(position)) return { error: 'unknown stage position' };
-    this.window!.send('stage:arrange', { task: this.key, layout, overflow, position });
+    this.send('stage:arrange', { task: this.key, layout, overflow, position });
     return {};
   }
   shown() { return this.window?.task === this; }
   // Into another window (app.ts, Move to New Window), running: its profiles' pages go there, hidden until that window
   // lays them out; its agents' output goes there (window: send).
-  moveTo(w: AppWindow) { for (const p of this.profiles.values()) p.moveTo(w.win); }
+  moveTo(w: AppWindow) { this.view?.moveTo(w); for (const p of this.profiles.values()) p.moveTo(w.win, this.view?.group, () => this.window?.focusUi ?? w.ui); }
   get name() { return this.entry.name; }
   // The name shown in the bar: the one it was given (task_rename / Rename…), or, until then, its first agent
   // conversation's name (the agent's own auto-title, noteAutoTitle), falling back to its stored name ("New Task").
@@ -180,7 +193,8 @@ class Task {
     const shell = this.shell;
     return {
       make: (cfg) => {
-        const profile = new Profile(this.window!.win, cfg, { task: this.key });
+        const window = this.window!;
+        const profile = new Profile(window.win, cfg, { task: this.key, parent: this.view?.group, ui: () => this.window?.focusUi ?? window.ui });
         profile.hidden = !this.shown() || this.window!.viewsHidden;
         shell.proxy.addProfile(profile);
         profile.endpoint = shell.proxy.endpoint(profile);
@@ -188,13 +202,16 @@ class Task {
         profile.setBlank(shell.blankColor());
         profile.on('changed', () => shell.taskChanged(this));
         profile.on('zoom', () => this.list.save());
-        profile.on('tab-added', (tab: Tab) => tab.wc.on('before-mouse-event', (_e, input) => {
+        profile.on('tab-added', (tab: Tab) => {
+          tab.wc.on('focus', () => { if (this.shown() && this.view && !this.window?.shellCovered) this.view.focusTarget = tab.wc; });
+          tab.wc.on('before-mouse-event', (_e, input) => {
           if (input.type !== 'mouseDown') return;
           // A native press can focus its view during dispatch; automation leaves an unfocused view unfocused.
           setImmediate(() => {
-            if (!tab.wc.isDestroyed() && tab.wc.isFocused() && this.shown()) this.window?.send('page:press', { task: this.key });
+            if (!tab.wc.isDestroyed() && tab.wc.isFocused() && this.shown()) this.send('page:press', { task: this.key });
           });
-        }));
+          });
+        });
         installSigninPause(profile, shell.signin.isSigninUrl);
         return profile;
       },
@@ -325,6 +342,7 @@ class Task {
   // (git, for what it may add: addable): the grid waits for no program to run, nor a site; its agents wait for both
   // (openAgent), finding its profiles ready and told at their start what the task may add.
   loadProfiles() {
+    this.closing = false;
     this.gitChecked = this.project.checkGit().then(() => this.shell.sendProjects(), (e: Error) => console.error('[git]', e));
     this.list.load();
     this.loaded = true;
@@ -397,7 +415,7 @@ class Task {
     typeIntoPrompt(to.pty, text);
     if (to.id !== this.front) this.show(to.id);
     const w = this.window;
-    if (w && !w.win.isDestroyed()) { w.win.webContents.focus(); w.send('development-terminal:focus'); }
+    if (w && !w.win.isDestroyed()) { w.focusUi.focus(); this.send('development-terminal:focus'); }
     return true;
   }
   // An agent conversation's name: the one it was given (conversation_rename), else its own auto-title read from the
@@ -486,7 +504,7 @@ class Task {
     if (this.developmentTerminals.get(t.id) !== t) return { error: 'the terminal was closed' };
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
     const command = found.onPath ? a.command : found.path;
-    t.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder,
+    t.pty = await startTerminal((channel, data) => this.send(channel, data), { command, shell: a.shell, cwd: this.folder,
       env: { ...env, ...more.env, ...a.env }, pinned: a.env, sizeOf: this.key,
       args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, data: files.tmp!, artifacts: files.artifacts }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
     if (this.developmentTerminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
@@ -595,7 +613,7 @@ class Task {
     const t: DevelopmentTerminal = { id, key: `${this.key}#${id}`, name, command, by, state: null, seen: true };
     this.developmentTerminals.set(id, t);
     if (front || this.front === null) this.show(id); else { this.saveDevelopmentTerminals(); this.changedDevelopmentTerminals(); }
-    t.pty = await startTerminal((channel, data) => this.window?.send(channel, data),
+    t.pty = await startTerminal((channel, data) => this.send(channel, data),
       { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: TERMINAL_LINES }, t.key);
     if (this.developmentTerminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
@@ -657,7 +675,7 @@ class Task {
     log.info(`[terminal] ${t.key} gone`);
     if (t.pty) stopTerminal(t.pty);
     forgetTerminal(t.key);
-    this.window?.send('terminal:gone', [t.key]);
+    this.send('terminal:gone', [t.key]);
     if (t.conversation !== undefined) this.updateConversation(t.conversation, { terminal: undefined, to: Date.now() });
     if (this.lastAgent === t.id) this.lastAgent = null;
     if (this.front === t.id) {
@@ -706,6 +724,9 @@ class Task {
   // is deleted). Its tabs are saved first, as they are: closing them one by one changes the profiles, and nothing is
   // saved then.
   async unload() {
+    await this.view?.drain();
+    this.closing = true;
+    this.savePresentation();
     this.resultFiles?.dispose(); this.resultFiles = undefined;
     await this.editorWorkspace?.dispose(); this.editorWorkspace = undefined;
     this.stageTerminals.unload();
@@ -718,6 +739,7 @@ class Task {
     if (this.loaded) this.list.saveTabs();
     this.loaded = false; this.viewFailed = false;
     await this.list.unloadAll();
+    this.view?.close(); this.view = undefined;
   }
   // An agent's session, as its hooks report it (agent-hooks.ts).
   saveSession(t: DevelopmentTerminal, s: { sessionId?: string; transcript?: string }) { if (this.developmentTerminals.get(t.id) === t) this.updateConversation(t.conversation!, s); }
@@ -784,9 +806,9 @@ class Task {
     await this.project.dropProfile(id);
     return { id };
   }
-  environmentUsed(environment: string) { this.window?.send('stage:activity', { task: this.key, environment }); }
+  environmentUsed(environment: string) { this.send('stage:activity', { task: this.key, environment }); }
   // A caption over a profile's pane (ghost.ts, browser_highlight); sticky ones stay until the next caption.
-  caption(profile: string, caption: string | null, sticky = false) { this.window?.send('agent:caption', { task: this.key, profile, caption, sticky }); }
+  caption(profile: string, caption: string | null, sticky = false) { this.send('agent:caption', { task: this.key, profile, caption, sticky }); }
 
   // A test user's pair (profiles.md, "Test users' sign-ins"): set by the human (Settings → Profiles) or the agent
   // (profile_set_login, e.g. after it signed that user up). The password is kept encrypted with the OS keyring, never
@@ -902,7 +924,7 @@ class Task {
     await window.sendArtifacts(this);
     if (generation !== this.artifactViewGeneration || this.window !== window || !this.shown() || this.viewFailed)
       return { error: 'Artifact opening was cancelled.' };
-    window.send('task:artifact:selected', { task: this.key, file: found.artifact.file });
+    this.send('task:artifact:selected', { task: this.key, file: found.artifact.file });
     log.info(`[artifact-viewer] selected task=${this.key} ${summary({ file: found.artifact.file })}`);
     return {};
   }
