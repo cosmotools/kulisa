@@ -1,5 +1,5 @@
 // The built-in environments a human can open in the testing stage.
-import { store } from './state';
+import { currentTask, store } from './state';
 import { actionsFor } from '../../window-client/renderer';
 import { profileLaunchers } from './profiles';
 import type { StageTerminal } from '../../shared/stage-terminal';
@@ -16,7 +16,7 @@ export async function focusStageTerminal(task: string, launch: () => Promise<Res
   try {
     const result = await launch();
     if (store.getState().stageTerminalFocus === request) {
-      store.setState({ stageTerminalFocus: refused(result) || store.getState().current !== task ? null : { key: result.key } });
+      store.setState({ stageTerminalFocus: refused(result) || currentTask() !== task ? null : { key: result.key } });
     }
     return result;
   } catch (error) {

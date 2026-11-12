@@ -47,7 +47,7 @@ export class TaskGrid {
   }
   get key() { return this.state.getState().key; }
   private get ready() { return !this.state.getState().loading; }
-  private get active() { return !this.disposed && this.state.getState().current === this.key; }
+  private get active() { return !this.disposed && this.state.getState().active; }
   load() { return this.restoration ??= this.restore(); }
   private async restore() {
     const saved = await kulisa.invoke('layout:load', { task: this.key }).catch((error: unknown) => {

@@ -5,7 +5,7 @@ import { cn } from 'cn';
 import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../../menus/renderer';
 import { agentMark } from '../../agent-presentation/renderer';
-import { store, useTask, useTaskActive } from './state';
+import { currentTask, store, useTask, useTaskActive } from './state';
 import { profileLaunchers } from './profiles';
 import { panelView, launchers, newTerminalItems, terminalItems, terminalMenu } from './terminals';
 import { avatarSrc } from '../../appearance/renderer';
@@ -46,8 +46,8 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
     const key = `${task}#${front}`;
     void termFocus(key, () => {
       const state = store.getState();
-      return !cancelled && store.getState().current === task && state.developmentTerminals.front === front && state.workbenchItem === 'terminals'
-        && state.developmentTerminalFocus === focus && !store.getState().covered && !dialogsShown() && !panelView.el.contains(document.activeElement);
+      return !cancelled && currentTask(state) === task && state.developmentTerminals.front === front && state.workbenchItem === 'terminals'
+        && state.developmentTerminalFocus === focus && !state.covered && !dialogsShown() && !panelView.el.contains(document.activeElement);
     }).then(() => {
       if (!cancelled && focus && store.getState().developmentTerminalFocus === focus) store.setState({ developmentTerminalFocus: null });
     });
@@ -61,7 +61,7 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
   useEffect(() => {
     if (!active || !big) return;
     const take = () => {
-      if (store.getState().current !== task || store.getState().covered || dialogsShown() || document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      if (currentTask() !== task || store.getState().covered || dialogsShown() || document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
       stop();
       const a = document.activeElement;
       if (a && a !== document.body && !host.current?.contains(a) && !launch.current?.contains(a)) return;

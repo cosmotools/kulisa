@@ -1,7 +1,7 @@
 // Stage environments, overflow sizing and following (../README.md, The grid).
 import { preferences } from '../../window-client/renderer';
 import type { DockviewApi, SerializedDockview } from 'dockview-react';
-import type { TaskStore } from './state';
+import { currentTask, type TaskStore } from './state';
 import { environmentMinimum } from '../shared/layout';
 import { restoreDockview, panelId } from './layout';
 
@@ -95,10 +95,10 @@ export class StageGrid {
 
   followEnvironment = (environment: string) => {
     cancelAnimationFrame(this.followFrame);
-    const task = this.store.getState().current;
+    const task = currentTask(this.store.getState());
     this.followFrame = requestAnimationFrame(() => {
       const state = this.store.getState();
-      if (this.store.getState().current !== task || !preferences.getState().stageFollow || state.stageFollowPaused || state.loading) return;
+      if (currentTask(state) !== task || !preferences.getState().stageFollow || state.stageFollowPaused || state.loading) return;
       const panel = this.api?.getPanel(environment);
       if (!panel || (this.api!.hasMaximizedGroup() && !panel.api.isMaximized())) return;
       const focused = document.activeElement;

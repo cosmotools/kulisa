@@ -1,5 +1,5 @@
 // One committed task grid per immutable task UI; scoped events address that grid (docs/window.md).
-import { store } from './state';
+import { store, currentTask } from './state';
 import type { TaskGrid } from './grid';
 import { closeLayers } from '../../layers/renderer';
 import { forgetFrozen } from './views';
@@ -12,7 +12,7 @@ export function registerTaskGrid(grid: TaskGrid) {
   return () => { if (attached === grid) attached = null; grid.dispose(); };
 }
 export const taskGrid = (task: string | null) => attached?.key === task ? attached : undefined;
-const current = () => taskGrid(store.getState().current);
+const current = () => taskGrid(currentTask());
 kulisa.on('task:dismiss', () => {
   void closeLayers('menus');
   for (const pane of current()?.panes.values() ?? []) pane.cancelAddress();
@@ -21,24 +21,24 @@ export const pane = (id: string) => current()?.panes.get(id);
 export const dockApi = () => current()?.development.api ?? null;
 export const stageApi = () => current()?.stage.api ?? null;
 kulisa.on('page:press', ({ task }) => {
-  if (task === store.getState().current) for (const profile of store.getState().profiles) pane(profile.id)?.cancelAddress();
+  if (task === currentTask()) for (const profile of store.getState().profiles) pane(profile.id)?.cancelAddress();
 });
 kulisa.on('stage:arrange', (event) => { void taskGrid(event.task)?.arrange(event); });
 store.subscribe((next, previous) => {
-  if (previous.current && next.current !== previous.current) {
-    taskGrid(previous.current)?.deactivate();
+  if (previous.active && !next.active) {
+    taskGrid(previous.key)?.deactivate();
     void closeLayers(); forgetFrozen();
   }
 });
-kulisa.on('stage:activity', ({ task, environment }) => { if (task === store.getState().current) taskGrid(task)?.stage.environmentActivity(environment); });
-kulisa.on('agent:caption', ({ task, profile, caption }) => { if (caption && task === store.getState().current) taskGrid(task)?.stage.environmentActivity(panelId(profile)); });
+kulisa.on('stage:activity', ({ task, environment }) => { if (task === currentTask()) taskGrid(task)?.stage.environmentActivity(environment); });
+kulisa.on('agent:caption', ({ task, profile, caption }) => { if (caption && task === currentTask()) taskGrid(task)?.stage.environmentActivity(panelId(profile)); });
 kulisa.on('stage:follow:state', (stageFollow) => {
   store.setState({ stageFollowPaused: false });
   if (stageFollow) current()?.stage.follow();
 });
 kulisa.on('task:editor:state', ({ task, state }) => taskGrid(task)?.development.receiveEditor(state));
 kulisa.on('task:artifact:selected', ({ task, file }) => {
-  if (task === store.getState().current) taskGrid(task)?.development.showArtifact(file);
+  if (task === currentTask()) taskGrid(task)?.development.showArtifact(file);
 });
 kulisa.on('terminal:gone', forgetTerminals);
 document.addEventListener('dragend', () => current()?.finishDrag(), true);
