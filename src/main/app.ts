@@ -321,13 +321,6 @@ function start(options: Options = {}) {
     for (const w of shell.windows) w.send('language:state', shell.languageInfo());
     return { language: code };
   };
-  // Where the bar of the open projects and their tasks is: 'bottom' (the default: by the terminal, where the hand
-  // goes anyway) or 'top' (under the title bar, as browsers' tabs), chosen in ☰.
-  shell.bar = store.settings().bar || 'bottom';
-  shell.setBar = (bar) => {
-    shell.bar = bar; store.saveSettings({ ...store.settings(), bar });
-    for (const w of shell.windows) w.send('bar:state', bar);
-  };
   shell.stageFollow = store.settings().stageFollow ?? false;
   shell.setStageFollow = (follow) => {
     if (shell.stageFollow === follow) return;

@@ -1,6 +1,6 @@
 // Kulisa's own data in the user-data folder, laid out as Chrome lays out its own (Local State, then a folder per
 // profile), so what is known about Chrome's storage applies:
-//   settings.json            the Kulisa zoom, the theme, where the tasks' bar is; the windows: the projects open
+//   settings.json            the Kulisa zoom, the theme; the windows: the projects open
 //                            in each (its tabs, in order), the one shown, where it was on screen
 //   projects.json            the projects: { list: [{ id, name, folders, color, agents, profiles }] }; id: six random
 //                            characters, made once (projectFor); folders: its folders, repositories or not, the
@@ -88,7 +88,7 @@ interface TasksFile { list: TaskEntry[] }
 // A window as settings.json keeps it: its tasks by key ("<project id>/<task id>", tasks.ts) in the bar's order, the shown
 // one.
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
-interface Settings { stageFollow?: boolean; uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
+interface Settings { stageFollow?: boolean; uiZoom?: number; theme?: 'dark' | 'light' | 'system'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
 // A profile as a task keeps it in task.json (project-profiles.ts).
 const taskProfileSchema = z.object({ id: z.string(), zoom: z.record(z.string(), z.number()).optional(), closed: z.boolean().optional() });
 type TaskProfile = z.infer<typeof taskProfileSchema>;
@@ -202,7 +202,7 @@ class Store {
     }
     fs.rmSync(this.deletedFile, { force: true });
   }
-  // Kulisa's own settings: { uiZoom, theme, bar, stageFollow, windows }.
+  // Kulisa's own settings: { uiZoom, theme, stageFollow, windows }.
   settings(): Settings { return readJSON(this.settingsFile) || {}; }
   saveSettings(s: Settings) { writeJSON(this.settingsFile, s); }
 }

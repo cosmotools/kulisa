@@ -33,7 +33,7 @@ const MAC_BUTTONS = { height: 14, x: 7 };
 // page: an empty tab's, as the pane's box under it (--card).
 const COLORS: Record<Shade, { window: string; text: string; page: string }> = {
   dark: { window: '#0a0a0a', text: '#fafafa', page: '#171717' }, light: { window: '#ffffff', text: '#0a0a0a', page: '#ffffff' } };
-// The smallest window whose UI still works (the top bar with the OS buttons, ☰ and a task's tab, something under
+// The smallest window whose UI still works (the top bar with the OS buttons and ☰, a task's tab, something under
 // it), as VS Code's: fixed, times the Kulisa zoom, in DIP. Not the grid's own minimum: with five profiles in a row it
 // would keep the window from half a screen next to the human's IDE. The OS holds it for the human's drag only;
 // the constructor's bounds and setSize pass below it, so a window is raised to it here.
@@ -87,7 +87,7 @@ class AppWindow {
     const [sourceWidth = 0, sourceHeight = 0] = near?.getContentSize() ?? [];
     this.insets = workspace ? { top: workspace.y, left: workspace.x, right: sourceWidth - workspace.x - workspace.width,
       bottom: sourceHeight - workspace.y - workspace.height }
-      : { top: this.barHeight, bottom: shell.bar === 'top' ? 0 : Math.round(44 * shell.uiZoom), left: 0, right: 0 };
+      : { top: this.barHeight, bottom: Math.round(44 * shell.uiZoom), left: 0, right: 0 };
     if (bounds) bounds = { ...bounds, width: Math.max(bounds.width, min.width), height: Math.max(bounds.height, min.height) };
     else {
       const area = screen.getPrimaryDisplay().workArea;
@@ -188,11 +188,11 @@ class AppWindow {
   }
   destroy() { this.closeContents(); if (!this.win.isDestroyed()) this.win.destroy(); }
 
-  // Its page, loaded once; its tabs, the one to be shown (shown), the theme, where the tasks' bar is and
+  // Its page, loaded once; its tabs, the one to be shown (shown), the theme and
   // the keyboard shortcuts (keys.ts: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
   async load(shown: Task | null) {
     await this.ui.loadFile(page('index.html'), { query: {
-      theme: this.shell.theme, bar: this.shell.bar, stageFollow: String(this.shell.stageFollow), keys: JSON.stringify(this.shell.keys()),
+      theme: this.shell.theme, stageFollow: String(this.shell.stageFollow), keys: JSON.stringify(this.shell.keys()),
       projects: JSON.stringify(this.info(shown)) } });
     this.loaded = true;
     for (const [channel, data] of this.pending.splice(0)) this.ui.send(channel, ...data);

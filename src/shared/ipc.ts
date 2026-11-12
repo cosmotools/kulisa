@@ -27,7 +27,6 @@ type Grid = Record<string, PageLayout>;
 export type Theme = 'dark' | 'light' | 'system';
 export type StagePosition = 'left' | 'right' | 'above';
 export type StageLayout = 'vertical' | 'tabs' | 'horizontal';
-export type Bar = 'top' | 'bottom';
 // Where Settings opens (components/settings): a project's page (none: the shown task's), a profile's, the
 // log (☰ → Report a Problem…), About (☰ → About Kulisa; macOS's app menu).
 export type SettingsAt = { section: 'projects' | 'profiles' | 'log' | 'about'; id?: string | null };
@@ -191,7 +190,6 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'language:get': I<[], LanguageInfo>;
   'language:set': I<[code: string], Result<{ language: string }>>;
   'theme:set': I<[theme: Theme]>;
-  'bar:set': I<[bar: Bar]>;
   'stage:follow:set': I<[follow: boolean]>;
   'keys:set': I<[{ id: string; code: string }], Result<{ keys: Shortcut[] }>>;
   'pick:start': I<[{ profile: string }], Result | undefined>;
@@ -239,7 +237,6 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };
   'zoom:state': number;
   'theme:state': string;
-  'bar:state': Bar;
   'language:state': LanguageInfo;
   'keys:state': Shortcut[];
   'ask:show': Question & { id: number };

@@ -354,7 +354,7 @@ agents/<agent>-<id>/              an account's config folder (CLAUDE_CONFIG_DIR,
 dictation/                        the folder the hidden session runs in (src/dictation: another agent's dictation
                                   recognizing for one without), empty; it and what that session kept of it in its
                                   account (its conversation, its trust) go when the session ends, or at the next start
-settings.json                     the Kulisa zoom, the theme, where the tasks' bar is, Follow agent, the language; the windows: each one's
+settings.json                     the Kulisa zoom, the theme, Follow agent, the language; the windows: each one's
                                   tasks by key (in the bar's order), the one shown, where it was
 logs/kulisa.log                   what happened and who asked (window.md, The log), for a bug report; at 1 MB it becomes
 logs/kulisa.old.log               kulisa.old.log and a new one starts: 2 MB at most

@@ -372,7 +372,6 @@ test('the window menu: its rows and icons, links in the browser and Exit asking 
         - text: 100%
         - menuitem "Zoom in"
       - menuitem "Theme"
-      - menuitem "Tasks bar"
       - menuitem "Language"
       - menuitem "Keyboard Shortcuts"
       - menuitem "Documentation"

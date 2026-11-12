@@ -484,43 +484,22 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal, 
   await closeMenu(ui);
 });
 
-test("the tasks' bar: under the grid by default; in the title bar, after the logo, when Top is chosen in ☰; the grid and its pages take the room left; saved", async ({ core, ui, files }) => {
+test("the tasks' bar stays below the grid after restoring an obsolete Top preference", async ({ core, files, restart }) => {
+  const settings = path.join(files.userData, 'settings.json');
+  fs.writeFileSync(settings, JSON.stringify({ ...files.json('settings.json'), bar: 'top' }));
+  const ui = await restart();
   await sam(core);
-  // Where the bar is: in the title bar's row between the logo and Settings (top), or under the grid (bottom).
-  const rect = async (l: string) => { const b = await ui.locator(l === '#dock' ? '#workspace' : l).first().boundingBox(); return { top: b.y, bottom: b.y + b.height, left: b.x, right: b.x + b.width, height: b.height }; };
-  const where = async () => {
-    const bar = await rect('#taskbar'), grid = await rect('#dock'), top = await rect('#topbar'), tab = await rect('#taskTabs [role="tab"]'), settings = await rect('#settingsButton');
-    const logo = await ui.getByTestId('title-logo').count() ? await rect('[data-testid="title-logo"]') : null;
-    const inTitle = bar.top >= top.top && bar.bottom <= top.bottom && bar.left >= (logo ? logo.right : top.left) && bar.right <= settings.left;
-    // The OS buttons' area and the window's height: the page's own values, no element's box.
-    const page = await ui.evaluate(() => {
-      const area = (navigator as any).windowControlsOverlay.getTitlebarAreaRect();
-      return { areaEnd: area.x + area.width, height: innerHeight };
-    });
-    return { bar: inTitle ? 'top' : bar.top >= grid.bottom ? 'bottom' : 'elsewhere',
-      edge: Math.round(grid.top - top.bottom), // the grid starts at the title bar's edge
-      // ☰ a gap from the title bar area's end (the OS buttons, or the window's edge on macOS, where the area starts after them)
-      end: Math.round(page.areaEnd - (await rect('#windowMenu')).right),
-      title: Math.round(top.height), // the title bar keeps its height
-      below: Math.round(page.height - (inTitle ? grid : bar).bottom) <= 8, // nothing but a margin under the last row
-      // The logo, the buttons and the tabs in the middle of the title bar's height
-      level: !inTitle || !logo || Math.abs((logo.top + logo.bottom) - (tab.top + tab.bottom)) < 2 };
-  };
-  const saved = () => files.json('settings.json').bar;
-  expect((await where()).bar).toBe('bottom');
-  for (const bar of ['top', 'bottom']) {
-    const bars = await windowSubmenu(ui, 'Tasks bar');
-    await bars.locator(`[data-bar="${bar}"]`).click();
-    await expect(bars.getByRole('menuitemradio', { checked: true })).toHaveCount(1);
-    await expect(bars.locator(`[data-bar="${bar}"]`)).toHaveAttribute('aria-checked', 'true');
-    await expect.poll(async () => (await where()).bar === bar && saved() === bar).toBe(true);
-    expect(await where()).toEqual({ bar, end: 8, title: 44, below: true, edge: 0, level: true });
-    await expect(ui.locator('#taskTabs [role="tab"]').first(), 'in the title bar the tabs do not drag the window').toHaveCSS('app-region', bar === 'top' ? 'no-drag' : 'none');
-    await expect(bars, 'the menu stays open: the other one can be tried').toBeVisible();
-    await (await inputPage(ui)).keyboard.press('Escape');
-    await closeMenu(ui);
-    await expect.poll(() => viewOn(core, ui, files, 'Sam'), { timeout: 3000 }).toBe(true); // the pages follow the grid
-  }
+  await expect.poll(() => ui.evaluate(() => {
+    const bar = document.querySelector('#taskbar').getBoundingClientRect();
+    const workspace = document.querySelector('#workspace').getBoundingClientRect();
+    const title = document.querySelector('#topbar').getBoundingClientRect();
+    return { belowGrid: Math.round(bar.top - workspace.bottom), bottom: Math.round(innerHeight - bar.bottom),
+      belowTitle: Math.round(workspace.top - title.bottom), titleHeight: Math.round(title.height) };
+  })).toEqual({ belowGrid: 0, bottom: 0, belowTitle: 0, titleHeight: 44 });
+  await expect.poll(() => viewOn(core, ui, files, 'Sam')).toBe(true);
+  await ui.locator('#windowMenu').click();
+  await expect((await menu(ui)).getByRole('menuitem', { name: 'Tasks bar', exact: true })).toHaveCount(0);
+  await closeMenu(ui);
 });
 
 test("dialogs: shadcn's, in the shell only while open, above live pages; a question is asked in one", async ({ core, ui }) => {
@@ -685,16 +664,13 @@ test("tooltips of the title bar and the tasks' bar open beside their buttons, ne
     const page = await core((k) => k.shell.task.view.group.getBounds()), z = await invoke(ui, 'zoom:get') as number;
     return b.x * z < page.x + page.width && (b.x + b.width) * z > page.x && b.y * z < page.y + page.height && (b.y + b.height) * z > page.y;
   };
-  for (const bar of ['bottom', 'top']) {
-    if (bar === 'top') { await (await windowSubmenu(ui, 'Tasks bar')).locator('[data-bar="top"]').click(); await (await inputPage(ui)).keyboard.press('Escape'); await closeMenu(ui); }
-    // The sidebar's button wherever the tasks' bar is, its tooltip without the key (the sidebar's heading shows it).
-    const sidebarButton = ui.locator('#taskbar').getByRole('button', { name: 'Projects and tasks' });
-    await sidebarButton.hover();
-    await expect(ui.getByRole('tooltip')).toHaveText('Projects and tasks');
-    await ui.mouse.move(0, 300);
-    await expect(ui.getByRole('tooltip')).toHaveCount(0);
-    for (const button of [ui.locator('#newTask'), ui.locator('#zoomReset'), ui.locator('#settingsButton'), sidebarButton])
-      expect(await over(button), `${button}, the bar ${bar}`).toBe(false);
-  }
+  // The sidebar's tooltip omits the key, which is shown in the sidebar's heading.
+  const sidebarButton = ui.locator('#taskbar').getByRole('button', { name: 'Projects and tasks' });
+  await sidebarButton.hover();
+  await expect(ui.getByRole('tooltip')).toHaveText('Projects and tasks');
+  await ui.mouse.move(0, 300);
+  await expect(ui.getByRole('tooltip')).toHaveCount(0);
+  for (const button of [ui.locator('#newTask'), ui.locator('#zoomReset'), ui.locator('#settingsButton'), sidebarButton])
+    expect(await over(button), `${button}`).toBe(false);
   await invoke(ui, 'zoom:ui', 0);
 });

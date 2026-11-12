@@ -30,7 +30,7 @@ Default Electron background throttling remains enabled; no idle task UI eviction
 
 ## The title bar
 
-One 44 px row (`TITLE_BAR_HEIGHT`, `TopBar.tsx`): colored project logo, optional tasks' bar, Stage, Settings, ☰ and
+One 44 px row (`TITLE_BAR_HEIGHT`, `TopBar.tsx`): colored project logo, Stage, Settings, ☰ and
 OS buttons. `titleBarStyle: hidden`/`titleBarOverlay` keeps native controls with a transparent strip so dialog backdrops
 dim it; symbols retain theme colors. Empty space drags; non-100% zoom shows a reset button.
 The shell's opaque title background extends under the native controls; only its workspace is transparent.
@@ -47,13 +47,9 @@ clear them. Recheck this workaround on Electron upgrades.
 
 ## The tasks' bar
 
-Default Bottom; ☰ → Tasks bar switches Top/Bottom, saved in `settings.json.bar` and the page URL for first paint.
-The bar contains sidebar toggle, open-task tabs and +. Multiple projects make + ask which one. Closed tasks reopen
-from the sidebar. Tabs are at least 160 px, keep ×/width when selected and activate on press.
-
-`App.tsx` has title/grid/optional bottom bar. Top tabs are no-drag and scroll with `useStrip`; preserve at least 40 px
-of draggable space after +. Chromium does not clip offscreen no-drag regions, so logo/drag-area DOM nodes follow tabs
-and use CSS `order` for their visual placement. Raised active tabs and bottom default are the author's choices.
+The bar stays below the grid (the author's choice), with sidebar toggle, open-task tabs and +; no bar with no task.
+Multiple projects make + ask which one. Closed tasks reopen from the sidebar. Tabs are at least 160 px, keep ×/width
+when selected and activate on press. `useStrip` scrolls overflowing tabs; active tabs are raised (the author's choice).
 
 ## The grid
 
@@ -213,7 +209,7 @@ built: [ui.md](ui.md), Menus):
 
 - a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), a project's and a task's
   row's in the sidebar ([tasks.md](tasks.md), The sidebar), ☰ (as Chrome's ⋮, each row with its icon: the zoom row;
-  Theme, Tasks bar and Language, rows each opening a menu beside it, the choice at the row's end;
+  Theme and Language, rows each opening a menu beside it, the choice at the row's end;
   Keyboard Shortcuts, the links (Documentation, the user guide on kulisa.app; GitHub; one list in `TopBar.tsx`),
   Report a Problem… (Settings at its Log page: not everyone has a GitHub account, and an issue without the log says
   little), About Kulisa (below), and Exit, which quits as the last window's × does; not on macOS, where Cmd+Q and the

@@ -18,7 +18,7 @@ computer.
   and any browser profiles it needs.
 - **Task**: one piece of work in a project: an agent in a terminal, a branch and copy of the code when needed,
   browser profiles and interactive terminals for checking the result. Several tasks of one project run at once, each building something else.
-- **Tab**: an open task in the tasks' bar (under the grid, or in the title bar), as a browser's tab; its project's icon is on it.
+- **Tab**: an open task in the tasks' bar under the grid, as a browser's tab; its project's icon is on it.
 
 ## Systems
 
@@ -162,7 +162,7 @@ copies a repository-relative path. Select/copy code or drag line numbers for a r
 
 ### Task navigation
 
-**☰ → Tasks bar** places task tabs below the grid or in the title bar. Wheel over overflowing tabs to scroll.
+Task tabs are below the grid. Wheel over overflowing tabs to scroll.
 
 ## Projects
 

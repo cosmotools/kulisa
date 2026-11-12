@@ -25,12 +25,12 @@ type SettingsView = typeof import('./settings').default;
 
 function Workspace() {
   const host = useRef<HTMLElement>(null), summary = useWindow((s) => s.summary);
-  const current = useWindow((s) => s.current), bar = useWindow((s) => s.bar), zoom = useWindow((s) => s.zoom);
+  const current = useWindow((s) => s.current), zoom = useWindow((s) => s.zoom);
   useLayoutEffect(() => {
     const report = () => { const r = host.current!.getBoundingClientRect(); kulisa.send('shell:workspace', { task: current, x: r.x, y: r.y, width: r.width, height: r.height, viewport: { width: innerWidth, height: innerHeight } }); };
     const observer = new ResizeObserver(report); observer.observe(host.current!); report();
     return () => observer.disconnect();
-  }, [current, bar, zoom]);
+  }, [current, zoom]);
   return <main ref={host} id="workspace" className="relative min-h-0 min-w-0">
     {summary?.failure && <div className="h-full bg-background"><EmptyState role="alert" className="h-full"><EmptyHeader>
       <EmptyTitle>This task’s screen could not be displayed</EmptyTitle>
@@ -39,7 +39,7 @@ function Workspace() {
   </main>;
 }
 export function App() {
-  const bar = useWindow((s) => s.bar), open = useWindow((s) => s.current !== null), settings = useSettings();
+  const open = useWindow((s) => s.current !== null), settings = useSettings();
   const [Settings, setSettings] = useState<SettingsView | null>(null);
   useEffect(() => { if (settings && !Settings) void import('./settings').then((m) => setSettings(() => m.default)); }, [settings, Settings]);
   // Rows: the title bar, the grid (or the empty window), the tasks' bar. Under Settings the grid stays laid out
@@ -50,11 +50,10 @@ export function App() {
   return <TooltipProvider>
     <div className="grid h-screen grid-rows-[auto_minmax(0,1fr)_auto] text-sm text-foreground
       [&:has(>#settings)>:is(#workspace,#empty,#taskbar)]:invisible [&:has(>#settings)>:is(#workspace,#empty,#taskbar)_*]:invisible! [&:has(>#settings)>:is(#workspace,#empty,#taskbar)_*]:transition-none! [&>:is(#workspace,#empty)]:[grid-area:2/1] [&>#taskbar]:[grid-area:3/1]">
-      {/* The tasks' bar in the title bar, as a browser's tabs, or under the grid (☰ → Tasks bar); none with no task open */}
-      <TopBar>{bar === 'top' && open && <TaskBar />}</TopBar>
+      <TopBar />
       {open ? <Workspace /> : <Empty />}
       {open && <Sidebar />}
-      {bar !== 'top' && open && <TaskBar />}
+      {open && <TaskBar />}
       {settings && Settings && <Settings at={settings} className="[grid-area:2/1/-1]" />}
       <NewProject />
       <TaskRename />

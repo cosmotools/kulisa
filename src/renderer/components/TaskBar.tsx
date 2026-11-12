@@ -65,7 +65,7 @@ const shown = (key: string) => new Promise<void>((resolve) => {
 });
 
 export function TaskBar() {
-  const all = useWindow((s) => s.projects), current = useWindow((s) => s.current), top = useWindow((s) => s.bar === 'top');
+  const all = useWindow((s) => s.projects), current = useWindow((s) => s.current);
   const projectColor = useProjectColor();
   const byId = new Map(all.projects.map((p) => [p.id, p]));
   const tabs = all.tabs.flatMap((t) => { const p = byId.get(t.project); return p ? [{ t, p }] : []; });
@@ -151,14 +151,11 @@ export function TaskBar() {
     },
   };
 
-  return <nav id="taskbar" aria-label="Open tasks" data-top={top || undefined}
-    className={top ? 'flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]' : 'flex w-full min-w-0 items-center gap-1 bg-background px-2 py-1'}>
+  return <nav id="taskbar" aria-label="Open tasks" className="flex w-full min-w-0 items-center gap-1 bg-background px-2 py-1">
     {/* Its tooltip beside it, as the +'s: above or under, it would open over the pages. */}
     <Tip text="Projects and tasks" side="right">
       <Button variant="ghost" size="icon-sm" aria-label="Projects and tasks" onClick={toggleSidebar}><PanelLeftIcon /></Button>
     </Tip>
-    {/* In the title bar the tabs are no handle to drag the window by (TopBar.tsx drags after them). Under the grid,
-        centered between the bar's two buttons at its ends. */}
     <RightClickMenu items={menu} className="mx-auto flex min-w-0">
       <TabStrip id="taskTabs" bar stripRef={strip} label="Open tasks" value={current ?? ''} onChoose={onTabSelect}
         onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}>

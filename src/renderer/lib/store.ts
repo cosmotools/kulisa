@@ -15,13 +15,12 @@ interface WindowState {
   projects: ProjectsInfo;
   zoom: number;
   theme: string;
-  bar: string;
   language: LanguageInfo | null;
   stageFollow: boolean;
 }
 export const store = createStore<WindowState>()(() => ({
   active: true, covered: false, summary: null, current: taskIdentity, projects: initialProjects || { current: null, project: null, projects: [], tabs: [], open: [], settings: false },
-  zoom: 1, theme: query.get('theme') || 'dark', bar: query.get('bar') || 'bottom', language: null,
+  zoom: 1, theme: query.get('theme') || 'dark', language: null,
   stageFollow: query.get('stageFollow') === 'true',
 }));
 const set = store.setState, get = store.getState;
@@ -47,7 +46,6 @@ kulisa.on('zoom:state', (z) => set({ zoom: z }));
 void kulisa.invoke('zoom:get').then((z) => set({ zoom: z }));
 kulisa.on('theme:state', (theme) => { set({ theme }); setTheme(theme); });
 kulisa.on('stage:follow:state', (stageFollow) => set({ stageFollow }));
-kulisa.on('bar:state', (bar) => set({ bar }));
 kulisa.on('language:state', (info) => set({ language: info }));
 void kulisa.invoke('language:get').then((info) => set({ language: info }));
 

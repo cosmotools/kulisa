@@ -46,7 +46,6 @@ test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, p
       - /children: contain
       - group "Zoom"
       - menuitem "Theme"
-      - menuitem "Tasks bar"
       - menuitem "Language"
   `);
   await expect((await menu(ui)).getByTestId('zoom-row')).toContainText('110%');

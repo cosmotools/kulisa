@@ -3,7 +3,7 @@ import { taskPage, inputPage, menuPage } from './pages.ts';
 import path from 'path';
 import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures.ts';
-import { MAC, frames, ipcSettled, menu, item, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, answer, removed, termKeys, resize, windowSubmenu } from './helpers.ts';
+import { MAC, frames, ipcSettled, menu, item, choose, closeMenu, rightClick, fromSidebar, openSidebar, closeSidebar, sidebar, taskRow, rowButton, focusWindow, viewOn, termShows, invoke, notLoading, answer, removed, termKeys, resize } from './helpers.ts';
 import { committed, rand, keyAt, isNth, nthShown, taskTab, hook, begin, bothOn, newTask } from './tasks-helpers.ts';
 
 // The tab chosen (lit) in the bar.
@@ -215,7 +215,7 @@ test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one bef
   await shown(1);
 });
 
-test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse's wheel scrolls them, a faded edge says some are past it, the shown one stays in sight; in the title bar the window is still dragged after +", async ({ core, ui, files, call }) => {
+test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse's wheel scrolls them, a faded edge says some are past it, the shown one stays in sight", async ({ core, ui, files, call }) => {
   // About 3 s: three tasks more, as many as the narrowest window's bar does not hold.
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   const strip = ui.locator('#taskTabs'), tabs = strip.getByRole('tab');
@@ -246,31 +246,7 @@ test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse
     await expect.poll(async () => (await scroll()).left).toBe(0);
     await fades(false, true); // scrolled to the start: the other edge fades
     await expect(chosen(ui), 'the bar stays where the wheel took it').not.toBeInViewport({ ratio: 1 });
-    // In the title bar: the tabs give way before the space after + that drags the window (Chrome's), however many. The
-    // tabs scrolled past the bar's edges are no-drag over the logo and that space too (Chromium does not clip them to
-    // the bar) and the last region in the page wins: so both come after the bar, the logo shown first all the same (a
-    // real drag of the window is the OS's, out of a test's reach). Where each is in the page and its app-region:
-    // Playwright reads neither.
-    await invoke(ui, 'bar:set', 'top');
-    await expect(ui.locator('#topbar #taskTabs')).toHaveCount(1);
-    await expect.poll(async () => (await scroll()).max, 'the tabs overflow').toBeGreaterThan(0);
-    const width = async (sel: string) => (await ui.locator(sel).boundingBox()).width;
-    expect(await width('[data-testid="drag-area"]'), '40 px left to drag by').toBeGreaterThanOrEqual(40);
-    const plus = await ui.locator('#newTask').boundingBox(), gear = await ui.locator('#settingsButton').boundingBox();
-    expect(gear.x - (plus.x + plus.width)).toBeGreaterThanOrEqual(40);
-    const logo = ui.getByTestId('title-logo');
-    expect(await ui.evaluate(() => {
-      const q = (s: string) => document.querySelector(s);
-      const after = (x: string) => !!(q('#taskbar').compareDocumentPosition(q(x)) & Node.DOCUMENT_POSITION_FOLLOWING) && (getComputedStyle(q(x)) as any).appRegion;
-      return [q('[data-testid="title-logo"]') ? after('[data-testid="title-logo"]') : 'drag', after('[data-testid="drag-area"]')];
-    }), 'it and the logo (none on macOS) after the bar in the page').toEqual(['drag', 'drag']);
-    if (await logo.count()) {
-      const l = await logo.boundingBox(), bar = await ui.locator('#taskbar').boundingBox();
-      expect(l.x + l.width, 'the logo before the bar on screen').toBeLessThanOrEqual(bar.x);
-    }
-    await expect(chosen(ui), 'the shown one in sight, the bar drawn anew there').toBeInViewport({ ratio: 1 });
   } finally {
-    await invoke(ui, 'bar:set', 'bottom');
     await resize(core, before);
   }
   await expect(ui.locator('#topbar #taskTabs')).toHaveCount(0);
@@ -320,33 +296,22 @@ test("tasks: a double click on a task's tab is its Rename…, the shown one's an
   }
 });
 
-test('the title bar keeps a full task tab beside Stage in a narrow window', async ({ core, ui, files }) => {
-  await begin(core, ui, files, { columns: true, featureX: true });
-  const before = await resize(core, { width: 640 });
-  try {
-    await invoke(ui, 'bar:set', 'top');
-    await expect(chosen(ui)).toBeInViewport({ ratio: 1 });
-    await expect(ui.getByRole('button', { name: 'Stage', exact: true })).toBeInViewport({ ratio: 1 });
-  } finally {
-    await invoke(ui, 'bar:set', 'bottom');
-    await resize(core, before);
-  }
-});
-
 test('menus: one longer than the window has stays in it and scrolls', async ({ core, ui }) => {
   // Language has enough choices to overflow the minimum-height window independently of the window menu's rows.
   const before = await resize(core, { height: 400 });
   try {
     await expect.poll(() => ui.evaluate(() => innerHeight)).toBeLessThanOrEqual(400); // Playwright knows no viewport here (noDefaults)
-    const languages = await windowSubmenu(ui, 'Language');
+    await ui.locator('#windowMenu').click();
+    await (await item(ui, 'Language')).press('ArrowRight');
+    const languages = ui.getByRole('menu', { name: 'Language', exact: true });
     await expect(languages).toBeInViewport({ ratio: 1 });
-    await (await inputPage(ui)).keyboard.press('Home');
     const choices = languages.getByRole('menuitemradio');
+    await languages.press('Home');
     await expect(choices.first()).toBeInViewport({ ratio: 1 });
     await expect(choices.last()).not.toBeInViewport();
-    await (await inputPage(ui)).keyboard.press('End');
+    await languages.press('End');
     await expect(choices.last()).toBeInViewport({ ratio: 1 });
-    await (await inputPage(ui)).keyboard.press('Home');
+    await languages.press('Home');
     await expect(choices.first()).toBeInViewport({ ratio: 1 });
     await (await inputPage(ui)).keyboard.press('Escape');
     await closeMenu(ui);
