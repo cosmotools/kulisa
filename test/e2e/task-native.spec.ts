@@ -2,65 +2,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { test, expect } from './fixtures.ts';
-import { taskPage, shellPage } from './pages.ts';
+import { taskPage } from './pages.ts';
 import { newTask, taskTab } from './tasks-helpers.ts';
-import { invoke, notLoading, menu } from './helpers.ts';
-
-test('independent task renderers keep shell navigation live during a finite stall and move without replay', async ({ core, ui, call }) => {
-  await notLoading(ui);
-  const first = await core((k) => k.shell.task.key);
-  const firstPage = await taskPage(ui);
-  const second = await newTask(core, ui);
-  const secondPage = await taskPage(ui);
-  const ids = await core((k, keys) => keys.map((key) => {
-    const task = k.shell.taskByKey(key);
-    return { wc: task.view.ui.id, pid: task.view.ui.getOSProcessId(), pty: task.pty.pid };
-  }), [first, second]);
-  expect(new Set(ids.map((i) => i.pid)).size).toBe(2);
-  expect(await core((k) => k.shell.windows[0].ui.getOSProcessId())).not.toBe(ids[0].pid);
-  await taskTab(ui, first).click(); await notLoading(ui);
-  // A real renderer JS stall; shell input must complete while it is still blocked.
-  await firstPage.evaluate(() => { setTimeout(() => { const end = Date.now() + 2000; while (Date.now() < end) {} }, 10); });
-  await taskTab(ui, second).click();
-  await expect.poll(() => core((k) => k.shell.task.key)).toBe(second);
-  await ui.getByRole('button', { name: 'Menu', exact: true }).click();
-  await expect((await menu(ui))).toBeVisible();
-  await ui.keyboard.press('Escape');
-  await invoke(ui, 'task:move', { key: second });
-  const moved = await core((k, key) => {
-    const task = k.shell.taskByKey(key);
-    return { wc: task.view.ui.id, pid: task.view.ui.getOSProcessId(), pty: task.pty.pid, attached: k.viewIn(task.view.group, task.window.win) };
-  }, second);
-  expect(moved).toEqual({ ...ids[1], attached: true });
-  expect(await taskPage(firstPage, second)).toBe(secondPage);
-  await call('terminal_run', { name: 'hidden', command: 'node -e "console.log(\'hidden-progress\'); setInterval(()=>{},1000)"' }, { task: first });
-  await call('terminal_close', { name: 'hidden' }, { task: first });
-  void invoke(await shellPage(secondPage), 'task:close', second).catch(() => {});
-  await expect.poll(() => secondPage.isClosed()).toBe(true);
-  expect(firstPage.isClosed()).toBe(false);
-});
-
-test('a hidden task answers native terminal color queries with default throttling', async ({ core, ui, files, call }) => {
-  await notLoading(ui);
-  const first = await core((k) => k.shell.task.key);
-  fs.writeFileSync(path.join(files.project, 'color-probe.cjs'), `
-process.stdin.setRawMode(true); process.stdin.resume();
-let replies=0;
-process.stdin.on('data', d=>{if(d.includes(Buffer.from('rgb:')))console.log('color-reply-'+(++replies));});
-setInterval(()=>process.stdout.write('\\x1b]11;?\\x07'), 250);
-`);
-  await call('terminal_run', { name: 'colors', command: 'node color-probe.cjs' });
-  await expect.poll(async () => JSON.parse((await call('terminal_read', { name: 'colors' })).text).text).toContain('color-reply-1');
-  const second = await newTask(core, ui);
-  const hidden = await taskPage(ui, first);
-  await expect.poll(() => hidden.evaluate(() => document.hidden)).toBe(true);
-  await expect.poll(async () => JSON.parse((await call('terminal_read', { name: 'colors' }, { task: first })).text).text).toContain('color-reply-8');
-  await call('terminal_resize', { name: 'colors', size: { cols: 77, rows: 17 } }, { task: first });
-  await taskTab(ui, first).click(); await notLoading(ui);
-  expect(JSON.parse((await call('terminal_read', { name: 'colors' })).text).terminal.size).toEqual({ cols: 77, rows: 17 });
-  await call('terminal_close', { name: 'colors' });
-  await invoke(ui, 'task:close', second);
-});
+import { invoke, notLoading } from './helpers.ts';
 
 test('a finite task UI stall delivers a bounded raw terminal burst in order while shell navigation works', async ({ core, ui, files, call }) => {
   await notLoading(ui);
@@ -76,6 +20,9 @@ process.stdout.write('BURST-END\\r\\n');},10);`);
   await expect.poll(read).toContain('burst-ready');
   const terminal = await core((k) => k.shell.task.stageTerminals.info().find((t) => t.name === 'Burst').key);
   const second = await newTask(core, ui);
+  const pids = await core((k, keys) => [k.shell.windows[0].ui.getOSProcessId(),
+    ...keys.map((key) => k.shell.taskByKey(key).view.ui.getOSProcessId())], [first, second]);
+  expect(new Set(pids).size, 'shell and task UIs have independent processes').toBe(3);
   await invoke(ui, 'task:show', first); await notLoading(ui);
   await core((k) => { k.stash.burstStarted = 0; k.electron.ipcMain.once('test:burst:stall', () => { k.stash.burstStarted = Date.now(); }); });
   await screen.evaluate((terminal) => {

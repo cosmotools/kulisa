@@ -220,7 +220,7 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await core(async (k, a) => {
     const t = k.shell.task, seller = t.profiles.get(a.id);
     await seller.newTab(a.url, { activate: false }).ready;
-    k.stash.grid = { moved: t, pty: t.pty, seller, first: k.shell.windows[0], views: [...seller.view.children] };
+    k.stash.grid = { moved: t, ui: t.view.ui, renderer: t.view.ui.getOSProcessId(), pty: t.pty, seller, first: k.shell.windows[0], views: [...seller.view.children] };
   }, { id: ids.seller, url: `${SITE}/app?background` });
   await showResources(ui, 'Agents');
   await expect.poll(() => termText(ui)).toContain(`agent: rc of ${other}`);
@@ -247,9 +247,10 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect.poll(() => tabProjects(ui2, files)).toEqual(['other *']);
   expect(await core((k, id) => {
     const g = k.stash.grid;
-    return { window: g.moved.window === g.second, title: g.second.win.getTitle(), agent: g.moved.pty === g.pty, profile: g.moved.profiles.get(id) === g.seller,
+    return { window: g.moved.window === g.second, title: g.second.win.getTitle(), ui: g.moved.view.ui === g.ui && g.ui.getOSProcessId() === g.renderer,
+      agent: g.moved.pty === g.pty, profile: g.moved.profiles.get(id) === g.seller,
       page: g.views.length === 2 && g.views.every((v: Electron.View) => g.seller.view.children.includes(v) && k.viewIn(v, g.second.win) && !k.viewIn(v, g.first.win)) };
-  }, ids.seller)).toEqual({ window: true, title: 'New Task · other — Kulisa', agent: true, profile: true, page: true }); // the same agent, the same profile, its page moved
+  }, ids.seller)).toEqual({ window: true, title: 'New Task · other — Kulisa', ui: true, agent: true, profile: true, page: true }); // the same agent, the same profile, its page moved
   await expect.poll(async () => {
     const b = await box(ui2, `[role="region"][data-profile="${ids.seller}"] [data-testid="page"]`);
     return !!b && core((k, w) => { const g = k.stash.grid, view = g.seller.view; return view.getVisible() && Math.abs(view.getBounds().width - Math.round(w * g.second.taskUi.getZoomFactor())) <= 1; }, b.width);
@@ -317,8 +318,9 @@ test('tasks: Move to New Window puts a task in a window of its own, still runnin
   await expect.poll(() => core((k) => { const g = k.stash.grid; return k.shell.windows.length === 1 && k.shell.task === g.moved && !g.first.switching; })).toBe(true);
   expect(await core((k) => {
     const g = k.stash.grid;
-    return { gone: g.second.win.isDestroyed(), agent: g.moved.pty === g.pty, page: g.views.every((v: Electron.View) => g.seller.view.children.includes(v) && k.viewIn(v, g.first.win)) };
-  })).toEqual({ gone: true, agent: true, page: true }); // the same agent, its page back
+    return { gone: g.second.win.isDestroyed(), ui: g.moved.view.ui === g.ui && g.ui.getOSProcessId() === g.renderer,
+      agent: g.moved.pty === g.pty, page: g.views.every((v: Electron.View) => g.seller.view.children.includes(v) && k.viewIn(v, g.first.win)) };
+  })).toEqual({ gone: true, ui: true, agent: true, page: true }); // the same agent, its page back
   await expect.poll(async () => (await viewOn(core, ui, files, 'Sam.seller')) && (await termText(ui)).includes('moved along')).toBe(true);
   expect(await tabProjects(ui, files)).toEqual(['project', 'other *']);
   expect(files.savedWindows()).toEqual([{ tabs: ['project/1', 'other/1'], shown: 'other/1' }]);

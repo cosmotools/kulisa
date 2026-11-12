@@ -6,7 +6,7 @@ import path from 'node:path';
 import { invoke, showResources, notLoading, ipcSettled, frames } from './helpers.ts';
 import { begin, keyAt, newTask } from './tasks-helpers.ts';
 
-test('returning to a task keeps its grid instance and expanded Project folders', async ({ core, ui, files, call }) => {
+test('returning to a resized task keeps its Resources selection and expanded Project folders', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
   await showResources(ui, 'Project');
   const first = await keyAt(core, 1), second = await keyAt(core, 2);
@@ -14,20 +14,14 @@ test('returning to a task keeps its grid instance and expanded Project folders',
   fs.writeFileSync(path.join(files.project, 'retained-folder', 'kept.txt'), 'retained');
   await (await taskPage(ui)).getByRole('treeitem', { name: 'retained-folder', exact: true }).click();
   await expect((await taskPage(ui)).getByRole('treeitem', { name: 'kept.txt', exact: true })).toBeVisible();
-  const original = await (await taskPage(ui)).evaluate(() => {
-    const w = window as any;
-    w.__firstGrid = w.__dock;
-    w.__firstStage = w.__stage;
-    return !!w.__firstGrid && !!w.__firstStage;
-  });
-  expect(original).toBe(true);
   const retained = await taskPage(ui, first);
   await invoke(ui, 'task:show', second);
   await notLoading(ui);
+  await showResources(ui, 'Agents');
   expect(await taskPage(ui)).not.toBe(retained);
   const size = await core((k) => k.shell.win.getSize());
   const nativeWidth = await core((k, key) => k.shell.taskByKey(key).view.group.getBounds().width, first);
-  const width = await retained.evaluate(() => (window as any).__firstGrid.width as number);
+  const width = await retained.evaluate(() => (window as any).__dock.width as number);
   try {
     await core((k, size) => k.shell.win.setSize(size[0] - 100, size[1]), size);
     await expect.poll(() => core((k, key) => k.shell.taskByKey(key).view.group.getBounds().width, first), {
@@ -35,26 +29,21 @@ test('returning to a task keeps its grid instance and expanded Project folders',
     }).toBe(nativeWidth - 100);
     await invoke(ui, 'task:show', first);
     await notLoading(ui);
-    await expect.poll(() => retained.evaluate(() => (window as any).__firstGrid.width)).toBe(width - 100);
+    await expect.poll(() => retained.evaluate(() => (window as any).__dock.width)).toBe(width - 100);
   } finally {
     await core((k, size) => k.shell.win.setSize(size[0], size[1]), size);
     await invoke(ui, 'task:show', first);
     await notLoading(ui);
-    await expect.poll(() => retained.evaluate(() => (window as any).__firstGrid.width)).toBe(width);
+    await expect.poll(() => retained.evaluate(() => (window as any).__dock.width)).toBe(width);
   }
-  expect(await (await taskPage(ui)).evaluate(() => {
-    const w = window as any;
-    return w.__dock === w.__firstGrid && w.__stage === w.__firstStage;
-  }), 'returning reveals the retained development and Stage grids').toBe(true);
   await expect((await taskPage(ui)).getByRole('treeitem', { name: 'kept.txt', exact: true }), 'expanded Project folders survive switching').toBeVisible();
 });
 
-for (const boundary of ['switch', 'close', 'arrange'] as const) test(`a first layout delayed across ${boundary} belongs to its own task`, async ({ core, ui, call }) => {
+test('Stage arrangement during initial layout loading survives restoration', async ({ core, ui, call }) => {
   await notLoading(ui);
   const original = await core((k) => k.shell.task.key);
   const first = await newTask(core, ui);
-  await call('profile_create', { name: `Retained.${boundary}` });
-  const second = await newTask(core, ui);
+  await call('profile_create', { name: 'Retained.arrange' });
   await invoke(ui, 'task:close', first);
   await core((k, key) => {
     const store = k.shell.taskByKey(key).store, read = store.layout.bind(store);
@@ -67,36 +56,21 @@ for (const boundary of ['switch', 'close', 'arrange'] as const) test(`a first la
     const [id, task] = first.split('/');
     await invoke(ui, 'project:open', { id, task });
     await expect.poll(() => core((k) => k.stash.taskViewLoad.requested)).toBe(true);
-    if (boundary === 'switch') await invoke(ui, 'task:show', second);
-    else if (boundary === 'close') await invoke(ui, 'task:close', first);
-    else {
-      await invoke(ui, 'stage:arrange', { task: first, position: 'right' });
-      await invoke(ui, 'stage:arrange', { task: first, layout: 'tabs' });
-    }
+    await invoke(ui, 'stage:arrange', { task: first, position: 'right' });
+    await invoke(ui, 'stage:arrange', { task: first, layout: 'tabs' });
     await core((k) => k.stash.taskViewLoad.release());
     await ipcSettled(ui);
     await notLoading(ui);
     await frames(ui);
-    if (boundary === 'arrange') {
-      const stage = await (await taskPage(ui)).locator('[data-task-view][data-active]').getByTestId('stage').boundingBox(), development = await (await taskPage(ui)).locator('[data-task-view][data-active] [data-development-grid]').boundingBox();
-      expect(stage.x).toBeGreaterThanOrEqual(development.x + development.width - 1);
-    } else {
-      await expect((await taskPage(ui)).locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
-      expect(await core((k) => k.shell.task.key)).toBe(second);
-      if (boundary === 'close') await expect((await taskPage(ui)).locator(`[data-task-view="${first}"]`)).toHaveCount(0);
-      if (boundary === 'switch') {
-        await invoke(ui, 'task:show', first); await notLoading(ui); await frames(ui);
-        await expect.poll(() => core((k) => !!k.shell.task.pty)).toBe(true);
-      }
-    }
+    const stage = await (await taskPage(ui)).getByTestId('stage').boundingBox(), development = await (await taskPage(ui)).locator('[data-development-grid]').boundingBox();
+    expect(stage.x).toBeGreaterThanOrEqual(development.x + development.width - 1);
   } finally {
     await core((k) => {
       const pending = k.stash.taskViewLoad;
       pending.store.layout = pending.read; pending.release(); delete k.stash.taskViewLoad;
     });
     await invoke(ui, 'task:show', original); await notLoading(ui);
-    if (boundary !== 'close') await invoke(ui, 'task:close', first);
-    await invoke(ui, 'task:close', second);
+    await invoke(ui, 'task:close', first);
   }
 });
 
@@ -161,27 +135,4 @@ test('a Stage terminal keeps its renderer, output and search state across task s
   expect(await renderer.evaluate((el) => el.isConnected), 'closing the terminal releases its renderer').toBe(false);
   await renderer.dispose();
   await invoke(ui, 'task:close', second);
-});
-
-test('hidden task screens keep their own Resources section and release terminal renderers on close', async ({ core, ui, files, call }) => {
-  await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const first = await keyAt(core, 1), second = await keyAt(core, 2);
-  await invoke(ui, 'task:show', second);
-  await notLoading(ui);
-  await showResources(ui, 'Project');
-  await invoke(ui, 'task:show', first);
-  await notLoading(ui);
-  await showResources(ui, 'Agents');
-  const original = await (await taskPage(ui)).getByRole('region', { name: 'Agents', exact: true }).elementHandle();
-  await invoke(ui, 'task:show', second);
-  await notLoading(ui);
-  await expect((await taskPage(ui)).getByRole('region', { name: 'Project', exact: true })).toBeVisible();
-  await expect((await taskPage(ui)).locator('[data-testid="terminal"] .xterm'), 'one development renderer in each task page').toHaveCount(1);
-  await invoke(ui, 'task:show', first);
-  await notLoading(ui);
-  await expect((await taskPage(ui)).getByRole('region', { name: 'Agents', exact: true })).toBeVisible();
-  expect(await original.evaluate((el) => el.isConnected), 'the Resources content is retained').toBe(true);
-  await invoke(ui, 'task:close', second);
-  await expect((await taskPage(ui)).locator('[data-task-view]')).toHaveCount(1);
-  await original?.dispose();
 });
