@@ -72,6 +72,9 @@ Fixtures and app lifecycle live in `test/e2e/fixtures.ts`:
   `k.clock.advance(ms)` runs due callbacks and `release()` restores real timers. It does not change `Date.now()` or
   renderer clocks. Use controlled timestamps or a mock released by the test when those are the behavior's inputs,
   and restore timers in cleanup.
+  When intentionally blocking a renderer, finish Playwright setup before triggering the block through main.
+  Playwright can wait for a trace snapshot after the evaluated function returns; acknowledge the block through
+  main's socket so the harness can act while the renderer is blocked.
 - **Questions and window closure:** start an operation that asks a question, answer with `answer(page, …)` in the
   window showing it, then await the operation. Do not await `evaluate` in a window that its script closes: the
   reply can be lost. Use `closeSettings` and `settingsClosed` for Settings' save, closure and focus boundaries.
