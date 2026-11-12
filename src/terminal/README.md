@@ -38,15 +38,15 @@ and Stage terminals use the same runtime.
 sign-in and Stage places own a visible `View`. Use WebGL with DOM fallback on unavailability/context loss. Per-terminal
 renderers exhaust Chromium's 16-context limit and retain unnecessary GPU memory.
 
-Switching resets/serializes the selected buffer in one write, restores scroll, loses selection and queues pending
-output. The View stays transparent through restoration and reveals on `onRender` after buffer/pane sizes agree;
+Switching sessions within one View resets/serializes the buffer in one write, restores scroll, loses selection and
+queues pending output. The View stays transparent through restoration and reveals on `onRender` after buffer/pane sizes agree;
 opacity preserves measurement and focus. Visible output updates View and buffer at the same size.
 Fit from host DOM dimensions, coalesced in `requestAnimationFrame`; apply resize after that frame so clearing WebGL
 does not expose a blank canvas. Hidden pages fit immediately because Windows occlusion can suspend frames indefinitely.
 
 Serialization omits cursor visibility and mouse encodings. Track `?25`, `?1006`, `?1015`, `?1016` through parser hooks,
 restore every value, and disable encodings before enabling the chosen one. This serialization serves session
-switches within a UI. Live task-window moves keep the same UI and buffers without serialization.
+switches within a UI. Task selection and live window moves keep the same UI, View and buffers without serialization.
 
 Use Unicode 11 widths and bundled JetBrains Mono/xterm CSS. Callers supply `TermStyle` through constructor/restyle;
 program colors use `minimumContrastRatio`. Center whole rows vertically to avoid inconsistent bottom gaps.

@@ -74,13 +74,13 @@ leave links here. Dependency-cruiser protects public entries and keeps non-UI lo
 | [Settings](../src/renderer/components/settings/README.md) | Lazy settings UI and shared page controls |
 | [task-view](../src/renderer/task-view/README.md) | Retained task screens, grids, Workbench and pane drawings |
 | [Projects](tasks.md#projects) | Project creation, membership and setup behavior |
-| `components/Menus.tsx`, `lib/menu.ts`, `lib/dialogs.ts`, `lib/ask.ts` | Shared menus, dialog registration and questions |
-| `lib/store.ts` | Window state; components use `useWindow(selector)`, other code uses `store.getState()` |
+| `components/Menus.tsx`, `lib/menu.ts`, `lib/dialogs.ts`, `lib/ask.ts`, `lib/shell-ask.ts` | Shared menus, shell dialog registration and task/shell question handles |
+| `lib/store.ts` | Per-UI preferences and core projection; components use `useWindow(selector)`, other code uses `store.getState()` |
 | `src/renderer/window.css`, `public/theme.js`, `lib/theme.ts` | Theme and first-paint application |
 | `src/shared/`, `env.d.ts` | Main/renderer contracts and bridge |
 | `src/*/renderer/` | Kulisa package UI, documented by each package |
 
-Window/master HTML and scripts live under `src/renderer/`; profile pictures come from bundled Noto Emoji avatars
+Shell/task/master HTML and scripts live under `src/renderer/`; profile pictures come from bundled Noto Emoji avatars
 in `public/avatars/`. The window has no second router or UI framework.
 
 ## Layers over the pages
@@ -94,8 +94,9 @@ in `public/avatars/`. The window has no second router or UI framework.
   [window.md](window.md#native-ownership).
 - Settings covers without a Radix overlay: its owner calls `coverPage(true)` after drawing the cover and releases
   it with `coverPage(false)` on cleanup, avoiding an empty frame between native pages and Settings.
-- Task changes close all layers; leaving the native window closes menus. Use `closeLayers` and Radix's Escape
-  handling. Dialog content remains mounted through exit animations; focus handoffs wait for removal.
+- Task changes dismiss menus and task-local layers; shell dialogs and Settings keep their own lifetime. Leaving
+  the native window closes menus. Use `closeLayers` and Radix's Escape handling. Dialog content remains mounted
+  through exit animations; focus handoffs wait for removal.
 
 ## Desktop behavior
 
@@ -142,9 +143,10 @@ clipped by panels. ContextMenu is not the window's menu implementation. An isola
 
 ## Dialogs
 
-Task-window dialogs are mounted by App and register commands through `registerDialog` in `lib/dialogs.ts`;
-callers open them by name. Content mounts only while open. State that must outlive content belongs to the
-dialog's owning module or shared store; installation continues after its controls unmount.
+Window-modal dialogs are mounted by the shell App and register commands through `registerDialog` in `lib/dialogs.ts`.
+Shell callers open them by name; task controls use core-routed `shell:dialog` requests. Content mounts only while open.
+State that must outlive content belongs to the dialog's owning module or shared store; installation continues after
+its controls unmount.
 
 A dialog awaiting an answer rejects outside clicks and ×; Escape cancels it. Queue questions through `ask`
 or core `shell.ask` in the action's window, using AlertDialog. Settings is a separate view opened through

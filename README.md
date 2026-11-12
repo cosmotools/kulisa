@@ -103,7 +103,7 @@ and lint hook.
 | Folder | Responsibility |
 |---|---|
 | `src/main/`, `src/preload/` | Electron core and window bridge |
-| `src/renderer/` | React window, built by Vite into `dist/renderer` |
+| `src/renderer/` | React shell and task UIs, built by Vite into `dist/renderer` |
 | `src/shared/` | Shared types, channel contracts and helpers |
 | `src/<package>/` | Self-contained capabilities; [catalog](docs/packages.md#the-kulisa-packages) |
 | `test/` | Unit/e2e tests and local test site |

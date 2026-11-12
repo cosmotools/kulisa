@@ -569,8 +569,8 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 Task state uses Zod schemas for stored field shapes and TypeScript types, with core checks for unique IDs,
 conversation links and Stage setup. Validation retains unknown metadata; each section update reads the current
 document, preserves its peers and writes atomically. Dockview owns serialized layout formats.
-Layout changes are debounced and flushed when leaving the task; pruning closed panes preserves the active group when it survives. A new task retains uninitialized
-profiles/development separately from deliberately empty collections. Legacy task files are imported only when
+A new task retains uninitialized profiles/development separately from deliberately empty collections. Layout
+lifecycle belongs to [window.md](window.md#the-grid). Legacy task files are imported only when
 `task.json` is absent; a verified document is authoritative, and leftover source files are cleaned on reopening.
 Malformed source data stops migration with an error and retains the source files. Browser storage, profile tabs,
 transcripts and artifacts keep their own formats and owners.

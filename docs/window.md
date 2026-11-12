@@ -18,10 +18,10 @@ readiness; coverage lasts through overlay exit. Lowering restores the task's foc
 transients without waiting for task JS; it needs no full-task screenshot. Local menus retain the snapshot handoff below.
 
 `index.html`/`main.tsx` boot the shell; `task.html`/`task-view/main.tsx` boot one immutable task identity. Keep shell
-stores/dialog listeners out of task imports, and task grids/controllers out of shell imports. Main validates the
-current sender frame and UI owner. Task resources/output go only to that UI; the shell receives navigation data
-and a small selected-task label/count/presentation summary. Every task UI handshake refreshes global preferences
-and initial task facts before process startup/output; URL preferences only seed the first paint.
+stores/dialog listeners out of task imports, and task grids/controllers out of shell imports. Sender validation and
+delivery: [IPC](#ipc). The shell receives navigation data and a small selected-task label/count/presentation summary.
+Every task UI handshake refreshes global preferences and initial task facts before process startup/output;
+URL preferences only seed the first paint.
 Task navigation keys use main's tab order, independently of task JS. File dialogs use the native owner explicitly.
 
 Closing a task drains healthy UI Editor/layout work for at most one second, then flushes core accepted edits,
@@ -114,7 +114,7 @@ Preserve address drafts through unsolicited native-page focus; cancel for anothe
 page (`page:press`), not unfocused automation. Keep window `overflow: clip` so stacked offscreen panels cannot make
 `scrollIntoView` shift the whole grid.
 
-Native pages cover HTML: dragging/menus use snapshots, dialogs hide them (`task-view/views.ts`). Capture without
+Native pages cover task HTML: local dragging/menus use snapshots (`task-view/views.ts`). Capture without
 hiding; paint decoded snapshots before hiding native pages, and restore native pages before removing snapshots.
 This ordering prevents an empty frame during handoff. Captures and delayed visibility commands belong to their task;
 successive menus retain prepared images. An adaptive deadline bounds capture waits so unresponsive pages cannot block
@@ -186,7 +186,7 @@ not shrink the window automatically.
 ## Zoom
 
 - **The Kulisa zoom**: Ctrl + / − / 0 outside the pages, or the zoom row in ☰. It scales the whole UI of every window,
-  the terminal and the pages together (Chromium's zoom of the window's page; `setUiZoom` in `app.ts`). From 50% to
+  the terminal and the pages together (shell/task UI zoom; `setUiZoom` in `app.ts`). From 50% to
   200%: the window's minimum grows with it, and at 300% it is past a laptop's screen; the OS's own magnification is
   there for more.
 - **A site's zoom**: the same keys in a page zoom that site in that profile on top of the Kulisa zoom, as in Chrome, to
@@ -255,12 +255,12 @@ its right press is told by the CDP proxy it passes.
 
 ## Dialogs and questions
 
-Use shared window dialogs ([ui.md](ui.md#dialogs)). `shell.ask`/`lib/ask.ts` queues questions in the action's window,
-including agent requests, with explicit destructive effects. Raise/restore that window only when another Kulisa
-window is focused, never over another app.
+Window-modal dialogs and queued questions live in the shell ([ui.md](ui.md#dialogs)). Core actions use `shell.ask`;
+task UI requests use `shell:ask` or `shell:dialog`, routed to their current native owner. Questions include explicit
+destructive effects. Raise/restore that window only when another Kulisa window is focused, never over another app.
 
-Dialogs hide native pages and take window-page focus so keys reach them. Menus snapshot pages and restore focus on
-close. OS dialogs are reserved for choosing folders; they cannot express Kulisa's deletion details consistently.
+Shell dialogs take shell focus and cover live task surfaces through [native ownership](#native-ownership).
+OS dialogs are reserved for choosing folders; they cannot express Kulisa's deletion details consistently.
 
 ## Settings
 
@@ -339,10 +339,11 @@ Ctrl stays the terminal's; tasks are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's scre
 
 How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
 every webContents as it is made: `shortcuts.ts`), and takes one of Kulisa's (`preventDefault`: the page never gets it)
-or leaves it untouched. Where the keyboard is in the window's own page, the page tells it (`keys:zone`: the terminal, a
-dialog, a pane; `src/renderer/lib/keys.ts`), which also runs the commands the main process sends back (`command:run`, with
-the profile and tab). Letters are matched by what they type on a Latin layout (Ctrl+W on an AZERTY keyboard is its W)
-and by their place on others (Ctrl+Е on a Russian one is Ctrl+T); digits and keys typed with Shift by their place. Keys
+or leaves it untouched. Each UI reports its keyboard zone through `lib/key-zone.ts` (`keys:zone`: terminal, dialog,
+pane or window). Main handles task navigation itself; `lib/shell-keys.ts` handles shell commands and `lib/keys.ts`
+handles task commands (`command:run`, with task/profile/tab identity). Letters are matched by what they type on a
+Latin layout (Ctrl+W on an AZERTY keyboard is its W) and by their place on others (Ctrl+Е on a Russian one is Ctrl+T);
+digits and keys typed with Shift by their place. Keys
 are written as Electron's accelerators (`CommandOrControl+T`); a key held alone by its code (`ControlRight`, `F9`: `hold`
 bindings, matched on the press and the release, a modifier by its side), its repeats while held no presses.
 
@@ -371,8 +372,8 @@ logging. Lines carry ISO time with local offset, level and tag:
   crash of the main process, a kill or the computer going down, which nothing else can write; a crash leaves its
   minidump in `crashDumps` (Electron's crashReporter, `uploadToServer: false`: Crashpad keeps them, pruned by itself,
   90 days or 128 MB; no server), to ask a user for.
-- `[ipc]`: every channel a window sends (`ipc.ts`, `handle` and `on`), the sender's webContents id (`wc=`: a window's,
-  a master's; `[window] new wc=` says which) and its arguments; an answer refused, with its reason. Not the
+- `[ipc]`: every channel a UI sends (`ipc.ts`, `handle` and `on`), the sender's webContents id (`wc=`: shell, task or
+  master; `[window] new` and `[task-view] created` identify owners) and its arguments; a refusal, with its reason. Not the
   terminal's keystrokes and size (never: what is typed), nor what comes at every change or draw (`QUIET`: the grid's
   boxes, layouts, lists read again; Settings shown and closed, `[settings]`'s), and a question's answer without the
   answer.
@@ -458,14 +459,15 @@ issue #73) is where the human reads it and passes it on, by any means: not every
 
 ## IPC
 
-A window's page and the main process talk by named channels: `invoke` (an answer comes back), `send` (none), and the
+Shell/task pages and the main process talk by named channels: `invoke` (an answer comes back), `send` (none), and the
 main process's messages to a page. Each channel is declared once: core channels in `src/shared/ipc.ts`, Kulisa
 packages' in their own `ipc.ts`, joined into `Invoke`, `Send` and `Events`. `npm run build` checks both ends against
 their arguments and answers. The main process's end goes through
-`handle` and `on` (`src/main/ipc.ts`), in a file a domain (`src/main/ipc/`), and `AppWindow.send`; the page's through
-the bridge's types (`env.d.ts`) and `act`, which adds the task shown (a message about the shown task's profiles and
-tabs is refused once another is shown). A new channel is declared there first, then its two ends. A message acts in the
-window it comes from (`event.sender`); one change to the open tasks after another (`serial`).
+`handle` and `on` (`src/main/ipc.ts`), in a file per domain (`src/main/ipc/`). `AppWindow.send` delivers shell events;
+`Task.send` delivers task events. The bridge's types (`env.d.ts`) check renderer calls; task `act` binds the page's
+immutable task identity. Main validates the registered sender and current frame, resolves its current window after
+moves, and enforces shown-task restrictions where required. Shell navigation may name a tab in its own window.
+Declare a new channel before its two ends; open-task changes still run serially (`serial`).
 
 - Name channels `<domain>[:<subdomain>]:<action-or-event>`: a subgroup for related operations (`task:diff:review`,
   `project:profile:add`, `account:signin:cancel`), simple families shallow (`tab:navigate`), compound actions
@@ -489,8 +491,9 @@ window it comes from (`event.sender`); one change to the open tasks after anothe
   sandboxed window bridge without Node; shared helpers/types are imported from `src/shared/`.
 - Renderer `task-view/` owns retained task screens, Dockview, bounds, Workbench and environments.
   `components/settings/` is lazy-loaded through `index.ts`; UI structure: [ui.md](ui.md).
-- Renderer menus/dialogs, `lib/cover.ts` and `task-view/views.ts` coordinate native-page coverage. `lib/keys.ts` owns window
-  keyboard zones; `src/terminal/` owns PTY/buffers/rendering.
+- Renderer `lib/cover.ts` observes layers; `lib/shell-cover.ts` and `task-view/views.ts` provide native coverage.
+  `lib/key-zone.ts` reports keyboard zones; `lib/shell-keys.ts`/`lib/keys.ts` handle shell/task commands.
+  `src/terminal/` owns PTY/buffers/rendering.
 - `src/main/log.ts` owns logging, redaction, live reads and issue links; Settings' Log/About pages expose them.
   `files.ts` supplies shared atomic writes.
 - Coverage: window/grid/keys/log/zoom-and-closing e2e files; keys/log unit tests.

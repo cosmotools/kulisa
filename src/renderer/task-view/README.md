@@ -39,7 +39,8 @@ panes and the current keyboard target continue working; see [page dialogs](../..
 
 ## The code
 
-- `TaskView.tsx` composes the retained screen; `state.ts` and `controller.ts` own activation, commands and layout.
+- `main.tsx` boots one task page; `TaskView.tsx` composes its screen. `state.ts` owns its single task store;
+  `controller.ts` connects the committed grid and scoped commands.
 - Profile/terminal panes, Workbench terminals, Activity bar and Side bar own their controls and native-content bounds.
 - `Grid.css` and `ProfilePane.css` own documented geometry exceptions, using theme variables.
 - Coverage: grid layout/resize scenarios in `test/e2e/`, `stage.spec.ts`, `resources.spec.ts` and window tests.
