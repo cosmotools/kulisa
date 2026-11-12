@@ -44,9 +44,9 @@ These integration rules take precedence over generic skill instructions:
   [repository generation workflow](../src/ui/AGENTS.md#generation).
 - Outside `src/ui`, import only through `@ui`. Registry aliases reported by `info` describe generated internals;
   they do not replace this public entry.
-- Put shared window theme variables in `src/renderer/window.css`. Package-owned drawing palettes stay in their
-  package and are scoped to its drawing. The CLI reports `src/ui/theme.css`, which is generated
-  base styling; do not put application overrides there. Callers use layout/size classes, variants and custom
+- Put shared page theme variables in `src/appearance/renderer/page.css`, shell transparency in `src/renderer/window.css`.
+  Package drawing palettes stay scoped to their drawing. The CLI reports generated `src/ui/theme.css`;
+  do not put application overrides there. Callers use layout/size classes, variants and custom
   properties; custom drawings/layout use wrappers, with their reasons documented by the owner.
 - Use neutral shadcn styling, bundled Geist and JetBrains Mono. Native drawings use `termStyle()`;
   theme propagation/first paint belongs to [window.md](window.md#theme).
@@ -62,7 +62,8 @@ These integration rules take precedence over generic skill instructions:
 
 A window UI cluster owns one screen or closely related set of views: its state, private components and assets
 stay together behind an explicit entry. Shared non-UI coordination stays in `lib/`; application/core actions
-remain in their owning layer. A cluster is part of the window, distinct from a [Kulisa package](packages.md).
+remain in their owning layer. A cluster is part of the window; shared shell/task capabilities are
+[Kulisa packages](packages.md#the-kulisa-packages).
 
 Document lifecycle, boundaries and exceptions in the cluster's README. Keep detailed screen behavior there and
 leave links here. Dependency-cruiser protects public entries and keeps non-UI logic independent of components.
@@ -72,11 +73,10 @@ leave links here. Dependency-cruiser protects public entries and keeps non-UI lo
 | `components/App.tsx`, title/tasks' bars, sidebar | Window frame and navigation; [window.md](window.md) |
 | [welcome](../src/renderer/components/welcome/README.md) | First-start introduction, example drawings and their shared animation |
 | [Settings](../src/renderer/components/settings/README.md) | Lazy settings UI and shared page controls |
-| [task-view](../src/renderer/task-view/README.md) | Retained task screens, grids, Workbench and pane drawings |
 | [Projects](tasks.md#projects) | Project creation, membership and setup behavior |
-| `components/Menus.tsx`, `lib/menu.ts`, `lib/dialogs.ts`, `lib/shell-ask.ts` | Shared menus, shell dialog registration and questions |
-| `lib/store.ts` | Per-UI preferences and core projection; components use `useWindow(selector)`, other code uses `store.getState()` |
-| `src/renderer/window.css`, `public/theme.js`, `lib/theme.ts` | Theme and first-paint application |
+| `lib/dialogs.ts`, `lib/shell-ask.ts` | Shell dialog registration and questions; shared menus use their package entry |
+| `lib/store.ts` | Shell navigation, selected-task summary and core projection; shared preferences belong to [Window client](../src/window-client/README.md) |
+| `src/renderer/window.css`, `public/theme.js` | Shell transparency and first-paint theme application; shared styles use Appearance |
 | `src/shared/`, `env.d.ts` | Main/renderer contracts and bridge |
 | `src/*/renderer/` | Kulisa package UI, documented by each package |
 
@@ -84,19 +84,8 @@ Profile pictures come from bundled Noto Emoji avatars in `public/avatars/`.
 
 ## Layers over the pages
 
-`lib/cover.ts` observes Radix layers; individual dialogs/popovers do not manage native browser views themselves.
-
-- Global dialogs/menus raise the persistent transparent shell over the selected native task group and take shell
-  keyboard focus. A popper becomes ready after native raise is acknowledged. Transparent shell areas intercept clicks.
-  Coverage lasts through exit; lowering restores prior focus. Global coverage cancels task-local transients
-  without waiting for task JS or taking a full-task screenshot.
-- Task-local dialogs hide native sibling pages; local poppers/menus use decoded pictures before hiding those pages.
-  Both use `lib/cover.css` and `[data-ready]`; a tooltip is not a covering layer.
-  [Native ownership](window.md#native-ownership) and [snapshot handoff](window.md#the-grid) define their ordering.
-- Settings uses the same shell coverage, with `coverPage` for its non-Radix lifetime.
-- Task changes dismiss menus and task-local layers; shell dialogs and Settings keep their own lifetime. Leaving
-  the native window closes menus. Use `closeLayers` and Radix's Escape handling. Dialog content remains mounted
-  through exit animations; focus handoffs wait for removal.
+[Layers](../src/layers/README.md) owns DOM observation/readiness and keyboard zones. Shell/task supply native coverage;
+see [window ordering](window.md#native-ownership) and [local snapshots](../src/task-view/README.md#the-grid).
 
 ## Desktop behavior
 
@@ -124,22 +113,8 @@ the dialog. `withKeys` appends the shortcut; disabled controls receive no pointe
 
 ## Menus
 
-`components/Menus.tsx` owns the window's shared DropdownMenu wrappers: `ButtonMenu` for buttons, `RightClickMenu`
-for areas, and `menuAt`/`PointMenu` for positions. Use this single point menu; a fixed menu inside Dockview can be
-clipped by panels. ContextMenu is not the window's menu implementation. An isolated part may own its Radix menu
-(`ChoiceRow`, `TopBar.tsx`). Native profile-page menus are separate: [window.md](window.md#menus).
-
-- Press/release behavior matches the OS: a press followed by dragging and release selects a row. Rows accept the
-  left button only; Linux right-click opens on press and its later release must not choose a row.
-- Only one menu is open, nonmodal: a press outside closes it and acts there, including opening the next menu.
-  Native-window blur closes it. Check current `window:focused` state because renderer focus/blur can lag the OS;
-  a stale notification must not close a window that has focus again.
-- Closing restores the opener's focus, except when another menu now owns it. Remove menus immediately rather
-  than fading them: a fading layer can steal focus and the next Escape from a dialog opened by its row.
-- Draw only after the owning page's native coverage is ready; `[role="menu"][data-ready]` is the tests' handle.
-  Submenu padding participates in Radix's available-height limit so long lists stay scrollable inside the window.
-- Build rows as `MenuItem`s from `lib/menu.ts`. A row's accessible name is its label alone, including when a
-  shortcut/icon is also shown.
+Use [Menus](../src/menus/README.md) for shared button/area/point menus; callers supply rows/actions.
+Native profile-page menus remain separate ([window](window.md#menus)).
 
 ## Dialogs
 
@@ -157,18 +132,8 @@ so other panes remain usable and the pane keeps the keyboard. See [page dialogs]
 
 ## Tabs
 
-`BrowserTabs.tsx` adapts shadcn Tabs for browser-like task/profile navigation. Choose on press, keep × on every
-tab, and let it handle its own click without selecting the tab. The nested close target is a `role="button"`
-span because TabsTrigger is already a button.
-
-Task tabs keep their width across selection so neighbors do not move under the pointer. Profile tabs shrink to
-icon and ×, sharing a 32 px row with navigation controls. Editing the address occupies the tabs/+ area while the
-strip stays mounted. Development terminals switch through Agents Side bar items instead.
-
-`lib/strip.ts` shrinks overflowing strips, then scrolls them sideways without a scrollbar. The mouse wheel scrolls;
-`data-past-start`/`data-past-end` fade hidden edges. Reveal the selected tab only after selection, growth or resizing:
-title/loading/state updates must preserve the human's scroll. The Web Animations opening effect grows tabs;
-reduced motion disables it. This behavior also serves closed-profile strips above terminals.
+[Tab strip](../src/tab-strip/README.md) owns browser-style selection, close targets, overflow and growth.
+Shell/task callers supply their own actions; development terminals use Agents Side bar items instead.
 
 ## Own drawing
 
@@ -176,7 +141,7 @@ Prefer upstream components for their normal jobs. The remaining custom surfaces 
 
 | Surface | Reason and owner |
 |---|---|
-| Dockview grids, profile notch, narrow-pane controls | Native-page geometry and profile identity; [task-view](../src/renderer/task-view/README.md) |
+| Dockview grids, profile notch, narrow-pane controls | Native-page geometry and profile identity; [task-view](../src/task-view/README.md) |
 | Browser tabs and scrolling strips | Close targets, width stability and reveal policy; [Tabs](#tabs) |
 | Diff loading indicator | Transform-only motion without layout work; [Diff](../src/diff/README.md) |
 | Dictation pill/wave | Live microphone data and recording lifecycle; [dictation](../src/dictation/README.md) |

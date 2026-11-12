@@ -1,0 +1,5 @@
+# task-view
+
+Entries: `main/index.ts`, `renderer/index.ts`, `ipc.ts`. Main uses IPC/log infrastructure and public Browser entries;
+`shared/` stays pure. Unit: `test/unit/stage-layout.test.ts`;
+E2E: task-view/task-native/task-failure/grid/stage/editor/resources.

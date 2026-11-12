@@ -1,5 +1,5 @@
 // Raising the loaded transparent shell covers native siblings through overlay exit animations (docs/window.md).
-import { coverUnder } from './cover';
+import { coverUnder } from '../../layers/renderer';
 let raised = false;
 const present = () => !!document.querySelector('#settings, [data-slot$="-overlay"], [data-radix-popper-content-wrapper] > :not([data-slot="tooltip-content"])');
 async function update() {

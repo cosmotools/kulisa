@@ -10,8 +10,8 @@ import { CliExample } from './CliExample';
 import { AgentTerminal } from './AgentTerminal';
 import { CoffeeBreak } from './CoffeeBreak';
 import './animations.css';
-import { AppLogo } from '../ProjectIcon';
-import { agentMark } from '../AgentMark';
+import { AppLogo } from '../../../appearance/renderer';
+import { agentMark } from '../../../agent-presentation/renderer';
 
 let focusNow: (() => void) | null = null, asked = false;
 kulisa.on('project:new', () => { if (focusNow) focusNow(); else asked = true; });

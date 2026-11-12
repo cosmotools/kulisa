@@ -1,5 +1,6 @@
 // The window's own settings and what is drawn over it (docs/window.md): the Kulisa zoom, theme,
 // language; the pages hidden under HTML, a question's answer; About Kulisa; the Log page's log.
+import { registerTaskViews } from '../../task-view/main/index.ts';
 import { app, dialog, shell as electronShell } from 'electron';
 import fs from 'fs';
 import path from 'path';
@@ -56,9 +57,8 @@ export function registerWindow(ipc: Ipc) {
     else shell.setStageFollow(follow);
   });
   handle('zoom:ui', (_e, dir) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
-  handle('task:ready', (e) => shell.taskUiOf(e.sender)?.view?.connect());
+  registerTaskViews();
   handle('task:reload', (e, key) => at(e)?.tabs.find((t) => t.key === key)?.view?.reload());
-  handle('task:drained', (e, sequence) => shell.taskUiOf(e.sender)?.view?.acknowledgeDrain(sequence));
   handle('shell:cover', (e, covered) => at(e)?.coverShell(covered));
   handle('shell:ask', (e, question) => at(e)?.ask(question) ?? null);
   handle('shell:dialog', (e, request) => {

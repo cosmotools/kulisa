@@ -3,7 +3,7 @@
 import { createElement, Fragment, useState } from 'react';
 import { ArrowRightIcon, DownloadIcon, RefreshCwIcon } from 'lucide-react';
 import { Button, Spinner, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@ui';
-import { agentMark } from '../AgentMark';
+import { agentMark } from '../../../agent-presentation/renderer';
 import { SignIn } from '../SignIn';
 import { InstallProgress } from '../AgentPicker';
 import { useAgentList } from '../../lib/agents';

@@ -5,7 +5,7 @@ import { createElement, useEffect, useState } from 'react';
 import { CircleCheckIcon, CircleAlertIcon, ChevronRightIcon } from 'lucide-react';
 import { Alert, AlertDescription, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, FieldContent, FieldDescription,
   FieldLabel, FieldLegend, FieldSet, FieldTitle, RadioGroup, RadioGroupItem, Spinner, Collapsible, CollapsibleContent, CollapsibleTrigger } from '@ui';
-import { agentMark } from './AgentMark';
+import { agentMark } from '../../agent-presentation/renderer';
 import { agentList, shortPath, useAgentList, type AgentList } from '../lib/agents';
 import type { AgentInfo } from '../../shared/types';
 

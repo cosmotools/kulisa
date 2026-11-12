@@ -1,12 +1,12 @@
 // Settings: its nav, and a category's page or one thing's under its path (docs/window.md, Settings).
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from 'cn';
-import { avatarSrc } from '../../lib/common';
+import { avatarSrc, useShade, ProjectIcon } from '../../../appearance/renderer';
 import { ArrowLeftIcon, BotIcon, EllipsisIcon, GitBranchIcon, InfoIcon, LayoutGridIcon, PlusIcon, ScrollTextIcon, UsersIcon, CircleAlertIcon } from 'lucide-react';
 import { Badge, Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, Sidebar,
   SidebarContent, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, Toaster,
   Alert, AlertDescription, Avatar, AvatarImage, AvatarFallback, Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from '@ui';
-import { ButtonMenu } from '../Menus';
+import { ButtonMenu } from '../../../menus/renderer';
 import { Tip } from '../Tip';
 import { ProjectPage } from './ProjectPage';
 import { ProfilePage } from './ProfilePage';
@@ -19,13 +19,11 @@ import { useChanged } from './changed';
 import { useRead } from './read';
 import { agents as agentList, loadAccounts, useAccounts } from './agents';
 import { useAgentList } from '../../lib/agents';
-import type { MenuItem } from '../../lib/menu';
-import { coverPage } from '../../lib/cover';
-import { useShade } from '../../lib/theme';
+import type { MenuItem } from '../../../menus/renderer';
+import { coverPage } from '../../../layers/renderer';
 import { closeSettings, onLeaveSettings } from '../../lib/settings';
 import { store as windowStore, useWindow } from '../../lib/store';
-import { agentMark } from '../AgentMark';
-import { ProjectIcon } from '../ProjectIcon';
+import { agentMark } from '../../../agent-presentation/renderer';
 import { refused } from '../../../shared/result';
 import type { AgentInfo, SettingsProfile } from '../../../shared/types';
 import type { SettingsAt } from '../../../shared/ipc';

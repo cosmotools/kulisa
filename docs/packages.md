@@ -26,6 +26,7 @@ src/<package>/
   CLAUDE.md              @AGENTS.md
   README.md              behavior, rationale, channels; ends with "The code"
   ipc.ts                 channel contracts, joined by src/shared/ipc.ts
+  shared/                pure implementation used by both halves, when needed
   main/index.ts          main entry
   main/                  implementation
   renderer/index.ts      renderer entry
@@ -35,7 +36,7 @@ src/<package>/
 ```
 
 Omit absent halves. A package-owned page's script belongs in `renderer/`; its HTML loader stays under
-`src/renderer/`, Vite's root. E2e tests stay in `test/e2e/`, named in the README.
+`src/renderer/`, Vite's root. E2e tests stay in `test/e2e/`; package coverage is listed in AGENTS.
 
 Package channels are declared in its `ipc.ts` and handled internally through the shared `handle`/`on` functions.
 Task/window channels that call a package remain in `src/shared/ipc.ts` and core handles.
@@ -44,14 +45,15 @@ entries by directory.
 
 ## Its rules, and what checks them
 
-- Outside access: `main/index.ts`, `renderer/index.ts`, `ipc.ts`. Halves share types only. Neither imports core
-  domain types; the renderer imports no window/main code. `npm run deps` enforces this through the `packages` table.
+- Public entries are `main/index.ts`, `renderer/index.ts`, `ipc.ts` and declared assets. Halves share only types;
+  both may use pure `shared/` code, exposed externally through entries. No core domain types or renderer imports
+  of window/main code; `npm run deps` enforces the `packages` table.
 - Main code and allowed infrastructure must load in plain Node tests: obtain Electron objects from its default
   import, not named imports ([testing.md](testing.md)).
 - Root `tsconfig.json` includes `src/*/main`, `src/*/ipc.ts`, `src/*/*.test.ts`; the renderer config includes
   `src/*/renderer`. Unit runners share the package test glob.
 - Forge ships `main/` and `ipc.ts`; Vite bundles `renderer/` into `dist/renderer`; package docs/tests stay out.
-- Add a package's dependency-cruiser entry. Fix checks that silently skip it generically, not with one-off globs.
+- Register packages and public `assets` in that table. Fix skipped checks generically, without one-off globs.
 
 ## Its docs
 
@@ -89,3 +91,10 @@ entries by directory.
 | `src/task-files/` | ordinary files, confined actions, live results and a tree with bounded previews ([README](../src/task-files/README.md)) | `remove.ts` |
 | `src/activity-monitor/` | what Kulisa takes on the computer: the tasks' artifacts on the disk, every task's or some ([README](../src/activity-monitor/README.md)) | nothing |
 | `src/ui/` | shadcn/ui's components as its CLI writes them, and their theme: the window's alone, through `index.ts` ([README](../src/ui/README.md)) | (no main half) |
+| `src/task-view/` | retained task screen, native attachment, placement and recovery ([README](../src/task-view/README.md)) | `ipc.ts`, `log.ts` |
+| `src/menus/` | shared menu rendering and point-menu state ([README](../src/menus/README.md)) | (renderer only) |
+| `src/tab-strip/` | browser-like tabs, overflow and growth ([README](../src/tab-strip/README.md)) | (renderer only) |
+| `src/appearance/` | shared page theme and identity presentation ([README](../src/appearance/README.md)) | (renderer only) |
+| `src/agent-presentation/` | maker marks and readable activity states ([README](../src/agent-presentation/README.md)) | (renderer only) |
+| `src/layers/` | page layer readiness and keyboard zones ([README](../src/layers/README.md)) | (renderer only) |
+| `src/window-client/` | typed core clients and page-local preferences ([README](../src/window-client/README.md)) | (renderer only) |

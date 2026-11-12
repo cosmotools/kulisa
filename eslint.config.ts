@@ -5,7 +5,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import type { Rule } from 'eslint';
 
 const EXPORT_ALL = { selector: 'ExportAllDeclaration', message: 'Re-export by name, not export *.' };
-const WINDOW = ['src/renderer/**/*.tsx', 'src/renderer/**/*.ts', 'src/*/renderer/**/*.tsx'];
+const WINDOW = ['src/renderer/**/*.tsx', 'src/renderer/**/*.ts', 'src/*/renderer/**/*.tsx', 'src/*/renderer/**/*.ts'];
 const STYLE = "JSXAttribute[name.name='style'] > JSXExpressionContainer > ObjectExpression > Property";
 // The window is shadcn's components (src/ui) and Tailwind's classes on our own boxes (docs/ui.md, shadcn in Kulisa).
 const OWN = [
@@ -98,6 +98,9 @@ export default tseslint.config(
   { files: WINDOW, plugins: { kulisa: { rules: { 'ui-as-shipped': uiAsShipped } } },
     rules: { 'no-restricted-imports': ['error', ONE_LOOK], 'kulisa/ui-as-shipped': 'error' } },
   { files: WINDOW, rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, HEX, COLORS] } },
-  { files: ['src/renderer/components/AgentMark.tsx', 'src/renderer/components/ProjectIcon.tsx'],
+  // Package-owned code palettes and the standalone thumbnail have their own drawing colors (their READMEs).
+  { files: ['src/editor/renderer/appearance.ts'], rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, COLORS] } },
+  { files: ['src/screenshots/renderer/thumbnail.ts'], rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, HEX] } },
+  { files: ['src/agent-presentation/renderer/AgentMark.tsx', 'src/appearance/renderer/ProjectIcon.tsx'],
     rules: { 'no-restricted-syntax': ['error', EXPORT_ALL, ...OWN, COLORS] } },
 );

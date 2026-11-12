@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, Badge, Button, Alert, AlertDescription, Field,
   FieldTitle, FieldDescription } from '@ui';
 import { agents, loadAccounts, showAccounts, useAccounts } from './agents';
 import { Things, SettingsHeading, SettingsGroup, SettingsFields, SettingsDivider, SettingsLoading, SettingsError } from './kit';
-import { agentMark } from '../AgentMark';
+import { agentMark } from '../../../agent-presentation/renderer';
 import { AgentSetup } from '../AgentSetup';
 import { toast } from 'sonner';
 import { InstallProgress } from '../AgentPicker';

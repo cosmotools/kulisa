@@ -8,12 +8,13 @@ import { useShallow } from 'zustand/react/shallow';
 import { BookOpenIcon, GitBranchIcon, GlobeIcon, SquareTerminalIcon, CircleAlertIcon } from 'lucide-react';
 import { Avatar, AvatarGroup, AvatarImage, Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Field, FieldContent,
   FieldDescription, FieldLabel, FieldTitle, Progress, RadioGroup, RadioGroupItem, Spinner, Alert, AlertDescription } from '@ui';
-import { agentMark } from './AgentMark';
+import { agentMark } from '../../agent-presentation/renderer';
 import { shownTask, store, useWindow } from '../lib/store';
-import { actionsFor } from '../lib/actions';
+import { actionsFor } from '../../window-client/renderer';
 import type { TaskSummary } from '../../shared/ipc';
 import { registerDialog } from '../lib/dialogs';
-import { avatarSrc, plural } from '../lib/common';
+import { avatarSrc } from '../../appearance/renderer';
+import { plural } from '../lib/common';
 import { refused } from '../../shared/result';
 import type { DevelopmentTerminalInfo } from '../../shared/types';
 

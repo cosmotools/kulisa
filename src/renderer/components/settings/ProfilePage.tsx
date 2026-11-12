@@ -4,7 +4,7 @@ import { CircleAlertIcon } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback, Button, Field, FieldContent, FieldDescription, FieldLabel, Input, Popover, PopoverContent, PopoverTrigger, Textarea,
   ToggleGroup, ToggleGroupItem, Alert, AlertDescription, FieldTitle } from '@ui';
 import { SettingsHeading, SettingsGroup, SettingsFields, SettingsField, SettingsLoading } from './kit';
-import { avatarSrc } from '../../lib/common';
+import { avatarSrc } from '../../../appearance/renderer';
 import { AVATARS } from '../../../shared/avatars';
 import { refused, type Result } from '../../../shared/result';
 import type { SettingsProfile } from '../../../shared/types';

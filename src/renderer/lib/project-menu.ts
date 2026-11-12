@@ -2,7 +2,7 @@
 // submenu alike. What needs it loaded (a task of it open somewhere) only then.
 import { store } from './store';
 import { openSettings } from './settings';
-import type { MenuItem } from './menu';
+import type { MenuItem } from '../../menus/renderer';
 import type { ProjectEntry } from '../../shared/types';
 
 // A project's sort key for "worked in last first" (the sidebar, the bar's + menu): an open task → Infinity, else its last close.

@@ -5,28 +5,14 @@ Window layout, focus, controls, logging and IPC. Project/task lifecycle: [tasks.
 
 ## Native ownership
 
-A task window is a `BaseWindow` with an explicit, persistent shell `WebContentsView`. The shell owns bars,
-navigation, Settings and window-modal dialogs. Each visited task lazily creates one retained plain `View` group
-containing its UI `WebContentsView`, profile containers and optional native previews as siblings. Browser views
-must not be children of the task UI WCV: that composition produced black panes on Linux Wayland.
-`main/task-view.ts` owns this narrow native attachment; `Task` retains domain resources, PTYs, Editor and storage.
+A BaseWindow's persistent shell WebContentsView owns bars, navigation, Settings and window-modal dialogs.
+[Task view](../src/task-view/README.md#ownership-and-native-lifetime) owns each visited task's retained native group.
+The shell normally sits below the selected group in the workspace. Global overlays raise it: native `#00000000` and
+transparent HTML reveal the task while intercepting pointer input. [Layers](../src/layers/README.md) coordinates coverage.
 
-The opaque OS window normally draws the shell below the selected task group, which occupies only the workspace.
-Global overlays raise the already-loaded shell. Its explicit native `#00000000` background and transparent HTML
-workspace reveal the live task below while intercepting pointer input. Overlay coordination belongs to
-[UI layers](ui.md#layers-over-the-pages); task-local snapshot handoff belongs to [the grid](#the-grid).
-
-`index.html`/`main.tsx` boot the shell; `task.html`/`task-view/main.tsx` boot one immutable task identity. Keep shell
-stores/dialog listeners out of task imports, and task grids/controllers out of shell imports. Sender validation and
-delivery: [IPC](#ipc). The shell receives navigation data and a small selected-task label/count/presentation summary.
-Every task UI handshake refreshes global preferences and initial task facts before process startup/output;
-URL preferences only seed the first paint.
-Task navigation keys use main's tab order, independently of task JS. File dialogs use the native owner explicitly.
-
-Closing a task drains healthy UI Editor/layout work for at most one second, then flushes core accepted edits,
-saves profile tabs before destroying them, stops owned sessions and explicitly closes its UI webContents.
-Shutdown callers share one completion promise; native window destruction closes all owned shell/task contents.
-Default Electron background throttling remains enabled; no idle task UI eviction or freezing is implemented.
+`index.html`/`main.tsx` boot the shell; `task.html` loads the task bootstrap. Keep their stores/controllers separate.
+The shell receives navigation facts and a selected-task summary; main owns [sender authorization/routing](#ipc),
+task navigation keys and file-dialog ownership. Core shutdown callers share one completion promise.
 
 ## The title bar
 
@@ -53,80 +39,14 @@ when selected and activate on press. `useStrip` scrolls overflowing tabs; active
 
 ## The grid
 
-Two Dockviews hold **Workbench** and **Stage** browser/terminal environments; a headerless Gridview splits them.
-Stage headers move environments within Stage; Workbench drag/drop is disabled. Workbench's Activity bar and Side bar
-use a fixed left edge with native tabs and collapse; behavior and constraints: [tasks.md](tasks.md#the-workbench).
-The outer Workbench minimum includes this edge group because Dockview's central minimum excludes edges.
-
-Task selection controls native visibility, retaining grids and terminal buffers. Explicit activity pauses
-Project Explorer, Diff and Editor disk polling and cancels transient focus/drag requests; core
-Editor autosave continues. Native visibility alone does not pause protocol parsing. Each task's development
-xterm View stays attached across task switches; Stage terminal Views remain with their panes. Buffer rendering and sizing:
-[terminal](../src/terminal/README.md#the-window-renderer).
-
-The shell reports workspace bounds in CSS pixels; main converts to native coordinates and sizes every retained
-group without waiting for hidden renderer layout. Nested grids receive parent dimensions through `api.layout()`
-with autoresizing disabled. Profile reports use task-local CSS coordinates and the owning UI's zoom. A viewport
-revision and matching dimensions reject stale placement after resize, zoom or transfer. Native pages stay hidden
-until matching layout; new task UI is visible so its first layout can run. Prepared groups swap in one main turn.
-Hidden observers can settle on return; terminal fitting retains its timer fallback when frames are suspended.
-
-Artifacts' optional native PDF view joins window overlay hiding, menu pictures and global key routing; leaving its
-file/view/task closes it. Its independent adapter and resource bounds belong to [File Viewer](../src/file-viewer/README.md).
-
-- Stage menu: Left/Right/Above, Horizontal/Vertical stack or Tabs, Allow overflow, Follow agent, Open an environment.
-  `stage:arrange` and MCP `stage_arrange` share `Task.arrangeStage`, requiring the shown task; settings apply even
-  while empty. Omitted settings remain; overflow-only changes preserve pane selection.
-- Maximize/Restore uses Dockview's group state inside Stage, retaining tabs/splits and keeping development visible.
-  Suspend overflow while maximized, restore its setting afterward.
-- Follow agent is opt-in/global (`settings.json.stageFollow`). Plugin/browser CDP/named terminal actions report
-  `stage:activity`; the window selects hidden tabs, scrolls groups into view and highlights headers for 2 s.
-  Human Stage input pauses following until resumed. Preserve maximization, ignore background activity, keep
-  pause/activity transient per task and reset them on deactivation.
-- Overflow defaults off. On, set group minimum width 600 CSS px for horizontal stacks or height 300 px for vertical
-  stacks. Dockview aggregates group minimums; CSS applies them to the scroll canvas so nested groups and shared tabs
-  determine its size. Apply constraints before layout. Tabs ignores/hides the toggle but retains it.
-- Stage scroll/layout reports native-page boxes and visible intersections. Clip partial pages in parent `View`s
-  while retaining full child viewport; hide offscreen pages. Remove clipping on full visibility, close or move.
-- Load saved settings before creating grids; early Stage commands await restoration and retain their order.
-  Reveal after both nested grids mount at their final dimensions, keeping content loading from shifting the layout.
-  Persist all three grids through `toJSON`/`fromJSON`, plus Stage view/overflow/position; debounce 300 ms and flush on
-  deactivation/close. Live window moves retain the grids and reflow for destination geometry. Observe completed
-  layouts/maximization and Workbench edge dimensions, which central layout events omit.
-  Empty Stage stays mounted, hidden through Gridview's API to preserve its size. Position/view changes move native
-  panels/groups, retaining their contents. `shared/stage-layout.ts` imports flat layouts and legacy fractions;
-  `task-view/layout.ts` prunes closed panes while preserving active groups. Invalid layouts use defaults.
-- No environment: show Stage Terminal and closed-profile choices above development, or below empty-agent launchers.
-  `useStrip` scrolls overflow; `#dock` keeps `min-width: 0`. Stage menu offers the same choices.
-
-Dockview proportional layout requires >= 8.6.0 (issues 1691/1692). Always restore Stage headers as visible. Profile
-headers center identity/status in a notch; below 480 px status becomes an icon. Keep menu left, maximize/close right,
-stacked tab intrinsic width 20rem. Profile controls: [profiles.md](profiles.md).
-
-Preserve address drafts through unsolicited native-page focus; cancel for another field or human press in a focused
-page (`page:press`), not unfocused automation. Keep window `overflow: clip` so stacked offscreen panels cannot make
-`scrollIntoView` shift the whole grid.
-
-Native pages cover task HTML: local dragging/menus use snapshots (`task-view/views.ts`). Capture without
-hiding; paint decoded snapshots before hiding native pages, and restore native pages before removing snapshots.
-This ordering prevents an empty frame during handoff. Captures and delayed visibility commands belong to their task;
-successive menus retain prepared images. An adaptive deadline bounds capture waits so unresponsive pages cannot block
-menus; missing frames leave empty panes. New tabs grow without remounting the strip; address focus fades; suppress
-animations for reduced motion.
+The shell reports workspace bounds in CSS pixels; core converts them and sizes retained task groups.
+[Task view](../src/task-view/README.md#the-grid) owns grids, placement validity/scaling and local snapshots.
+Core supplies profile policy; `ArtifactViewer` owns file access and the window's active native preview.
 
 ### Task rendering failures
 
-Each task has a React Error Boundary; construction stays inside it, subscriptions begin after commit. A React
-failure releases UI resources while renderer terminal buffers, core PTYs and browser profiles survive. Main latches
-the failure and hides native pages, including after delayed placement or a window move.
-
-A crashed task process, or one reported unresponsive by Chromium, exposes a shell fallback. Native hang detection is
-conditional; the task tab's menu always provides Reload task screen, including when no unresponsive event arrives.
-Reloading drains received input for at most one second, terminates the unusable UI renderer and reloads only that UI;
-it never unloads the Task or relaunches agents/profiles. Core accepted Editor edits/drafts survive; reconstructed
-terminal screens show future output without a replay store. React failure does not automatically remount.
-Terminal protocol replies and raw-output transport have separate
-[service limits](../src/terminal/README.md#the-window-renderer) (#399); retained PTYs alone do not guarantee CLI progress.
+The shell exposes recovery independently of task JavaScript; lifetime, bounded drain and service limits belong to
+[Task view](../src/task-view/README.md#task-rendering-failures).
 
 ### Stage terminals
 
@@ -143,7 +63,7 @@ state, the window owns layout/menu/focus.
   Close removes setup/buffers. Task close stops processes but preserves setup.
 - Keep launch failures selectable in transient `launchError`; clear on retry, never persist them.
 - Human Open/launch requests focus after success, View and font readiness. New input, blur or task switch cancels
-  `task-view/environments.ts`'s pending request; delayed selection also rechecks intent, window focus and dialogs.
+  `task-view/renderer/environments.ts`'s pending request; delayed selection also rechecks intent, window focus and dialogs.
   Agent launch/Follow never steals focus.
 - `terminal_read` flushes parsing and reads normal/alternate screen, with scrollback limited to 500 lines. Over
   40,000 characters spills to the caller’s temporary folder with a bounded preview. Fixed sizes: 2–500 columns, 2–200 rows, independent
@@ -204,7 +124,7 @@ must specify code/comment language separately; injected answer instructions cann
 
 ## Menus
 
-Kulisa draws its menus in HTML, as Chrome does (shadcn's menus: `components/Menus.tsx`; how they open, close and are
+Kulisa draws its menus in HTML, as Chrome does (shadcn's menus: [Menus](../src/menus/README.md); how they open, close and are
 built: [ui.md](ui.md), Menus):
 
 - a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), a project's and a task's
@@ -331,8 +251,8 @@ Ctrl stays the terminal's; tasks are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's scre
 
 How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
 every webContents as it is made: `shortcuts.ts`), and takes one of Kulisa's (`preventDefault`: the page never gets it)
-or leaves it untouched. Each UI reports its keyboard zone through `lib/key-zone.ts` (`keys:zone`: terminal, dialog,
-pane or window). Main handles task navigation itself; `lib/shell-keys.ts` handles shell commands and `task-view/keys.ts`
+or leaves it untouched. Each UI reports its keyboard zone through `layers/renderer/key-zone.ts` (`keys:zone`: terminal, dialog,
+pane or window). Main handles task navigation itself; `lib/shell-keys.ts` handles shell commands and `task-view/renderer/keys.ts`
 handles task commands (`command:run`, with task/profile/tab identity). Letters are matched by what they type on a
 Latin layout (Ctrl+W on an AZERTY keyboard is its W) and by their place on others (Ctrl+Е on a Russian one is Ctrl+T);
 digits and keys typed with Shift by their place. Keys
@@ -477,15 +397,14 @@ Declare a new channel before its two ends; open-task changes still run serially 
 
 - `src/main/index.ts`, `app.ts`: environment, Squirrel handling, startup and app services; `shell.ts` defines the
   shared main-process interface. `open-tasks.ts` serializes task/window changes.
-- `src/main/window.ts`: native window/views, bounds, questions and screenshots. `shortcuts.ts`/`keys.ts` own keyboard
+- `src/main/window.ts`: native window/shell, workspace bounds, task host adapter, questions and screenshots. `shortcuts.ts`/`keys.ts` own keyboard
   routing/table; `page-menu.ts` owns native page menus; `file-links.ts` protects desktop file opening.
 - `src/main/ipc/`, `ipc.ts`, `src/shared/ipc.ts`: handles and shared contracts. `src/preload/index.cjs` exposes the
   sandboxed window bridge without Node; shared helpers/types are imported from `src/shared/`.
-- Renderer `task-view/` owns retained task screens, Dockview, bounds, Workbench and environments.
+- [Task view](../src/task-view/README.md) owns retained screens, grids, native placement and recovery.
   `components/settings/` is lazy-loaded through `index.ts`; UI structure: [ui.md](ui.md).
-- Renderer `lib/cover.ts` observes layers; `lib/shell-cover.ts` and `task-view/views.ts` provide native coverage.
-  `lib/key-zone.ts` reports keyboard zones; `lib/shell-keys.ts`/`task-view/keys.ts` handle shell/task commands.
-  `src/terminal/` owns PTY/buffers/rendering.
+- Renderer `lib/shell-cover.ts` adapts [Layers](../src/layers/README.md) to shell coverage;
+  `lib/shell-keys.ts` executes shell commands. Task adapters belong to Task view; PTY/buffers to [Terminal](../src/terminal/README.md).
 - `src/main/log.ts` owns logging, redaction, live reads and issue links; Settings' Log/About pages expose them.
   `files.ts` supplies shared atomic writes.
 - Coverage: window/grid/keys/log/zoom-and-closing e2e files; keys/log unit tests.

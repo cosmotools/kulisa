@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { FolderOpenIcon } from 'lucide-react';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, Field, FieldDescription, FieldLabel, Spinner } from '@ui';
 import { SettingsHeading, SettingsGroup, SettingsFields, SettingsLoading, SettingsError } from './kit';
-import { Logo } from '../ProjectIcon';
+import { Logo } from '../../../appearance/renderer';
 import { useRead } from './read';
 import { Tip } from '../Tip';
 import type { AboutFolder, AboutInfo } from '../../../shared/types';

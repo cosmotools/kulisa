@@ -1,13 +1,14 @@
 // A tasks' window's page (index.html; docs/window.md): its parts (components/App.tsx), and what listens to the main process
 // (lib/).
+import '../appearance/renderer/page.css';
 import './window.css';
 import { createRoot } from 'react-dom/client';
 import { App } from './components/App';
-import './lib/names';
+import { keyText } from '../window-client/renderer';
 import './lib/shell-keys';
 import './lib/shell-cover';
-import { keyText } from './lib/common';
 Object.assign(window, { keyText });
+
 
 // TaskBoundary reports caught errors without React's default dump of the thrown object to the window log.
 createRoot(document.getElementById('app')!, { onCaughtError: () => {} }).render(<App />);

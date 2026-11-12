@@ -11,5 +11,5 @@ interface KulisaBridge {
 
 declare const kulisa: KulisaBridge;
 
-// The theme put on the page's root (public/theme.js, lib/theme.ts).
+// The theme put on the page's root (public/theme.js, appearance/renderer/theme.ts).
 declare function showTheme(theme: string): void;

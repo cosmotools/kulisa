@@ -88,7 +88,7 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
     await strip.getByRole('button', { name: 'New tab' }).click();
     await expect.poll(async () => (await state()).tabs).toBe(n + 1);
     await expect(strip.locator(`[data-tab="${(await state()).active}"]`)).toHaveCount(1);
-    // Marked growing as it is added (lib/strip.ts: a MutationObserver's, before anything else runs), unmarked when an
+    // Marked growing as it is added (tab-strip/renderer/strip.ts: a MutationObserver's, before anything else runs), unmarked when an
     // animation ends: none ends here.
     expect(await strip.locator('[role="tab"][data-opening]').count(), 'not growing').toBe(0);
     await core((k) => { const e = k.profile('Elon.buyer'); e.closeTab(e.active); });
@@ -124,7 +124,7 @@ test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page s
   await expect(title, 'no title').toBeHidden();
   await expect(other.getByTitle('Close tab')).toBeVisible();
   expect(await pageBox(ui, files, 'Elon.buyer'), 'the page keeps its place and size').toEqual(before);
-  // Past that the strip scrolls (lib/strip.ts): the edge with tabs past it fades; a mouse's wheel scrolls it; a tab
+  // Past that the strip scrolls (tab-strip/renderer/strip.ts): the edge with tabs past it fades; a mouse's wheel scrolls it; a tab
   // not shown that changes (its page loads, its title) leaves it where the human scrolled it, not back at the active
   // one. Where it is scrolled to, and how far it can be: Playwright reads no scroll.
   const s = (await taskPage(ui)).locator(`${pane} [role="tablist"]`);

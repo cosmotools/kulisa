@@ -1,7 +1,7 @@
 // The sidebar's switch (components/Sidebar.tsx; docs/tasks.md, The sidebar), for its button in the tasks' bar and Ctrl+Shift+A
 // (keys.ts, task.menu): over the grid, opened or closed; docked in the empty window, the keyboard given to it.
 import { store } from './store';
-import { dialogsShown } from './cover';
+import { dialogsShown } from '../../layers/renderer';
 
 let overlay: { open: boolean; setOpen: (open: boolean) => void } | null = null;
 let docked: HTMLElement | null = null;

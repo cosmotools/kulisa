@@ -1,8 +1,8 @@
-// A terminal shown in a page (src/terminal: its View, one xterm), in the colors of the theme shown (lib/theme.ts,
+// A terminal shown in a page (src/terminal: its View, one xterm), in the colors of the theme shown (appearance/renderer/theme.ts,
 // termStyle): the card's background, its text, the font size. terminal: the key of the terminal to show, null none.
 import { useEffect, useRef, useState } from 'react';
 import { View } from '../../terminal/renderer';
-import { termStyle, useShade } from '../lib/theme';
+import { termStyle, useShade } from '../../appearance/renderer';
 
 export function Terminal({ terminal, className }: { terminal: string | null; className?: string }) {
   const shade = useShade();

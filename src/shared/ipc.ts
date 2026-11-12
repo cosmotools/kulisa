@@ -2,6 +2,8 @@
 // Both ends are checked against it (main/ipc.ts: handle, on, AppWindow.send; the window's bridge: renderer/env.d.ts,
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
+import type { TaskViewInvoke, TaskViewSend, TaskViewEvents, TaskPresentation, StageLayout, StagePosition } from '../task-view/ipc.ts';
+export type { TaskPresentation, StageLayout, StagePosition, PageLayout } from '../task-view/ipc.ts';
 import type { ProjectFile, ProjectGitStatus } from '../project-explorer/ipc.ts';
 import type { EditorAction, EditorSnapshot } from '../editor/ipc.ts';
 import type { ViewerBox, ViewerSearchResult } from '../file-viewer/ipc.ts';
@@ -22,11 +24,7 @@ import type {
 export interface OnTask { task: string | null }
 export type OnProfile = OnTask & { profile: string };
 export type OnTab = OnProfile & { tab?: string | null }; // none: the active one
-export type PageLayout = Partial<{ x: number; y: number; width: number; height: number }> & { shown?: boolean; clip?: { x: number; y: number; width: number; height: number } };
-type Grid = Record<string, PageLayout>;
 export type Theme = 'dark' | 'light' | 'system';
-export type StagePosition = 'left' | 'right' | 'above';
-export type StageLayout = 'vertical' | 'tabs' | 'horizontal';
 // Where Settings opens (components/settings): a project's page (none: the shown task's), a profile's, the
 // log (☰ → Report a Problem…), About (☰ → About Kulisa; macOS's app menu).
 export type SettingsAt = { section: 'projects' | 'profiles' | 'log' | 'about'; id?: string | null };
@@ -38,17 +36,13 @@ type Profiles = { profiles: SettingsProfile[] };
 
 // ipcRenderer.invoke / ipcMain.handle: args, the answer.
 type I<A extends unknown[], R = void> = { args: A; result: R };
-export interface TaskPresentation {
-  workbenchItem: 'terminals' | 'project' | 'diff' | 'artifacts'; selectedArtifact: string | null;
-  stagePosition: StagePosition; stageLayout: StageLayout | null; stageOverflow: boolean; stageFollowPaused: boolean;
-}
 export interface TaskSummary {
   key: string; profiles: { id: string; name: string; avatar: string; description: string; tabs: number }[];
   closedProfiles: { id: string; name: string; avatar: string; description: string }[];
   terminals: number; shells: string[]; failure: 'crashed' | 'unresponsive' | null; presentation: TaskPresentation;
 }
 export type TaskDialog = { kind: 'stageTerminalSettings'; task: string; terminal: StageTerminal } | { kind: 'handover'; task: string; terminal: import('./types.ts').DevelopmentTerminalInfo };
-export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, DictationInvoke {
+export interface Invoke extends TaskViewInvoke, TerminalInvoke, ThumbnailInvoke, GitHubInvoke, DictationInvoke {
   'project:list': I<[], ProjectsInfo | undefined>;
   'project:refresh': I<[]>;
   'project:open': I<[{ folder: string; task?: string } | { id: string; task: string }]>;
@@ -96,14 +90,11 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'task:show': I<[key: string], { error: string } | void>; // { error }: no such task (ipc/tasks.ts, taskAt)
   'task:new': I<[{ project?: string }?]>;
   'task:close': I<[key: string]>;
-  'task:ready': I<[]>;
   'task:reload': I<[string]>;
-  'task:drained': I<[number]>;
   'shell:cover': I<[boolean]>;
   'shell:dialog': I<[TaskDialog]>;
   'shell:ask': I<[Question], string | null>;
   'task:command': I<[OnTask & { command: 'profile:show' | 'terminal:open'; profile?: string }]>;
-  'task:view-failed': I<[{ task: string; kind: string; frames: string[] }]>;
   'task:delete': I<[key: string]>;
   'task:delete-closed': I<[{ project: string; id: string }]>;
   'task:rename': I<[{ key: string; name: string }], Result<{ name: string; branch: string | null }>>;
@@ -142,8 +133,6 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'profile:open': I<[OnProfile]>;
   'profile:delete': I<[OnProfile]>;
   'profile:master': I<[OnProfile]>;
-  'views:pictures': I<[], Record<string, string> | undefined>;
-  'views:hidden': I<[hidden: boolean, opts?: { focus?: boolean; task?: string }]>;
   'stage:arrange': I<[OnTask & { layout?: StageLayout; overflow?: boolean; position?: StagePosition }], Result>;
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
   'selection:send': I<[OnTask & { source: EnvironmentSource; text: string }], Result>;
@@ -202,11 +191,8 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
 }
 
 // ipcRenderer.send / ipcMain.on: what is sent, no answer.
-export interface Send extends TerminalSend, ThumbnailSend {
-  'layout:apply': { task: string | null; rects: Grid; revision: number; viewport: { width: number; height: number } };
+export interface Send extends TaskViewSend, TerminalSend, ThumbnailSend {
   'shell:workspace': { task: string | null; x: number; y: number; width: number; height: number; viewport: { width: number; height: number } };
-  'task:presentation': TaskPresentation;
-  'layout:save': { task: string | null; layout: unknown };
   'ask:answer': { id: number; answer: string };
   'agent:choice:submit': { task: string | null; id: string | null };
   'keys:zone': string;
@@ -215,14 +201,8 @@ export interface Send extends TerminalSend, ThumbnailSend {
 }
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
-export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents {
-  'task:initial': TaskPresentation;
-  'task:viewport': { revision: number; width: number; height: number; zoom: number };
-  'task:activity': { active: boolean; covered: boolean };
-  'task:dismiss': void;
-  'task:drain': number;
+export interface Events extends TaskViewEvents, TerminalEvents, ThumbnailEvents, DictationEvents {
   'task:summary': TaskSummary | null;
-  'task:command': { command: 'profile:show' | 'terminal:open'; profile?: string };
   'shell:dialog': TaskDialog;
   'task:editor:state': { task: string; state: EditorSnapshot };
   'project:state': ProjectsInfo;
@@ -254,7 +234,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'settings:show': SettingsAt;
   'settings:changed': void; // the profiles changed elsewhere (another window, the agent): Settings' lists read again
   'log:lines': ({ text: string } | { reset: true }) & { stream: number }; // updates belong to one snapshot; turned over: read again
-  'window:blur': void; // a tasks' window left (another window, another app): its menus close (lib/cover.ts)
+  'window:blur': void; // a tasks' window left (another window, another app): its menus close (layers/renderer/cover.ts)
 }
 
 // A message's argument after its channel: none for a `void` one.

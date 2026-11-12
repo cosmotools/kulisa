@@ -5,7 +5,7 @@ import { useCallback, memo, useEffect, useId, useLayoutEffect, useMemo, useRef, 
 import { ChevronDownIcon, CircleAlertIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Input, Label, Switch, ToggleGroup, ToggleGroupItem, Alert, AlertDescription } from '@ui';
-import { ButtonMenu } from '../Menus';
+import { ButtonMenu } from '../../../menus/renderer';
 import { Tip } from '../Tip';
 import { SettingsHeading, SettingsLoading } from './kit';
 import { useRead } from './read';
