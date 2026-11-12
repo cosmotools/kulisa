@@ -103,16 +103,12 @@ Example: `~/IdeaProjects/myshop@task-k3x9q2/` can remain on disk while its branc
 
 ### The Workbench
 
-TaskStore retains its existing versioned `task.json`. A small `workspace.presentation` projection saves the selected
-Workbench item and artifact; Dockview owns layout. Main coalesces presentation writes, while Editor checkpoints
-remain immediate. Focus, loading, pictures and mirrored core resources are transient. Switch and window move retain
-the same UI/core sessions; close stops them, and reopen creates new UI/PTys under the existing resume rules.
-
-
 Names for Workbench, Activity bar, Side bar, Main pane and their items: [UI terminology](ui.md#workbench-terminology).
 The Activity bar and Side bar share a Dockview edge group fixed left of Main pane. Clicking the selected Activity
 bar item collapses the Side bar; another reopens it at saved width. Task layout saves the selected item, collapse
-state and shared expanded width.
+state and shared expanded width. `workspace.presentation` in `task.json` saves only the selected item and artifact;
+main coalesces these writes, while Editor checkpoints remain immediate. Dockview owns layout serialization
+([grid lifecycle](window.md#the-grid)); focus, loading, pictures and mirrored core facts are transient.
 
 - Expanded minimum width is 300 CSS px; collapsed width is 40 px. Development minimum height is 204 px to keep
   controls reachable. Empty development terminals: [window.md](window.md#the-terminal).

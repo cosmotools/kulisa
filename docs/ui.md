@@ -80,8 +80,7 @@ leave links here. Dependency-cruiser protects public entries and keeps non-UI lo
 | `src/shared/`, `env.d.ts` | Main/renderer contracts and bridge |
 | `src/*/renderer/` | Kulisa package UI, documented by each package |
 
-Shell/task/master HTML and scripts live under `src/renderer/`; profile pictures come from bundled Noto Emoji avatars
-in `public/avatars/`. The window has no second router or UI framework.
+Profile pictures come from bundled Noto Emoji avatars in `public/avatars/`.
 
 ## Layers over the pages
 
@@ -89,11 +88,12 @@ in `public/avatars/`. The window has no second router or UI framework.
 
 - Global dialogs/menus raise the persistent transparent shell over the selected native task group and take shell
   keyboard focus. A popper becomes ready after native raise is acknowledged. Transparent shell areas intercept clicks.
+  Coverage lasts through exit; lowering restores prior focus. Global coverage cancels task-local transients
+  without waiting for task JS or taking a full-task screenshot.
 - Task-local dialogs hide native sibling pages; local poppers/menus use decoded pictures before hiding those pages.
-  Both use `lib/cover.css` and `[data-ready]`; a tooltip is not a covering layer. Native composition and handoff:
-  [window.md](window.md#native-ownership).
-- Settings covers without a Radix overlay: its owner calls `coverPage(true)` after drawing the cover and releases
-  it with `coverPage(false)` on cleanup, avoiding an empty frame between native pages and Settings.
+  Both use `lib/cover.css` and `[data-ready]`; a tooltip is not a covering layer.
+  [Native ownership](window.md#native-ownership) and [snapshot handoff](window.md#the-grid) define their ordering.
+- Settings uses the same shell coverage, with `coverPage` for its non-Radix lifetime.
 - Task changes dismiss menus and task-local layers; shell dialogs and Settings keep their own lifetime. Leaving
   the native window closes menus. Use `closeLayers` and Radix's Escape handling. Dialog content remains mounted
   through exit animations; focus handoffs wait for removal.
