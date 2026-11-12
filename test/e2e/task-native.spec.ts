@@ -26,32 +26,21 @@ process.stdout.write('BURST-END\\r\\n');},10);`);
   await invoke(ui, 'task:show', first); await notLoading(ui);
   await core((k) => { k.stash.burstStarted = 0; k.electron.ipcMain.once('test:burst:stall', () => { k.stash.burstStarted = Date.now(); }); });
   await screen.evaluate((terminal) => {
-    const probe = { phase: 'waiting', pending: '', lines: 0, invalid: false, stalled: false, done: false };
-    (window as any).__burst = probe;
+    (window as any).__burst = '';
     (window as any).kulisa.on('pty:out', ({ task, data }: { task: string; data: string }) => {
-      if (task !== terminal) return;
-      probe.pending += data;
-      let newline: number;
-      while ((newline = probe.pending.indexOf('\n')) >= 0) {
-        const line = probe.pending.slice(0, newline).replace(/\r+$/, '');
-        probe.pending = probe.pending.slice(newline + 1);
-        if (line === 'BURST-BEGIN') { probe.phase = 'running'; continue; }
-        if (line === 'BURST-END') { probe.done = true; probe.phase = 'done'; continue; }
-        if (probe.phase === 'running') {
-          if (line !== 'B' + String(probe.lines).padStart(5, '0') + ':' + 'x'.repeat(112)) probe.invalid = true;
-          probe.lines++;
-        }
-      }
+      if (task === terminal) (window as any).__burst += data;
     });
-    setTimeout(() => { (window as any).kulisa.send('test:burst:stall', null); probe.stalled = true; const until = Date.now() + 2000; while (Date.now() < until) {} }, 10);
+    setTimeout(() => { (window as any).kulisa.send('test:burst:stall', null); const until = Date.now() + 2000; while (Date.now() < until) {} }, 10);
   }, terminal);
   // This one-off test observation runs in main while the task's JavaScript is blocked.
   await expect.poll(() => core((k) => k.stash.burstStarted > 0)).toBe(true);
   fs.writeFileSync(gate, 'go');
   await taskTab(ui, second).click();
   expect(await core((k) => Date.now() - k.stash.burstStarted)).toBeLessThan(2000);
-  await expect.poll(() => screen.evaluate(() => ({ lines: (window as any).__burst.lines, invalid: (window as any).__burst.invalid, done: (window as any).__burst.done })))
-    .toEqual({ lines: 4096, invalid: false, done: true });
+  await expect.poll(() => screen.evaluate(() => (window as any).__burst.includes('BURST-END'))).toBe(true);
+  const output = await screen.evaluate(() => ((window as any).__burst as string).replace(/\r+$/gm, ''));
+  expect(output.split('BURST-BEGIN\n')[1]?.split('BURST-END')[0])
+    .toBe(Array.from({ length: 4096 }, (_, n) => 'B' + String(n).padStart(5, '0') + ':' + 'x'.repeat(112) + '\n').join(''));
   await expect.poll(read).toContain('BURST-END');
   await call('terminal_close', { name: 'Burst' }, { task: first });
   await invoke(ui, 'task:show', first); await notLoading(ui);

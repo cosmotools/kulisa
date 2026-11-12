@@ -1,9 +1,10 @@
 import { taskPage, menuPage, inputPage } from './pages.ts';
 // Stage terminal controls operate the visible terminal without sending search keys to its app.
 import { test, expect } from './fixtures.ts';
-import { focusWindow, showResources, notLoading } from './helpers.ts';
+import { focusWindow, showResources, notLoading, invoke } from './helpers.ts';
+import { newTask, taskTab } from './tasks-helpers.ts';
 
-test('terminal search selects output, navigates matches, and returns keyboard focus without typing into the app', async ({ core, ui, call }) => {
+test('terminal search survives task switches, navigates matches, and returns focus without typing into the app', async ({ core, ui, call }) => {
   await notLoading(ui);
   await call('terminal_run', { name: 'Search', command: 'node -e "console.log(\'marker-one marker-two\'); setInterval(()=>{},1000)"' });
   const read = async () => JSON.parse((await call('terminal_read', { name: 'Search' })).text).text;
@@ -16,6 +17,10 @@ test('terminal search selects output, navigates matches, and returns keyboard fo
   const query = pane.getByRole('textbox', { name: 'Find in terminal', exact: true });
   await expect(query).toBeFocused();
   await query.fill('marker');
+  const first = await core((k) => k.shell.task.key), second = await newTask(core, ui);
+  await taskTab(ui, first).click(); await notLoading(ui);
+  await expect(query).toHaveValue('marker');
+  await invoke(ui, 'task:close', second);
   const height = (await pane.locator('.xterm-screen').boundingBox()).height;
   await call('terminal_resize', { name: 'Search', size: { cols: 60, rows: 5 } });
   await expect.poll(async () => (await pane.locator('.xterm-screen').boundingBox()).height).toBeLessThan(height);

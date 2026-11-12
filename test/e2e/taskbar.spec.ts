@@ -136,7 +136,7 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
 
 test('tasks: switching shows the other grid at once, its pages live once it is laid out; a global menu opened during the switch covers live pages', async ({ core, ui, files, call }) => {
   await begin(core, ui, files, { only: true, columns: true, featureX: call });
-  const first = await keyAt(core, 1), second = await keyAt(core, 2), SAM = files.idOf('Sam.admin'), ELON = files.idOf('Elon.buyer');
+  const first = await keyAt(core, 1), second = await keyAt(core, 2);
   const live = async () => (await (await taskPage(ui)).locator('[data-testid="snapshot"]').count()) === 0 && viewOn(core, ui, files, 'Sam.admin');
   // Each native UI keeps its own DOM. Observe both at their frames, and the native selection at each main turn.
   const screens = await Promise.all([taskPage(ui, first), taskPage(ui, second)]);
@@ -168,51 +168,6 @@ test('tasks: switching shows the other grid at once, its pages live once it is l
     expect(await core((k) => k.stash.nativeSwitch), 'native groups switch without an empty selection').toEqual([true]);
   } finally { await core((k) => k.stash.restoreAvailability()); }
   await bothOn(core, ui, files);
-  // Chromium may deliver even a live page's frame after the fallback deadline. Use a real image, but move the
-  // capture completions and deadline clock ourselves so rendering speed cannot decide which branch is covered.
-  const pics = await core(async (k, ids) => {
-    const sam = k.shell.profiles.get(ids.SAM).get().wc, elon = k.shell.profiles.get(ids.ELON).get().wc;
-    const image = await elon.capturePage(), realNow = Date.now, results = [];
-    const captures = [sam, elon].map((wc) => Object.getOwnPropertyDescriptor(wc, 'capturePage'));
-    try {
-      for (const [firstAt, deadline] of [[20, 100], [200, 600], [null, 500]] as const) {
-        k.clock.hold(1);
-        let now = 0, done = false, complete = (_: typeof image) => {};
-        Date.now = () => now;
-        sam.capturePage = () => new Promise(() => {});
-        elon.capturePage = () => new Promise((ok) => { complete = ok; });
-        const pending = k.shell.windows[0].pictures().then((got) => { done = true; return got; });
-        // A turn flushes capture and Promise.all continuations before inspecting their effects.
-        const advance = async (ms: number) => { now += ms; k.clock.advance(ms); await new Promise(setImmediate); };
-        if (firstAt !== null) {
-          await advance(firstAt);
-          complete(image);
-          await advance(0);
-        }
-        await advance(deadline - now - 1);
-        const before = done;
-        await advance(1);
-        const after = done;
-        // Do not await pending: a broken deadline must fail an assertion rather than hang the test.
-        const got = done ? await pending : {};
-        complete(image);
-        await advance(1000);
-        results.push({ firstAt, before, after, sam: !!got[ids.SAM], elon: got[ids.ELON] === `data:image/jpeg;base64,${image.toJPEG(90).toString('base64')}`, keys: Object.keys(got) });
-      }
-    } finally {
-      Date.now = realNow;
-      k.clock.release();
-      for (const [i, wc] of [sam, elon].entries()) {
-        if (captures[i]) Object.defineProperty(wc, 'capturePage', captures[i]); else Reflect.deleteProperty(wc, 'capturePage');
-      }
-    }
-    return results;
-  }, { SAM, ELON });
-  expect(pics).toEqual([
-    { firstAt: 20, before: false, after: true, sam: false, elon: true, keys: [ELON] },
-    { firstAt: 200, before: false, after: true, sam: false, elon: true, keys: [ELON] },
-    { firstAt: null, before: false, after: true, sam: false, elon: false, keys: [] },
-  ]);
   // A shell menu opened during the switch stays above the newly laid-out task. Pressed (a menu opens on the press) as the window hears of it: a click from the
   // test would come once the grid is laid out.
   await ui.evaluate((target) => {

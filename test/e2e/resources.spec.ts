@@ -49,8 +49,6 @@ test('Workbench starts with Agents, Project expands folders and opens files, and
   await row.press('Enter');
   await expect((await taskPage(ui)).getByRole('textbox', { name: file, exact: true })).toContainText('project file');
   await expect((await taskPage(ui)).getByRole('tablist', { name: 'Open files' }).getByRole('tab')).toHaveCount(2);
-  await showResources(ui, 'Artifacts');
-  await expect(row).toHaveCount(0);
   const other = path.join(files.root, 'tree-other-project');
   fs.mkdirSync(other, { recursive: true });
   fs.writeFileSync(path.join(other, 'other.txt'), 'other project');
@@ -61,9 +59,11 @@ test('Workbench starts with Agents, Project expands folders and opens files, and
   await expect((await taskPage(ui)).locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'tree-example', exact: true })).toHaveCount(0);
   expect((await invoke(ui, 'task:file:list', { key: await core((k) => k.shell.task.key), folder: first.folder })).error).toBeTruthy();
   await showTask(core, ui, first.key);
-  await expect((await taskPage(ui)).getByRole('tab', { name: 'Artifacts', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await showResources(ui, 'Project');
+  await expect((await taskPage(ui)).getByRole('tab', { name: 'Project', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect((await taskPage(ui)).locator('[data-task-view][data-active] [data-resources]').getByRole('treeitem', { name: 'tree-example', exact: true })).toBeVisible();
+  await expect(row, 'expanded folders survive task switches').toBeVisible();
+  await showResources(ui, 'Artifacts');
+  await expect(row).toHaveCount(0);
 });
 
 test('Project icons identify files and folders and follow the window theme', async ({ core, ui, files }) => {
