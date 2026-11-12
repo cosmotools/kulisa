@@ -255,6 +255,7 @@ test('creating a project keeps the chosen account and folder and logs the action
     await notLoading(ui);
     const typed = 'private-terminal-input';
     await expect((await taskPage(ui)).getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await termShows(ui, 'fake agent in ');
     await (await termKeys(ui)).pressSequentially(typed);
     await termShows(ui, typed);
     const logged = files.log();
