@@ -20,6 +20,9 @@ test("tasks: switching shows the other grid and terminal; the one left keeps run
   await expect(tabs.getByRole('button', { name: 'Close', exact: true }), 'one ×, shown').toHaveCount(2);
   const widths = async () => Promise.all((await tabs.all()).map(async (t) => (await t.boundingBox()).width));
   const before = await widths();
+  const tab = tabs.first(), icon = await tab.getByTestId('project-icon').boundingBox();
+  const bounds = await tab.boundingBox(), name = await tab.getByText(await tab.getAttribute('aria-label'), { exact: true }).boundingBox();
+  expect(icon.width === 16 && icon.x > bounds.x && icon.x + icon.width <= name.x, 'the project icon precedes the task name').toBe(true);
   // A tab's right-click menu: the shown one's has its profiles; then renaming, its folder, moving to another window,
   // closing, deleting, and its project's submenu. Show Folder opens the task's worktree in the file manager.
   await rightClick(ui, taskTab(ui, first));

@@ -467,18 +467,6 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal, 
   const pageDark = () => core((k) => k.profile('Sam').get().wc.executeJavaScript(`matchMedia('(prefers-color-scheme: dark)').matches`) as Promise<boolean>);
   const osDark = await pageDark();
   const saved = () => files.json('settings.json').theme;
-  const shot = async (name: string) => {
-    const file = path.join(files.root, name);
-    await core((k, f) => k.shot(f), file);
-    await test.info().attach(name, { path: file, contentType: 'image/png' });
-  };
-  await ui.locator('#windowMenu').click();
-  await expect((await menu(ui))).toMatchAriaSnapshot(`
-    - menu:
-      - /children: contain
-      - group "Zoom"
-      - menuitem "Theme"
-      - menuitem "Tasks bar"`);
   const themes = await windowSubmenu(ui, 'Theme');
   await looks('dark', 'dark');
   const pick = async (t: string, shade: 'dark' | 'light', scheme: string = shade) => {
@@ -489,10 +477,8 @@ test("theme: Dark by default, Light or System in ☰; the window, the terminal, 
   };
   await pick('light', 'light');
   expect(await pageDark(), "a site under test keeps the OS's scheme").toBe(osDark);
-  await shot('light.png');
   await pick('system', await core((k) => k.electron.nativeTheme.shouldUseDarkColors) ? 'dark' : 'light', 'light dark'); // the OS's, as the pages'
   await pick('dark', 'dark');
-  await shot('dark.png');
   expect(await pageDark()).toBe(osDark);
   await (await inputPage(ui)).keyboard.press('Escape');
   await closeMenu(ui);

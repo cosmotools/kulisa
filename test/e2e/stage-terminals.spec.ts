@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect } from './fixtures.ts';
 import { newTask } from './tasks-helpers.ts';
-import { showResources, invoke, answer, choose, frames, notLoading, focusWindow } from './helpers.ts';
+import { showResources, invoke, answer, choose, notLoading, focusWindow } from './helpers.ts';
 
 const tui = `
 process.stdin.setRawMode(true);
@@ -24,7 +24,7 @@ process.stdout.on('resize', draw);
 draw();
 `;
 
-test('a CLI task needs no browser: human and agent see, operate, resize and restart a Stage terminal', async ({ core, ui, files, call }, info) => {
+test('a CLI task needs no browser: human and agent see, operate, resize and restart a Stage terminal', async ({ core, ui, files, call }) => {
   await notLoading(ui);
   expect(await core((k) => k.shell.task.profiles.size)).toBe(0);
   await expect((await taskPage(ui)).locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
@@ -69,10 +69,6 @@ test('a CLI task needs no browser: human and agent see, operate, resize and rest
   await expect.poll(screenHeight).toBeCloseTo(twelveRows * 2, 0);
   await call('terminal_resize', { name: 'Terminal 1', size: { cols: 60, rows: 12 } });
   await expect.poll(screenHeight).toBeCloseTo(twelveRows, 0);
-  await frames(ui);
-  const shot = info.outputPath('terminal-stage.png');
-  await core((k, file) => k.shot(file), shot);
-  await info.attach('terminal stage', { path: shot, contentType: 'image/png' });
   await call('terminal_stop', { name: 'Terminal 1' });
   expect((await screen()).terminal.status).toBe('stopped');
   expect((await screen()).text).toContain('Choice 42');

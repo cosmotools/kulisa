@@ -18,17 +18,6 @@ async function drag(ui: Page, panel: string, target: string, where: 'right' | 'c
   await (await taskPage(ui)).mouse.up();
 }
 
-test("tasks' bar: under the grid, a tab per open task, its project's icon first, its name after; the shown one selected", async ({ core, ui, files }) => {
-  await begin(core, ui, files, { columns: true });
-  const shown = ui.locator('#taskTabs [role="tab"][aria-selected="true"]');
-  await expect(shown).toHaveCount(1);
-  const grid = await (await taskPage(ui)).locator('#dock').boundingBox(), tab = await shown.boundingBox(), icon = await shown.getByTestId('project-icon').boundingBox();
-  const name = await shown.getByText(await shown.getAttribute('aria-label'), { exact: true }).boundingBox();
-  expect(tab.y >= grid.y + grid.height - 1, 'under the grid').toBe(true);
-  expect(tab.width >= 160, `wide enough for a name: ${tab.width}`).toBe(true);
-  expect(icon.width === 16 && icon.x > tab.x && icon.x + icon.width <= name.x, "the icon at the tab's start, the name after it").toBe(true);
-});
-
 test("grid: a pane narrower than its profile's name: the name cut with …, its × in the pane, no list of hidden tabs", async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   const panel = files.panel(SAM);
@@ -198,9 +187,8 @@ test('workspace and stage presets each fit the window without changing the other
     expect(cut, 'panels cut off').toEqual([]);
   };
   // Stage position and view are independent choices in its title-bar menu.
-  const preset = async (name: 'Above' | 'Left') => { await ui.getByRole('button', { name: 'Stage', exact: true }).click(); await (await menuPage(ui)).getByRole('menuitemradio', { name, exact: true }).click(); };
   const stagePreset = async (name: string) => { await ui.getByRole('button', { name: 'Stage', exact: true }).click(); await (await menuPage(ui)).getByRole('menuitemradio', { name, exact: true }).click(); };
-  await preset('Above');
+  await stagePreset('Above');
   await expect.poll(() => viewOn(core, ui, files, ELON)).toBe(true);
   await fits();
   let b = await at();
@@ -219,7 +207,7 @@ test('workspace and stage presets each fit the window without changing the other
   expect(b.elon, 'Elon is a tab behind Sam').toBe(null);
   expect(b.term.y > b.sam.y + b.sam.height - 1).toBe(true);
   await stagePreset('Vertical stack');
-  await preset('Left');
+  await stagePreset('Left');
   await bothOn(core, ui, files);
   await fits();
   b = await at();

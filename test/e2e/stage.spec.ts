@@ -138,7 +138,7 @@ test('stage arrangements are shared by human and agent and independent of worksp
 });
 
 
-test('a horizontal stack scrolls, clips native pages, and preserves their viewport widths', async ({ core, ui, call }, info) => {
+test('a horizontal stack scrolls, clips native pages, and preserves their viewport widths', async ({ core, ui, call }) => {
   for (const name of ['Row.first', 'Row.second', 'Row.third']) {
     await call('profile_create', { name });
     await call('browser_navigate', { profile: name, url: `${SITE}/app` });
@@ -174,7 +174,6 @@ test('a horizontal stack scrolls, clips native pages, and preserves their viewpo
   await expect.poll(() => core((k) => !k.profile('Row.first').view.getVisible() && k.profile('Row.third').view.getVisible())).toBe(true);
   expect(await core((k) => k.profile('Row.first').bounds.width)).toBe(firstWidth);
   expect(await core((k) => { const p = k.profile('Row.third'); return (p.clip?.width ?? p.bounds.width) === p.bounds.width; }), 'the last pane is fully reachable horizontally').toBe(true);
-  await core((k, file) => k.shot(file), info.outputPath('stage-row.png'));
   await call('stage_arrange', { layout: 'tabs' });
   await expect.poll(() => core((k) => !k.profile('Row.first').clip && k.profile('Row.first').view.getVisible())).toBe(true);
   for (const name of ['Row.first', 'Row.second', 'Row.third']) await call('profile_close', { profile: name });

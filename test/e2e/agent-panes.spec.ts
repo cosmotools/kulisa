@@ -163,18 +163,12 @@ test('back and forward buttons are enabled only when there is somewhere to go', 
   await expect(pane.getByRole('tab', { selected: true })).toHaveAttribute('title', /n=1$/);
 });
 
-test('tabs share one row with controls; double-click edits a full selected address, Enter navigates and Escape or leaving cancels', async ({ core, ui, files }, info) => {
+test('tabs share one row with controls; double-click edits a full selected address, Enter navigates and Escape or leaving cancels', async ({ core, ui, files }) => {
   const { sam } = await profiles(core);
   const pane = (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`), addr = pane.getByRole('textbox', { name: 'Address' });
   const tabs = pane.getByRole('tablist'), active = pane.getByRole('tab', { selected: true });
   const full = await core((k) => k.profile('Sam.seller').get().url);
   await expect(addr).toBeHidden();
-  const shot = async (name: string) => {
-    const file = path.join(files.root, `${name}.png`);
-    await core((k, f) => k.shot(f), file);
-    await info.attach(name, { path: file, contentType: 'image/png' });
-  };
-  await shot('combined-profile-row');
   const before = await pageBox(ui, files, 'Sam.seller');
   const boxes = await Promise.all([pane.getByRole('button', { name: 'Reload', exact: true }), tabs,
     pane.getByRole('button', { name: 'New tab' }), pane.getByRole('button', { name: 'Pick an element' })].map((l) => l.boundingBox()));
@@ -187,7 +181,6 @@ test('tabs share one row with controls; double-click edits a full selected addre
   // Playwright reads no input selection.
   const sel = () => addr.evaluate((a: HTMLInputElement) => [a.selectionStart, a.selectionEnd, a.value.length]);
   expect(await sel()).toEqual([0, full.length, full.length]);
-  await shot('profile-address-editor');
   expect(await pageBox(ui, files, 'Sam.seller'), 'editing keeps the page in place').toEqual(before);
   await addr.click();
   await expect.poll(async () => { const [start, end] = await sel(); return start === end; }).toBe(true);

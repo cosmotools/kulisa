@@ -66,7 +66,7 @@ test('Workbench starts with Agents, Project expands folders and opens files, and
   await expect(row).toHaveCount(0);
 });
 
-test('Project icons identify files and folders and follow the window theme', async ({ core, ui, files }) => {
+test('Project icons identify files and folders and follow the window theme', async ({ core, ui }) => {
   const folder = await core((k) => k.shell.task.folder);
   const directory = path.join(folder, 'icon-example');
   fs.mkdirSync(path.join(directory, 'src'), { recursive: true });
@@ -94,10 +94,6 @@ test('Project icons identify files and folders and follow the window theme', asy
   await expect((await icon('data.json'))).not.toHaveCSS('color', darkIcon);
   await (await inputPage(ui)).keyboard.press('Escape');
   await closeMenu(ui);
-  await frames(ui);
-  const screenshot = path.join(files.root, 'project-icons.png');
-  await core((k, file) => k.shot(file), screenshot);
-  await test.info().attach('Project icons', { path: screenshot, contentType: 'image/png' });
   await choose(ui, 'Dark', await windowSubmenu(ui, 'Theme'));
   await expect((await icon('data.json'))).toHaveCSS('color', darkIcon);
   await (await inputPage(ui)).keyboard.press('Escape');

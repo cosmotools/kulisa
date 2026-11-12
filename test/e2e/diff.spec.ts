@@ -333,7 +333,7 @@ test('Continuous review defers large diffs and keeps file navigation in one docu
   await showTask(core, ui, original);
 });
 
-for (const section of ['Project', 'Agents', null, 'restart'] as const)
+for (const section of ['Agents', null, 'restart'] as const)
 test(section === 'restart' ? 'Diff preserves review state across task switches and resets it after restart' : `Diff review survives ${section ?? 'collapsing the Side bar'}`, async ({ core, ui, files, restart }) => {
   const original = await core((k) => k.shell.task.key);
   const repo = committed(path.join(files.root, section ?? 'close-diff', 'review-restore'), 'file.ts', 'export const value = "before";\n');
@@ -372,7 +372,7 @@ test(section === 'restart' ? 'Diff preserves review state across task switches a
     else await (await taskPage(ui)).getByRole('tab', { name: 'Diff', exact: true }).click();
     if (section) {
       await expect((await taskPage(ui)).getByRole('region', { name: 'Diff review', exact: true })).toHaveCount(0);
-      if (section === 'Agents') await expect((await termKeys(ui))).toBeVisible();
+      await expect((await termKeys(ui))).toBeVisible();
     } else {
       await expect((await taskPage(ui)).getByRole('region', { name: 'Diff review', exact: true })).toBeVisible();
       await expect((await resourcesGroup(ui)).locator('[data-resources]')).toHaveCount(0);

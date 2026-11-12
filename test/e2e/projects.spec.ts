@@ -307,9 +307,6 @@ test("projects: the title bar's gear shows Settings over the window at the shown
   await core((k, p) => { k.shell.profileStore.delete(p); }, closedOne); // not needed after
   await expect(listRow(s, 'Profiles', 'Closed-one')).toHaveCount(0);
   await expect(group(s, 'Profiles').getByRole('alert'), 'no refusal').toHaveCount(0);
-  const png = test.info().outputPath('projects.png');
-  await core((k, f) => k.shot(f), png);
-  await test.info().attach('projects', { path: png, contentType: 'image/png' });
   await closeSettings(core, ui, sui);
   await expect.poll(() => core((k) => k.profile('Sam.admin').view.getVisible()), 'the pages back').toBe(true);
   await forget(core, ui, files, 'closed');

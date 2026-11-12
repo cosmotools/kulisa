@@ -155,9 +155,6 @@ test('once installed, the Agents window shows its version and where it is', asyn
   await expect(page.getByText(/^Install runs/)).toHaveCount(0);
   // A click on the row already shown keeps it chosen.
   await showAgent(s, 'fake');
-  const png = test.info().outputPath('agents.png');
-  await s.screenshot({ path: png });
-  await test.info().attach('agents', { path: png, contentType: 'image/png' });
   await closeSettings(core, ui, sui);
 });
 

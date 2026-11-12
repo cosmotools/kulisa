@@ -191,9 +191,6 @@ test('tasks: + opens a task in the project\'s main working tree ("New Task", no 
   expect(fs.existsSync(path.join(wt, '.kulisa')), 'nothing of Kulisa in the folder').toBe(false);
   if (hasDirenv) expect(execFileSync('direnv', ['exec', wt, 'sh', '-c', 'echo $FROM_ENVRC'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()).toBe(`envrc of ${wt}`);
   expect([files.tasksOf(files.pid('project'))[1].name, files.tasksOf(files.pid('project'))[1].named]).toEqual(['Feature-X', true]);
-  const png = test.info().outputPath('task.png');
-  await core((k, f) => k.shot(f), png);
-  await test.info().attach('task', { path: png, contentType: 'image/png' });
 });
 
 test("tasks: × closes a task: its agent stops and its tabs close, all else stays; asked first only while its agent works; its group's menu opens it again, its conversation resumed", async ({ core, ui, files, call }) => {

@@ -50,11 +50,6 @@ test('agent: highlight elements for the human (also on Trusted Types pages), the
       { locator: 'locator("a").first()' }] });
     expect(r.text).toMatch(/Highlighted 2 element/);
     await expect.poll(colored, { message: `${url}: outline and label visible` }).toBeGreaterThan(300);
-    if (url.endsWith('/app')) {
-      const file = test.info().outputPath('highlight.png');
-      await core((k, f) => k.shot(f), file);
-      await test.info().attach('highlight', { path: file, contentType: 'image/png' });
-    }
     await call('browser_highlight', { profile: 'Sam.seller', elements: [] });
     await expect.poll(colored, { message: `${url}: cleared` }).toBeLessThan(50);
   }

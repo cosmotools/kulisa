@@ -75,7 +75,7 @@ test('text files open on double-click, autosave Unicode and CRLF, retain undo ac
   await expect(code).toContainText('const agent = true;');
 });
 
-test('JetBrains shortcuts replace text, insert below and move lines without losing autosave', async ({ ui, core }, testInfo) => {
+test('JetBrains shortcuts replace text, insert below and move lines without losing autosave', async ({ ui, core }) => {
   const folder = await core((k) => k.shell.task.folder), file = path.join(folder, 'editor-keys.ts');
   fs.writeFileSync(file, 'const first = 1;\nconst second = 2;\n');
   await showResources(ui, 'Project'); await focusWindow(core, ui);
@@ -108,7 +108,6 @@ test('JetBrains shortcuts replace text, insert below and move lines without losi
         context.fillStyle = getComputedStyle(token).color; context.fillRect(0, 0, 1, 1);
         return context.getImageData(0, 0, 1, 1).data[3];
       })).toBe(255);
-      await testInfo.attach(`editor-${shade}`, { body: await (await taskPage(ui)).getByRole('region', { name: 'Code editor', exact: true }).screenshot(), contentType: 'image/png' });
     }
   } finally { await invoke(ui, 'theme:set', theme); }
 });

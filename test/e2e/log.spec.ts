@@ -105,7 +105,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   await invoke(ui, 'theme:set', theme);
 });
 
-test('a large log scrolls through every entry with few rendered rows; filtering and Copy All reach the whole log', async ({ core, ui, sui, files }, testInfo) => {
+test('a large log scrolls through every entry with few rendered rows; filtering and Copy All reach the whole log', async ({ core, ui, sui, files }) => {
   const file = path.join(files.userData, 'logs', 'kulisa.log');
   const text = Array.from({ length: 1600 }, (_, i) => `[2026-01-01T12:00:00.000+00:00] [info] [task] virtual-entry-${String(i).padStart(4, '0')}${i % 7 === 0 ? ' wrapped words'.repeat(30) : ''}`).join('\n') + '\n';
   fs.appendFileSync(file, text);
@@ -141,13 +141,11 @@ test('a large log scrolls through every entry with few rendered rows; filtering 
   await s.getByRole('button', { name: 'Copy All' }).click();
   await expect.poll(() => core((k) => k.electron.clipboard.readText())).toContain('virtual-entry-0000');
   const copied = await core((k) => k.electron.clipboard.readText());
-  expect(copied).toContain('virtual-entry-0000');
   expect(copied).toContain('virtual-entry-1599');
   await s.getByRole('searchbox', { name: 'Filter' }).fill('');
   await s.getByRole('radio', { name: 'All', exact: true }).click();
   await expect(rows.filter({ hasText: 'virtual-live-after-pause' })).toBeInViewport();
   await expect.poll(() => rows.count()).toBeLessThan(100);
-  await core((k, f) => k.shot(f), testInfo.outputPath('log-virtual.png'));
   await closeSettings(core, ui, sui);
 });
 
