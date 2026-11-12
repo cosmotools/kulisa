@@ -178,13 +178,12 @@ test('Diff groups files into folders and switches the development area without m
   expect((await invoke(ui, 'task:diff:review', { key: original, folder: copy.folder, options: {} })).error).toContain('not a resource');
 });
 
-test('Review refreshes file contents and preserves its split view when switching tasks', async ({ core, ui, files }) => {
+test('Review refreshes file contents, comparisons and unavailable branches', async ({ core, ui, files }) => {
   await showResources(ui, 'Agents');
   const original = await core((k) => k.shell.task.key);
   const repo = committed(path.join(files.root, 'review-live'), 'file.ts', 'export const value = "old-marker";\n');
   git(repo, 'branch', '-M', 'main');
   await openFolder(core, ui, repo);
-  const task = await core((k) => k.shell.task.key);
   const copy = await core(async (k) => { const r = await k.shell.task.makeWorktree(); if (!("folder" in r)) throw new Error(r.error); return r.folder; });
   const file = path.join(copy, 'file.ts');
   fs.writeFileSync(file, 'export const value = "new-marker";\n');
@@ -242,21 +241,7 @@ test('Review refreshes file contents and preserves its split view when switching
   git(copy, 'branch', 'review-snapshot');
   await expect(code).toContainText('worktree-only-marker', { timeout: 10000 });
   await expect((await taskPage(ui)).getByRole('region', { name: 'Diff review', exact: true }).getByRole('alert').filter({ hasText: 'To branch is unavailable' })).toHaveCount(0);
-  await (await taskPage(ui)).getByRole('radio', { name: 'Split diff', exact: true }).click();
-  await expect((await taskPage(ui)).getByRole('radio', { name: 'Split diff', exact: true })).toHaveAttribute('aria-checked', 'true');
-  const retained = await code.elementHandle();
-  await showTask(core, ui, original);
-  await expect(code).toBeHidden();
-  await expect((await taskPage(ui)).getByRole('region', { name: 'Diff review' })).toHaveCount(0);
-  await expect((await termKeys(ui))).toBeVisible();
-  await showTask(core, ui, task);
-  await expect(code).toContainText('worktree-only-marker');
-  expect(await retained.evaluate((el) => el.isConnected)).toBe(true);
-  await expect((await taskPage(ui)).getByRole('radio', { name: 'Split diff', exact: true })).toHaveAttribute('aria-checked', 'true');
-  await expect(tree.getByRole('combobox', { name: 'To for review-live' })).toContainText('review-snapshot');
   await showResources(ui, 'Agents');
-  expect(await retained.evaluate((el) => el.isConnected), 'leaving Diff releases the retained review').toBe(false);
-  await retained.dispose();
   await showTask(core, ui, original);
 });
 

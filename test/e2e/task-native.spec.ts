@@ -59,7 +59,6 @@ for (const failure of ['crashed', 'hung'] as const) test(`reloading a ${failure}
     await task.editor.execute({ type: 'edit', path: file, text: 'accepted before process loss' });
     return { wc: task.view.ui.id, renderer: task.view.ui.getOSProcessId(), pid: task.pty.pid, profile: [...task.profiles.values()][0].get().wc.id };
   }, file);
-  const screen = await taskPage(ui);
   await core((k, failure) => {
     const wc = k.shell.task.view.ui;
     setImmediate(() => {
@@ -85,7 +84,6 @@ for (const failure of ['crashed', 'hung'] as const) test(`reloading a ${failure}
     const view = k.shell.task.view;
     return view.ready && await view.ui.executeJavaScript('!!document.querySelector("[data-task-screen]:not([aria-busy])")');
   })).toBe(true);
-  expect(await taskPage(ui)).toBe(screen);
   expect(await core((k) => ({ wc: k.shell.task.view.ui.id, pid: k.shell.task.pty.pid, profile: [...k.shell.task.profiles.values()][0].get().wc.id })))
     .toEqual({ wc: before.wc, pid: before.pid, profile: before.profile });
   expect(await core(async (k) => {

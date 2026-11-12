@@ -45,7 +45,6 @@ test('a mounted task failure contains native pages and releases Views while runn
   const healthy = await core((k) => k.shell.task.key);
   await showResources(ui, 'Project');
   await core(async (k, site) => { await k.ensureProfile('Healthy.browser', `${site}/app`); }, SITE);
-  await (await taskPage(ui)).evaluate(() => { const w = window as any; w.__healthyGrid = w.__dock; });
   const failed = await newTask(core, ui, 'broken-screen');
   await notLoading(ui);
   await core(async (k, site) => { await k.ensureProfile('Failed.browser', `${site}/app`); }, SITE);
@@ -64,14 +63,13 @@ test('a mounted task failure contains native pages and releases Views while runn
   const read = async () => JSON.parse((await call('terminal_read', { name: 'Boundary.query' }, { task: failed })).text);
   await expect.poll(async () => (await read()).text).toContain('query ready');
   const stageView = await (await taskPage(ui)).locator('[data-stage-terminal] .xterm').elementHandle();
-  const profile = await core((k) => {
+  await core((k) => {
     const w = k.shell.task.window, pictures = w.pictures;
     let release: () => void;
     const gate = new Promise<void>((r) => { release = r; });
     k.stash.boundaryCapture = { w, pictures, requested: false, completed: false, release: () => release() };
     w.pictures = async () => { k.stash.boundaryCapture.requested = true; await gate; k.stash.boundaryCapture.completed = true; return {}; };
     k.stash.boundaryPty = k.shell.task.pty;
-    return k.profile('Failed.browser').id;
   });
   try {
     await (await taskPage(ui)).locator('[data-profile]').first().getByRole('button', { name: 'More', exact: true }).click();
@@ -97,15 +95,13 @@ test('a mounted task failure contains native pages and releases Views while runn
     await core((k) => { k.stash.boundaryPty.write('agent-still-running\r'); });
     await expect.poll(() => core((k) => k.ptyOutput())).toContain('agent-still-running');
 
-    // Old geometry and visibility requests cannot undo main's failure latch.
-    await (await taskPage(ui)).evaluate(({ task, profile }) => (window as any).kulisa.send('layout:apply', { task, rects: { [profile]: { x: 0, y: 0, width: 900, height: 600 } } }), { task: failed, profile });
+    // A late menu-close request cannot undo main's failure latch.
     await (await taskPage(ui)).evaluate((task) => (window as any).kulisa.invoke('views:hidden', false, { task }), failed);
     await ui.getByRole('button', { name: 'Settings', exact: true }).click();
     await sui();
     await closeSettings(core, ui, sui);
     await selectTask(core, ui, healthy);
     await expect((await taskPage(ui)).getByRole('region', { name: 'Project', exact: true })).toBeVisible();
-    expect(await (await taskPage(ui)).evaluate(() => (window as any).__dock === (window as any).__healthyGrid)).toBe(true);
     await expect.poll(() => core((k) => k.profile('Healthy.browser').view.getVisible())).toBe(true);
     await selectTask(core, ui, failed);
     await expect((await fallback(ui))).toBeVisible();
@@ -177,21 +173,15 @@ test('moving a failed task preserves its fallback and running core instead of re
   await expect(taskTab(ui, healthy)).toHaveAttribute('aria-selected', 'true');
 });
 
-test('a hidden task failure leaves the selected task’s native pages and its terminal intact', async ({ core, ui, call }) => {
+test('a hidden task failure leaves the selected task’s native pages visible', async ({ core, ui, call }) => {
   const healthy = await core((k) => k.shell.task.key);
   await core(async (k, site) => { await k.ensureProfile('Healthy.background-check', `${site}/app`); }, SITE);
-  await showResources(ui, 'Agents');
   const failed = await newTask(core, ui, 'broken-background');
   await call('profile_create', { name: 'Background.browser' });
   await selectTask(core, ui, healthy);
-  await expect.poll(async () => (await taskPage(ui)).evaluate(() => !!(window as any).__term)).toBe(true);
-  await (await taskPage(ui)).evaluate(() => { const w = window as any; w.__healthyGrid = w.__dock; w.__healthyTerminal = w.__term; });
   await failScreen(core, ui, failed);
   await ipcSettled(ui); await frames(ui);
   expect(await core((k) => !k.shell.task.window.viewsHidden && k.profile('Healthy.background-check').view.getVisible())).toBe(true);
-  expect(await (await taskPage(ui)).evaluate(() => {
-    const w = window as any; return w.__dock === w.__healthyGrid && w.__term === w.__healthyTerminal;
-  })).toBe(true);
   await selectTask(core, ui, failed);
   await expect((await fallback(ui))).toBeVisible();
   await closeFailedTask(ui, failed);

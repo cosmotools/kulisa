@@ -2,7 +2,6 @@ import { taskPage } from './pages.ts';
 // Ordinary image results use Chromium without a native view and release their object URLs (src/file-viewer/README.md).
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { test, expect } from './fixtures.ts';
 import { showResources, invoke, SITE, frames, ipcSettled } from './helpers.ts';
 import { viewerImages } from '../fixtures/viewer-images.ts';
@@ -15,7 +14,8 @@ test('Chromium displays PNG, JPEG, WebP, AVIF, BMP, ICO, animated GIF and inert 
   fs.writeFileSync(path.join(artifacts, 'sample.svg'), svg);
   const requests: string[] = [];
   const observed = (request: { url(): string }) => { if (request.url().startsWith(`${SITE}/artifact-`)) requests.push(request.url()); };
-  ui.on('request', observed);
+  const screen = await taskPage(ui);
+  screen.on('request', observed);
   try {
     await showResources(ui, 'Artifacts');
     const preview = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true });
@@ -37,9 +37,9 @@ test('Chromium displays PNG, JPEG, WebP, AVIF, BMP, ICO, animated GIF and inert 
         const first = await pixel(); await expect.poll(pixel).not.toEqual(first);
       }
     }
-    await frames(ui);
+    await frames(screen);
     expect(requests).toEqual([]);
-  } finally { ui.off('request', observed); }
+  } finally { screen.off('request', observed); }
 });
 
 test('a tall screenshot supports fit, width, actual size, zoom and scrolling; switching releases URLs without extra views', async ({ ui, call, core }) => {
@@ -47,9 +47,6 @@ test('a tall screenshot supports fit, width, actual size, zoom and scrolling; sw
   const data = await core((k) => k.electron.nativeImage.createFromBitmap(Buffer.alloc(1000 * 6000 * 4, 160), { width: 1000, height: 6000 }).toPNG().toString('base64'));
   fs.writeFileSync(path.join(artifacts, 'tall.png'), Buffer.from(data, 'base64'));
   const before = await core((k) => k.webContents());
-  const rendererRss = async () => process.platform === 'linux'
-    ? Number(execFileSync('ps', ['-o', 'rss=', '-p', String(await core((k) => k.shell.windows[0].focusUi.getOSProcessId()))], { encoding: 'utf8' }).trim()) : null;
-  const memory = [{ state: 'before', rssKiB: await rendererRss() }];
   await (await taskPage(ui)).evaluate(() => {
     const create = URL.createObjectURL, revoke = URL.revokeObjectURL;
     const state = { revoked: [] as string[], restore: () => { URL.createObjectURL = create; URL.revokeObjectURL = revoke; } };
@@ -78,26 +75,17 @@ test('a tall screenshot supports fit, width, actual size, zoom and scrolling; sw
     await expect(preview.getByLabel('Image zoom')).toHaveText('100%');
     await preview.getByRole('radio', { name: 'Fit width', exact: true }).click();
     const width = await metrics(); expect(width.scrollWidth).toBeLessThanOrEqual(width.width + 1);
-    memory.push({ state: 'open', rssKiB: await rendererRss() });
     await preview.getByRole('radio', { name: 'Fit', exact: true }).click();
-    await ui.screenshot({ path: '/tmp/fv393-image-preview.png' });
     const retainedImage = await image.elementHandle();
     await showResources(ui, 'Project');
     await expect.poll(() => retainedImage.getAttribute('src')).toBeNull(); await retainedImage.dispose();
     await expect.poll(async () => (await taskPage(ui)).evaluate((url) => (window as any).__imageUrls.revoked.includes(url), url)).toBe(true);
     expect(await core((k) => k.webContents())).toBe(before);
-    memory.push({ state: 'closed', rssKiB: await rendererRss() });
     await showResources(ui, 'Artifacts');
     await expect(preview.getByRole('radio', { name: '100%', exact: true })).toBeEnabled();
     expect(await image.getAttribute('src')).not.toBe(url);
-    for (let iteration = 0; iteration < 4; iteration++) {
-      await showResources(ui, 'Project'); await showResources(ui, 'Artifacts');
-      await expect(preview.getByRole('radio', { name: '100%', exact: true })).toBeEnabled();
-      memory.push({ state: `reopen-${iteration + 1}`, rssKiB: await rendererRss() });
-    }
     await preview.getByRole('button', { name: 'Delete', exact: true }).click();
     await expect((await taskPage(ui)).getByText('Artifact is no longer available', { exact: true })).toBeVisible();
-    await test.info().attach('image-renderer-rss', { body: JSON.stringify(memory), contentType: 'application/json' });
   } finally { await (await taskPage(ui)).evaluate(() => { (window as any).__imageUrls.restore(); delete (window as any).__imageUrls; }); }
 });
 

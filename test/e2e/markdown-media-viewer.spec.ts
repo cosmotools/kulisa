@@ -2,7 +2,6 @@ import { taskPage } from './pages.ts';
 // Formatted Markdown and Chromium playback through real Artifacts controls (src/file-viewer/README.md).
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { test, expect } from './fixtures.ts';
 import { showResources, invoke, ipcSettled, closeSettings } from './helpers.ts';
 import { openFolder, showTask } from './tasks-helpers.ts';
@@ -153,14 +152,10 @@ test('large audio uses bounded ranges, rejects stale revisions and releases a he
   const size = 256 * 1024 * 1024, header = wave(1).subarray(0, 44);
   header.writeUInt32LE(size - 8, 4); header.writeUInt32LE(size - 44, 40);
   fs.writeFileSync(file, header); fs.truncateSync(file, size);
-  const memory = async () => process.platform === 'linux' ? execFileSync('ps', ['-o', 'pid=,rss=', '-p',
-    (await core((k) => [process.pid, k.shell.windows[0].focusUi.getOSProcessId()])).join(',')], { encoding: 'utf8' }) : null;
-  const before = await memory();
   await showResources(ui, 'Artifacts'); await (await taskPage(ui)).getByRole('treeitem', { name: 'large.wav', exact: true }).click();
   const audio = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true }).locator('audio');
   await expect.poll(() => audio.evaluate((audio: HTMLMediaElement) => Number.isFinite(audio.duration))).toBe(true);
   const url = await audio.getAttribute('src'), key = await core((k) => k.shell.task.key);
-  const opened = await memory();
   const response = await core(async (k, url) => {
     const response = await k.shell.windows[0].focusUi.session.fetch(url, { headers: { Range: 'bytes=-16' } });
     return { status: response.status, range: response.headers.get('content-range'), bytes: Array.from(new Uint8Array(await response.arrayBuffer())) };
@@ -191,7 +186,6 @@ test('large audio uses bounded ranges, rejects stale revisions and releases a he
     await expect.poll(() => core((k) => k.stash.mediaRead.finished)).toBe(true);
     expect(await core((k) => k.stash.mediaRead.lengths)).toEqual([256 * 1024]);
     expect(await core(async (k, url) => (await k.shell.windows[0].focusUi.session.fetch(url)).status, active)).toBe(404);
-    await test.info().attach('large-media-rss', { body: JSON.stringify({ before, opened, closed: await memory(), sourceBytes: size }), contentType: 'application/json' });
   } finally {
     await core((k) => { const s = k.stash.mediaRead; s.release(); s.task.readArtifact = s.original; delete k.stash.mediaRead; });
   }
