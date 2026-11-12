@@ -11,6 +11,7 @@ import { begin, newTask } from './tasks-helpers.ts';
 import { fakeAgent, fakeBin } from './agent-helpers.ts';
 
 test("+ opens any of the project's accounts, a new conversation in a tab of its own; each reports its own state, the task's tab the most urgent, and names its own tab; the task handed to another agent by its icon or Change agent…: a new tab told to go on with that conversation, the old one stays; New Conversation; deleting the task forgets every conversation", async ({ core, ui, call, files }) => {
+  test.slow(); // Multiple CLI starts, handovers and confirmation dialogs exceed 30 s on the Linux CI runner.
   await fakeAgent(ui, files);
   // The project as the tasks' tests leave it: in git, Feature-X in a worktree of its own beside its first task; its
   // profiles Sam.admin, Elon.buyer and Dora.
