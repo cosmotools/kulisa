@@ -9,7 +9,7 @@ import { ArrowLeftIcon, ArrowRightIcon, CircleDotIcon, CircleIcon, EllipsisIcon,
 import { Avatar, AvatarImage, Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Toggle } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../components/Menus';
 import { BrowserTab, TabStrip } from '../components/BrowserTabs';
-import { screenshot, togglePick, useTask, useTaskStore, useTaskActions, useTaskActive, useTaskGrid } from './state';
+import { screenshot, togglePick, useTask, taskStore, act, useTaskActive, useTaskGrid } from './state';
 import { avatarSrc, keyText, withKeys } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
 import { grow, useStrip } from '../lib/strip';
@@ -24,7 +24,7 @@ const fullUrl = (u = '') => (u === 'about:blank' ? '' : u);
 const blank = (u?: string) => !fullUrl(u);
 
 export function ProfilePane({ api }: IDockviewPanelProps) {
-  const owner = useTaskStore(), act = useTaskActions(), grid = useTaskGrid();
+  const owner = taskStore(), grid = useTaskGrid();
   // Its active tab as the store has it now, for what acts (a handler, not a render).
   const activeTab = useCallback((id: string) => { const p = owner.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); }, [owner]);
 
@@ -48,7 +48,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     if (p?.active !== t.id) { typeInto.current = t.id; void act('tab:activate', { profile: id, tab: t.id }); return; }
     selectAll.current = true;
     setEditing({ tab: t.id, value: fullUrl(t.url) });
-  }, [id, owner, act, activeTab]);
+  }, [id, owner, activeTab]);
   useEffect(() => {
     if (typeInto.current && typeInto.current === active?.id) { typeInto.current = null; editAddress(); }
     else setEditing((draft) => draft?.tab === activeTab(id)?.id ? draft : null);
@@ -86,7 +86,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     observer.observe(content);
     grid.reportPages();
     return () => { observer.disconnect(); if (grid.panes.get(id) === handle) grid.panes.delete(id); };
-  }, [id, content, editAddress, act, activeTab, owner, grid]);
+  }, [id, content, editAddress, activeTab, owner, grid]);
 
   // The tab strip: a tab is chosen on the press, as in Chrome (not on its ×), or by Enter or Space. A tab opened grows
   // in, and the active tab is kept in sight (lib/strip.ts). Tabs are kept by id: an element stays as its tab does.
@@ -220,7 +220,7 @@ function PageDialog({ from, message, confirm, answer }: { from: string; message:
 }
 
 export function ProfileHeader({ api, containerApi }: IDockviewPanelHeaderProps) {
-  const act = useTaskActions(), grid = useTaskGrid();
+  const grid = useTaskGrid();
   const activity = useTask((s) => s.stageActivity === api.id);
   const id = profileOf(api.id), profile = useProfile(id);
   const caption = useTask((s) => s.captions[id] || '');

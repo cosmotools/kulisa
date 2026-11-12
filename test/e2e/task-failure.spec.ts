@@ -95,7 +95,13 @@ test('a mounted task failure contains native pages and releases Views while runn
     await core((k) => { k.stash.boundaryPty.write('agent-still-running\r'); });
     await expect.poll(() => core((k) => k.ptyOutput())).toContain('agent-still-running');
 
-    // A late menu-close request cannot undo main's failure latch.
+    // Valid late geometry and menu-close requests cannot undo main's failure latch.
+    const layout = await core((k) => {
+      const task = k.shell.task, view = task.view, { width, height } = view.group.getBounds(), zoom = view.ui.getZoomFactor();
+      return { task: task.key, revision: view.revision, viewport: { width: width / zoom, height: height / zoom },
+        rects: { [k.profile('Failed.browser').id]: { x: 0, y: 0, width: 900, height: 600, shown: true } } };
+    });
+    await (await taskPage(ui)).evaluate((layout) => (window as any).kulisa.send('layout:apply', layout), layout);
     await (await taskPage(ui)).evaluate((task) => (window as any).kulisa.invoke('views:hidden', false, { task }), failed);
     await ui.getByRole('button', { name: 'Settings', exact: true }).click();
     await sui();

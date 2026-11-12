@@ -11,7 +11,7 @@ document.addEventListener('pointerdown', cancelFocus, true);
 document.addEventListener('keydown', cancelFocus, true);
 window.addEventListener('blur', cancelFocus);
 export async function focusStageTerminal(task: string, launch: () => Promise<Result<StageTerminal>>) {
-  const owner = taskStore(task), request = { key: null };
+  const owner = taskStore(), request = { key: null };
   owner.setState({ stageTerminalFocus: request });
   try {
     const result = await launch();

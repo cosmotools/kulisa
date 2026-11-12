@@ -67,8 +67,8 @@ The outer Workbench minimum includes this edge group because Dockview's central 
 
 Hidden native task groups retain their UI, stores, terminal buffers and controllers until closure. Explicit
 activity pauses Project Explorer, Diff and Editor disk polling and cancels transient focus/drag requests; core
-Editor autosave continues. Native visibility alone does not pause protocol parsing. Each task has its own development
-xterm View; Stage terminal Views remain with their panes. Buffer rendering and sizing:
+Editor autosave continues. Native visibility alone does not pause protocol parsing. Each task's development
+xterm View stays attached across task switches; Stage terminal Views remain with their panes. Buffer rendering and sizing:
 [terminal](../src/terminal/README.md#the-window-renderer).
 
 The shell reports workspace bounds in CSS pixels; main converts to native coordinates and sizes every retained

@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { Button, Empty, EmptyHeader, EmptyTitle } from '@ui';
 import { FileViewer, createViewerRegistry, textViewer, pdfViewer, imageViewer, markdownViewer, audioViewer, videoViewer, type FileSource, type PdfHost, type DocumentHost, type MediaHost } from '../../file-viewer/renderer';
-import { useTask, useTaskStore, useTaskActive } from './state';
+import { useTask, taskStore, useTaskActive } from './state';
 import { uiTextSize, useShade } from '../lib/theme';
 
 const registry = createViewerRegistry([pdfViewer, imageViewer, markdownViewer, audioViewer, videoViewer, textViewer]);
@@ -20,7 +20,7 @@ function artifactSource(key: string, file: string, size: number, revision: strin
     } };
 }
 export function Artifacts() {
-  const state = useTaskStore();
+  const state = taskStore();
   const key = useTask((s) => s.key), selected = useTask((s) => s.selectedArtifact);
   const navigation = useTask((s) => s.artifactNavigation);
   const artifact = useTask((s) => s.artifacts.list.find((a) => a.file === selected));

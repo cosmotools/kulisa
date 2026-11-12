@@ -6,7 +6,6 @@ import { actionsFor, taskStore } from './state';
 import { termStyle } from '../lib/theme';
 import { keyText } from '../lib/common';
 import { menuAt, type MenuItem } from '../lib/menu';
-import { dialog } from '../lib/task-dialogs';
 import { taskGrid } from './controller';
 import { refused } from '../../shared/result';
 import { termCopy, termHooks, termPaste, View } from '../../terminal/renderer';
@@ -22,12 +21,12 @@ export function focusDevelopmentTerminal(task = store.getState().current) {
   const development = taskGrid(task)?.development;
   if (!development || store.getState().current !== task) return;
   development.showItem('terminals');
-  taskStore(task).setState({ developmentTerminalFocus: {} });
+  taskStore().setState({ developmentTerminalFocus: {} });
 }
 
 export async function showDevelopmentTerminal(task: string, id: number) {
   await actionsFor(task)('development-terminal:show', { id });
-  if (taskStore(task).getState().developmentTerminals.front === id) focusDevelopmentTerminal(task);
+  if (taskStore().getState().developmentTerminals.front === id) focusDevelopmentTerminal(task);
 }
 
 termHooks.colors = () => termStyle().colors;
@@ -100,7 +99,7 @@ export const newTerminalItems = (task: string): MenuItem[] => [
 // Shared actions in a terminal’s Side bar item and screen menu.
 export const terminalItems = (task: string, t: DevelopmentTerminalInfo): MenuItem[] => [
   ...(t.agent ? [
-    { label: 'Change agent…', run: async () => { const d = await dialog('handover'); if (store.getState().current === task) await d.open(t); } },
+    { label: 'Change agent…', run: () => kulisa.invoke('shell:dialog', { kind: 'handover', task, terminal: t }) },
     { label: 'New Conversation', run: () => actionsFor(task)('agent:new-conversation', { id: t.id }) },
     '-' as const,
   ] : []),

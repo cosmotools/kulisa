@@ -12,6 +12,8 @@ test('a hidden task receives resized bounds and fits its grid when shown', async
   const size = await core((k) => k.shell.win.getSize());
   const nativeWidth = await core((k, key) => k.shell.taskByKey(key).view.group.getBounds().width, first);
   try {
+    await expect(retained.locator('[data-task-view]')).not.toHaveAttribute('data-active');
+    await expect(retained.getByTestId('terminal').locator('.xterm'), 'hiding a task keeps its development terminal attached').toHaveCount(1);
     await core((k, size) => k.shell.win.setSize(size[0] - 100, size[1]), size);
     await expect.poll(() => core((k, key) => k.shell.taskByKey(key).view.group.getBounds().width, first)).toBe(nativeWidth - 100);
     await invoke(ui, 'task:show', first); await notLoading(ui);

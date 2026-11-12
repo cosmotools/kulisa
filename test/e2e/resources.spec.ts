@@ -67,6 +67,7 @@ test('Workbench starts with Agents, Project expands folders and opens files, and
 });
 
 test('Project icons identify files and folders and follow the window theme', async ({ core, ui }) => {
+  await showResources(ui, 'Project');
   const folder = await core((k) => k.shell.task.folder);
   const directory = path.join(folder, 'icon-example');
   fs.mkdirSync(path.join(directory, 'src'), { recursive: true });

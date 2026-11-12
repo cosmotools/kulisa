@@ -1,7 +1,7 @@
 // State, actions and panel ownership of retained task screens (docs/window.md, The grid).
 import { createStore, useStore, type StoreApi } from 'zustand';
 import { replaceEqualDeep } from '@tanstack/react-query';
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext } from 'react';
 import type { StageTerminal } from '../../shared/stage-terminal';
 import type { DiffSelection } from '../../diff/ipc';
 import type { Artifact, ClosedProfile, Profile, DevelopmentTerminalsState } from '../../shared/types';
@@ -35,29 +35,23 @@ export interface TaskState {
   pictures: Record<string, string>;
 }
 export type TaskStore = StoreApi<TaskState>;
-const makeTask = (key: string) => createStore<TaskState>()(() => ({
+const key = taskIdentity ?? '';
+const ownTask = createStore<TaskState>()(() => ({
   key, profiles: [], closedProfiles: [], developmentTerminals: { task: key, front: null, list: [] },
   workbenchItem: 'terminals', developmentDiff: null, selectedArtifact: null, artifactNavigation: 0, developmentTerminalFocus: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
   stageFollowPaused: false, stageActivity: null, stagePosition: 'above', artifacts: { task: key, list: [], bytes: 0 },
   loading: true, captions: {}, picking: {}, pictures: {},
 }));
-const ownTask = makeTask(taskIdentity ?? '');
-const emptyTask = makeTask('');
-export const taskStore = (key: string | null = taskIdentity) => key === taskIdentity ? ownTask : emptyTask;
+export const taskStore = () => ownTask;
 export const TaskContext = createContext<TaskGrid | null>(null);
 export function useTaskGrid() {
   const grid = useContext(TaskContext);
   if (!grid) throw new Error('A grid panel requires its TaskView');
   return grid;
 }
-export function useTaskStore() {
-  const owner = useContext(TaskContext), current = useStore(store, (s) => owner ? null : s.current);
-  return owner?.state ?? taskStore(current);
-}
-export function useTask<T>(selector: (s: TaskState) => T) { return useStore(useTaskStore(), selector); }
+export function useTask<T>(selector: (s: TaskState) => T) { return useStore(ownTask, selector); }
 export function useTaskActive(enabled = true) {
-  const key = useTask((s) => s.key);
-  return useWindow((s) => enabled && s.current === key && !s.covered);
+  return useWindow((s) => enabled && s.active && !s.covered);
 }
 const get = store.getState;
 
@@ -68,15 +62,12 @@ const setCaption = (profile: string, caption: string, owner = taskStore()) => se
 // human switches tasks is refused, not done in the other one (main/ipc/panes.ts, onScreen).
 export { actionsFor } from '../lib/actions';
 import { actionsFor } from '../lib/actions';
-export const act: ReturnType<typeof actionsFor> = (channel, ...args) => actionsFor(get().current)(channel, ...args);
-export function useTaskActions() {
-  const owner = useTaskStore(), key = owner.getState().key;
-  return useMemo(() => actionsFor(key), [key]);
-}
+export const act = actionsFor(taskIdentity);
 
 // IPC copies objects; retaining equal parts keeps unchanged panels out of React's update path.
 function receive<K extends keyof TaskState>(task: string, field: K, value: TaskState[K]) {
-  taskStore(task).setState((previous) => {
+  if (task !== key) return;
+  ownTask.setState((previous) => {
     const next = replaceEqualDeep(previous[field], value);
     return next === previous[field] ? previous : { ...previous, [field]: next };
   });

@@ -317,7 +317,7 @@ class AppWindow {
     if (next) await this.show(next);
     else { this.leaveGrid(); this.updateViews(); }
   }
-  // Then the tab goes, and the page forgets the task (terminals, pictures).
+  // Remove the tab after its task UI closes or moves out.
   drop(task: Task) {
     this.laidOut.delete(task);
     this.tabs.splice(this.tabs.indexOf(task), 1);
@@ -328,7 +328,6 @@ class AppWindow {
     }
     this.coveredAfterDrop();
     this.sendProjects();
-    this.send('task:closed', [task.key]);
   }
   private coveredAfterDrop() {
     if (!this.task) { this.switching = false; if (this.win.isFocused()) focusWindow(this.ui); }

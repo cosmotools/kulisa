@@ -18,8 +18,8 @@ vertical tab header owns its border even when content is collapsed. Pane childre
 overlays stay below Dockview separators while menus stay above them.
 Activity bar selection stays highlighted independently of Dockview group focus.
 
-`TaskView` keeps an observable outer host while inactive content uses `content-visibility`, `inert` and `aria-hidden`.
-Preserve retained grids and measurements when changing pane markup. Disposal follows closure or a
+`TaskView` keeps an observable outer host; task selection changes its native group's visibility. Preserve retained
+grids and measurements when changing pane markup. Disposal follows closure or a
 [caught render failure](../../../docs/window.md#task-rendering-failures), not selection.
 Side bar lists use `SidebarContent` scrolling; Project and Diff own virtualized scrolling inside Dockview's named
 region without duplicate region wrappers.

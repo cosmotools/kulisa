@@ -108,9 +108,59 @@ test('grid: a pane stacked behind another as a tab hides its page until chosen',
   await expect.poll(() => core((k) => k.profile('Sam.admin').view.getVisible())).toBe(false);
 });
 
+test('page captures respect their adaptive deadline when a native page stops answering', async ({ core, ui, files }) => {
+  await begin(core, ui, files, { columns: true });
+  const SAM = files.idOf('Sam.admin'), ELON = files.idOf('Elon.buyer');
+  // Chromium may deliver even a live page's frame after the fallback deadline. Use a real image, but move the
+  // capture completions and deadline clock ourselves so rendering speed cannot decide which branch is covered.
+  const pics = await core(async (k, ids) => {
+    const sam = k.shell.profiles.get(ids.SAM).get().wc, elon = k.shell.profiles.get(ids.ELON).get().wc;
+    const image = await elon.capturePage(), realNow = Date.now, results = [];
+    const captures = [sam, elon].map((wc) => Object.getOwnPropertyDescriptor(wc, 'capturePage'));
+    try {
+      for (const [firstAt, deadline] of [[20, 100], [200, 600], [null, 500]] as const) {
+        k.clock.hold(1);
+        let now = 0, done = false, complete = (_: typeof image) => {};
+        Date.now = () => now;
+        sam.capturePage = () => new Promise(() => {});
+        elon.capturePage = () => new Promise((ok) => { complete = ok; });
+        const pending = k.shell.windows[0].pictures().then((got) => { done = true; return got; });
+        // A turn flushes capture and Promise.all continuations before inspecting their effects.
+        const advance = async (ms: number) => { now += ms; k.clock.advance(ms); await new Promise(setImmediate); };
+        if (firstAt !== null) {
+          await advance(firstAt);
+          complete(image);
+          await advance(0);
+        }
+        await advance(deadline - now - 1);
+        const before = done;
+        await advance(1);
+        const after = done;
+        // Do not await pending: a broken deadline must fail an assertion rather than hang the test.
+        const got = done ? await pending : {};
+        complete(image);
+        await advance(1000);
+        results.push({ firstAt, before, after, sam: !!got[ids.SAM], elon: got[ids.ELON] === `data:image/jpeg;base64,${image.toJPEG(90).toString('base64')}`, keys: Object.keys(got) });
+      }
+    } finally {
+      Date.now = realNow;
+      k.clock.release();
+      for (const [i, wc] of [sam, elon].entries()) {
+        if (captures[i]) Object.defineProperty(wc, 'capturePage', captures[i]); else Reflect.deleteProperty(wc, 'capturePage');
+      }
+    }
+    return results;
+  }, { SAM, ELON });
+  expect(pics).toEqual([
+    { firstAt: 20, before: false, after: true, sam: false, elon: true, keys: [ELON] },
+    { firstAt: 200, before: false, after: true, sam: false, elon: true, keys: [ELON] },
+    { firstAt: null, before: false, after: true, sam: false, elon: false, keys: [] },
+  ]);
+});
+
 for (const count of [2, 1, 0]) test(`grid: while a pane is dragged, ${count} page pictures cover hidden views; both pages live again after the drop`, async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
-  // Capture deadlines are checked in taskbar.spec.ts. Supply their possible results here, so Chromium's frame
+  // The preceding test checks capture deadlines. Supply their possible results here, so Chromium's frame
   // delivery cannot decide whether the drag covers both pages, one, or neither.
   const image = await core(async (k, count) => {
     const pages = ['Sam.admin', 'Elon.buyer'].map((name) => k.profile(name).get().wc);

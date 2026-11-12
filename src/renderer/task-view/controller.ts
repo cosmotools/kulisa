@@ -37,7 +37,6 @@ kulisa.on('stage:follow:state', (stageFollow) => {
   taskStore().setState({ stageFollowPaused: false });
   if (stageFollow) current()?.stage.follow();
 });
-kulisa.on('task:closed', forgetTerminals);
 kulisa.on('task:editor:state', ({ task, state }) => taskGrid(task)?.development.receiveEditor(state));
 kulisa.on('task:artifact:selected', ({ task, file }) => {
   if (task === store.getState().current) taskGrid(task)?.development.showArtifact(file);

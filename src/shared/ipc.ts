@@ -237,7 +237,6 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'task:artifact:selected': { task: string; file: string };
   'development-terminal:focus': void;
   'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };
-  'task:closed': string[];
   'zoom:state': number;
   'theme:state': string;
   'bar:state': Bar;
