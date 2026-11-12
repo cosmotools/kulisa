@@ -7,7 +7,6 @@ import { PointMenu, menuAtPoint } from '../../menus/renderer';
 import { Thumbnail, thumbnailMenu } from '../../screenshots/renderer';
 import { store, taskIdentity } from './state';
 import { taskGrid } from './controller';
-import type { TaskPresentation } from '../../shared/ipc';
 import './keys';
 import './test-hooks';
 
@@ -18,12 +17,11 @@ kulisa.on('task:initial', () => {
   if (initialized) return;
   initialized = true;
   root.render(<TooltipProvider><TaskScreen /><Thumbnail /><PointMenu /></TooltipProvider>);
-  let previous = '';
-  store.subscribe((state) => {
-    const presentation: TaskPresentation = { workbenchItem: state.workbenchItem, selectedArtifact: state.selectedArtifact,
-      stagePosition: state.stagePosition, stageLayout: state.stageLayout, stageOverflow: state.stageOverflow, stageFollowPaused: state.stageFollowPaused };
-    const text = JSON.stringify(presentation);
-    if (text !== previous) { previous = text; kulisa.send('task:presentation', presentation); }
+  store.subscribe(({ workbenchItem, selectedArtifact, stagePosition, stageLayout, stageOverflow, stageFollowPaused }, previous) => {
+    if (workbenchItem === previous.workbenchItem && selectedArtifact === previous.selectedArtifact
+      && stagePosition === previous.stagePosition && stageLayout === previous.stageLayout
+      && stageOverflow === previous.stageOverflow && stageFollowPaused === previous.stageFollowPaused) return;
+    kulisa.send('task:presentation', { workbenchItem, selectedArtifact, stagePosition, stageLayout, stageOverflow, stageFollowPaused });
   });
 });
 kulisa.on('task:command', ({ command, profile }) => {

@@ -15,7 +15,7 @@ import type { ActivityItem } from './development';
 const query = new URLSearchParams(location.search);
 export const taskIdentity = query.get('task')!;
 export interface TaskState {
-  active: boolean; covered: boolean; current: string | null; projects: ProjectsInfo;
+  active: boolean; covered: boolean; projects: ProjectsInfo;
   key: string;
   profiles: Profile[];
   closedProfiles: ClosedProfile[];
@@ -41,7 +41,7 @@ export interface TaskState {
 export type TaskStore = StoreApi<TaskState>;
 const key = taskIdentity;
 export const store = createStore<TaskState>()(() => ({
-  active: true, covered: false, current: key,
+  active: true, covered: false,
   projects: JSON.parse(query.get('projects') || 'null') ?? { current: null, project: null, projects: [], tabs: [], open: [], settings: false },
   key, profiles: [], closedProfiles: [], developmentTerminals: { task: key, front: null, list: [] },
   workbenchItem: 'terminals', developmentDiff: null, selectedArtifact: null, artifactNavigation: 0, developmentTerminalFocus: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
@@ -59,6 +59,7 @@ export function useTaskActive(enabled = true) {
   return useTask((s) => enabled && s.active && !s.covered);
 }
 const get = store.getState;
+export const currentTask = (state = get()): string | null => state.active ? state.key : null;
 
 const setIn = <K extends 'captions' | 'picking'>(key: K, profile: string, value: TaskState[K][string]) => store.setState({ [key]: { ...get()[key], [profile]: value } });
 const setCaption = (profile: string, caption: string) => setIn('captions', profile, caption);
@@ -76,7 +77,7 @@ function receive<K extends keyof TaskState>(task: string, field: K, value: TaskS
   });
 }
 kulisa.on('project:state', (info) => receive(key, 'projects', info));
-kulisa.on('task:activity', ({ active, covered }) => store.setState({ active, covered, current: active ? key : null }));
+kulisa.on('task:activity', (activity) => store.setState(activity));
 kulisa.on('task:initial', (presentation) => store.setState(presentation));
 kulisa.on('profile:state', ({ task, list }) => receive(task, 'profiles', list));
 kulisa.on('profile:closed', ({ task, list }) => receive(task, 'closedProfiles', list));
@@ -94,7 +95,7 @@ function brief(profile: string, caption: string, sticky?: boolean) {
 // The agent's activity: a caption over the pane (the cursor itself is drawn inside the page, ghost.ts), sticky for what
 // highlighted elements are. Not over a sign-in page, which says the agent is paused.
 kulisa.on('agent:caption', (a) => {
-  if (a.task !== get().current) return; // a task in the background
+  if (a.task !== currentTask()) return; // a task in the background
   const p = store.getState().profiles.find((x) => x.id === a.profile);
   if (!p || p.signinMode) return;
   brief(a.profile, a.caption ? `↖ agent: ${a.caption}` : '', a.sticky);
@@ -119,7 +120,7 @@ export async function screenshot(profile: string, kind: 'element' | 'visible' | 
   brief(profile, refused(res) ? `Screenshot failed: ${res.error}` : res.file ? 'Screenshot copied and saved' : '');
 }
 
-export const shownTask = (s = get(), task: string | null = s.current) => s.projects.tabs.find((t) => t.key === task);
+export const shownTask = (s = get(), task: string | null = currentTask(s)) => s.projects.tabs.find((t) => t.key === task);
 const reflect = () => {
   const state = get(), project = state.projects.projects.find((p) => p.id === state.projects.project);
   const color = project && projectColor(project), root = document.documentElement;

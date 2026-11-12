@@ -4,7 +4,7 @@ import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-re
 import { ArrowDownIcon, ArrowUpIcon, CircleAlertIcon, EllipsisIcon, PlayIcon, RotateCwIcon, TerminalSquareIcon, XIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Input } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../../menus/renderer';
-import { store, useTask, act, useTaskActive } from './state';
+import { currentTask, store, useTask, act, useTaskActive } from './state';
 import { actionsFor } from '../../window-client/renderer';
 import { dialogsShown } from '../../layers/renderer';
 import { focusStageTerminal } from './environments';
@@ -61,11 +61,11 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
   useEffect(() => { view.current?.setSize(terminal?.size ?? null); }, [terminal?.size]);
   useEffect(() => { view.current?.restyle(termStyle()); }, [shade]);
   useEffect(() => {
-    if (!focus?.key || focus.key !== terminal?.key || store.getState().stageTerminalFocus !== focus || store.getState().current !== taskKey) return;
+    if (!focus?.key || focus.key !== terminal?.key || store.getState().stageTerminalFocus !== focus || currentTask() !== taskKey) return;
     let cancelled = false;
     api.setActive();
     void termFocus(focus.key, () => !cancelled && store.getState().stageTerminalFocus === focus
-      && store.getState().current === taskKey && !store.getState().covered && api.isVisible && document.hasFocus() && !dialogsShown()).then(() => {
+      && currentTask() === taskKey && !store.getState().covered && api.isVisible && document.hasFocus() && !dialogsShown()).then(() => {
       if (!cancelled && store.getState().stageTerminalFocus === focus && view.current?.el.contains(document.activeElement)) store.setState({ stageTerminalFocus: null });
     });
     return () => { cancelled = true; };

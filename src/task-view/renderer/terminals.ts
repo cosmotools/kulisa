@@ -1,7 +1,7 @@
 // A tasks' window's terminals (docs/window.md, The terminal): the terminals themselves are src/terminal's, keyed
 // "<task>#<id>" as in the main process; here the terminals' side: the shown task's terminal in front (task-view/DevelopmentTerminals.tsx),
 // links into its profiles and terminal menus. The task UI itself moves between windows.
-import { store, shownTask } from './state';
+import { currentTask, store, shownTask } from './state';
 import { actionsFor } from '../../window-client/renderer';
 import { termStyle } from '../../appearance/renderer';
 import { keyText } from '../../window-client/renderer';
@@ -15,11 +15,11 @@ import type { DevelopmentTerminalInfo } from '../../shared/types';
 const frontKey = () => { const { task, front } = store.getState().developmentTerminals; return task && front !== null ? `${task}#${front}` : null; };
 // One development View per task UI; its session changes within this task and its identity survives window transfer.
 export const panelView = new View(termStyle());
-export const shownTerm = () => (taskGrid(store.getState().current)?.development.screen() === 'terminals' && panelView.key && panelView.key === frontKey() ? panelView.term : null);
+export const shownTerm = () => (taskGrid(currentTask())?.development.screen() === 'terminals' && panelView.key && panelView.key === frontKey() ? panelView.term : null);
 
-export function focusDevelopmentTerminal(task = store.getState().current) {
+export function focusDevelopmentTerminal(task = currentTask()) {
   const development = taskGrid(task)?.development;
-  if (!development || store.getState().current !== task) return;
+  if (!development || currentTask() !== task) return;
   development.showItem('terminals');
   store.setState({ developmentTerminalFocus: {} });
 }
@@ -52,8 +52,8 @@ termHooks.pasteImage = (key) => {
   void kulisa.invoke('development-terminal:paste-image', { task: key.slice(0, at), id: Number(key.slice(at + 1)) });
 };
 termHooks.openFile = (e, path) => {
-  const task = store.getState().current;
-  void filesOf(task, [path]).then(([file]) => file && store.getState().current === task && menuAt(e, [
+  const task = currentTask();
+  void filesOf(task, [path]).then(([file]) => file && currentTask() === task && menuAt(e, [
     ...file.executable ? [] : [{ label: 'Open', run: () => kulisa.invoke('file:open', file.path) }],
     { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file.path) }]));
 };
