@@ -6,8 +6,8 @@ Names: [UI terminology](../../../docs/ui.md#workbench-terminology). Grid lifecyc
 
 ## Boundary
 
-Outside callers use `TaskView.tsx` for UI and `index.ts` for commands/state. Dependency-cruiser protects these
-entries. Keep the task's controllers, stores, pane layout and native-view measurements behind them; shared window
+The task page boots through `main.tsx`; dependency-cruiser prevents outside access to its implementation.
+Keep the task's commands, controllers, stores, pane layout and native-view measurements inside; shared window
 coordination remains in `renderer/lib/`. Other Kulisa packages are reached through their public entries.
 
 ## Layout and drawing constraints
@@ -37,6 +37,7 @@ panes and the current keyboard target continue working; see [page dialogs](../..
 
 - `main.tsx` boots one task page; `TaskView.tsx` composes its screen. `state.ts` owns its single task store;
   `controller.ts` connects the committed grid and scoped commands.
+- `keys.ts` handles task commands; `ask.ts` requests shell questions; `test-hooks.ts` exposes task-page test handles.
 - `development.ts` owns Activity bar selection and Editor/Diff sessions; `Artifacts.tsx` supplies the File Viewer host.
 - Profile/terminal panes, Workbench terminals, Activity bar and Side bar own their controls and native-content bounds.
 - `Grid.css` and `ProfilePane.css` own documented geometry exceptions, using theme variables.

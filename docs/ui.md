@@ -74,7 +74,7 @@ leave links here. Dependency-cruiser protects public entries and keeps non-UI lo
 | [Settings](../src/renderer/components/settings/README.md) | Lazy settings UI and shared page controls |
 | [task-view](../src/renderer/task-view/README.md) | Retained task screens, grids, Workbench and pane drawings |
 | [Projects](tasks.md#projects) | Project creation, membership and setup behavior |
-| `components/Menus.tsx`, `lib/menu.ts`, `lib/dialogs.ts`, `lib/ask.ts`, `lib/shell-ask.ts` | Shared menus, shell dialog registration and task/shell question handles |
+| `components/Menus.tsx`, `lib/menu.ts`, `lib/dialogs.ts`, `lib/shell-ask.ts` | Shared menus, shell dialog registration and questions |
 | `lib/store.ts` | Per-UI preferences and core projection; components use `useWindow(selector)`, other code uses `store.getState()` |
 | `src/renderer/window.css`, `public/theme.js`, `lib/theme.ts` | Theme and first-paint application |
 | `src/shared/`, `env.d.ts` | Main/renderer contracts and bridge |

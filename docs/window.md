@@ -334,7 +334,7 @@ Ctrl stays the terminal's; tasks are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's scre
 How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
 every webContents as it is made: `shortcuts.ts`), and takes one of Kulisa's (`preventDefault`: the page never gets it)
 or leaves it untouched. Each UI reports its keyboard zone through `lib/key-zone.ts` (`keys:zone`: terminal, dialog,
-pane or window). Main handles task navigation itself; `lib/shell-keys.ts` handles shell commands and `lib/keys.ts`
+pane or window). Main handles task navigation itself; `lib/shell-keys.ts` handles shell commands and `task-view/keys.ts`
 handles task commands (`command:run`, with task/profile/tab identity). Letters are matched by what they type on a
 Latin layout (Ctrl+W on an AZERTY keyboard is its W) and by their place on others (Ctrl+Е on a Russian one is Ctrl+T);
 digits and keys typed with Shift by their place. Keys
@@ -486,7 +486,7 @@ Declare a new channel before its two ends; open-task changes still run serially 
 - Renderer `task-view/` owns retained task screens, Dockview, bounds, Workbench and environments.
   `components/settings/` is lazy-loaded through `index.ts`; UI structure: [ui.md](ui.md).
 - Renderer `lib/cover.ts` observes layers; `lib/shell-cover.ts` and `task-view/views.ts` provide native coverage.
-  `lib/key-zone.ts` reports keyboard zones; `lib/shell-keys.ts`/`lib/keys.ts` handle shell/task commands.
+  `lib/key-zone.ts` reports keyboard zones; `lib/shell-keys.ts`/`task-view/keys.ts` handle shell/task commands.
   `src/terminal/` owns PTY/buffers/rendering.
 - `src/main/log.ts` owns logging, redaction, live reads and issue links; Settings' Log/About pages expose them.
   `files.ts` supplies shared atomic writes.

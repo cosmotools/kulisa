@@ -1,6 +1,6 @@
 // A question before something that cannot be undone, before closing, or between two ways (docs/ui.md, Dialogs), on
 // shadcn's AlertDialog: Cancel has the keyboard, Esc is Cancel, a click outside does nothing. Questions asked while one
-// is open wait their turn (lib/ask.ts); the main process's (shell.ask) are asked here and answered back.
+// is open wait their turn (lib/shell-ask.ts); the main process's (shell.ask) are asked here and answered back.
 import { useState } from 'react';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, Button } from '@ui';
 import { useAsking } from '../lib/shell-ask';

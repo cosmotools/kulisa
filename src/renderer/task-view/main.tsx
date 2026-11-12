@@ -11,8 +11,8 @@ import { taskGrid } from './controller';
 import { taskIdentity } from '../lib/store';
 import type { TaskPresentation } from '../../shared/ipc';
 import '../lib/names';
-import '../lib/keys';
-import '../lib/test-hooks';
+import './keys';
+import './test-hooks';
 
 thumbnailMenu(menuAtPoint);
 const root = createRoot(document.getElementById('app')!, { onCaughtError: () => {} });

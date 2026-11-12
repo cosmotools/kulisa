@@ -64,7 +64,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     else void act('tab:focus', { profile: id, tab: editing.tab });
   };
 
-  // What the window does with this pane (lib/keys.ts: New tab, the address, Pick by their keys).
+  // Task keyboard commands use this pane's address, tab and Pick handles (keys.ts).
   useEffect(() => {
     if (!content) return;
     const handle = {
