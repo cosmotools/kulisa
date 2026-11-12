@@ -106,7 +106,9 @@ Example: `~/IdeaProjects/myshop@task-k3x9q2/` can remain on disk while its branc
 Names for Workbench, Activity bar, Side bar, Main pane and their items: [UI terminology](ui.md#workbench-terminology).
 The Activity bar and Side bar share a Dockview edge group fixed left of Main pane. Clicking the selected Activity
 bar item collapses the Side bar; another reopens it at saved width. Task layout saves the selected item, collapse
-state and shared expanded width.
+state and shared expanded width. `workspace.presentation` in `task.json` saves only the selected item and artifact;
+main coalesces these writes, while Editor checkpoints remain immediate. Dockview owns layout serialization
+([grid lifecycle](window.md#the-grid)); focus, loading, pictures and mirrored core facts are transient.
 
 - Expanded minimum width is 300 CSS px; collapsed width is 40 px. Development minimum height is 204 px to keep
   controls reachable. Empty development terminals: [window.md](window.md#the-terminal).
@@ -176,6 +178,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Send an artifact to the agent | Send to Agent in its row’s or screenshot thumbnail’s menu; drag a screenshot thumbnail onto a terminal | none: preparing the human’s next message | `Task.sendArtifact`; terminal file drop |
 | Delete artifacts | Delete in a file/folder menu; the heading's 🗑, all results | `task_artifacts_delete`: some or all of its task's | `Task.deleteArtifacts` |
 | Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
+| Reload a task's screen | task tab's menu or process-failure fallback | none: reconstructs the human's display; no agent restart or replay | `TaskView.reload` (`task:reload`); [failure limits](window.md#task-rendering-failures) |
 | Add, clone, make the default, remove a project's folder | the project's page | none: what the project is made of is the human's | `addFolder`, `cloneRepo`, `defaultFolder`, `removeFolder` (`projects.ts`) |
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
 | Remove one added | Remove Repository in its tab's menu, or its Project row's menu | `task_remove_repository`, once the human agreed | `Task.removeRepository`, `Project.askRemoveCopy`, `removeCopy` |
@@ -351,7 +354,7 @@ agents/<agent>-<id>/              an account's config folder (CLAUDE_CONFIG_DIR,
 dictation/                        the folder the hidden session runs in (src/dictation: another agent's dictation
                                   recognizing for one without), empty; it and what that session kept of it in its
                                   account (its conversation, its trust) go when the session ends, or at the next start
-settings.json                     the Kulisa zoom, the theme, where the tasks' bar is, Follow agent, the language; the windows: each one's
+settings.json                     the Kulisa zoom, the theme, Follow agent, the language; the windows: each one's
                                   tasks by key (in the bar's order), the one shown, where it was
 logs/kulisa.log                   what happened and who asked (window.md, The log), for a bug report; at 1 MB it becomes
 logs/kulisa.old.log               kulisa.old.log and a new one starts: 2 MB at most
@@ -534,9 +537,10 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
   would lose them. The agent chooses free ports and manages database/container isolation, reporting fixed-port conflicts.
 - Fixed IDs keep paths stable across renames. Chrome-shaped storage supports existing Chromium knowledge.
 - Lazy task loading avoids restoring unused processes and starts agents at real terminal sizes. Restore layout
-  without waiting for programs/sites; launch agents after profiles and repository checks are ready.
+  without waiting for programs/sites or agent discovery; publish terminal rows before starting their processes.
 - Background tasks keep working; unused browser tabs discard later. Moving between windows transfers native views
-  and serialized terminal buffers, not sessions. Each open window costs one renderer.
+  and the retained task UI together, preserving renderer/PTy/profile identities without terminal replay. Each visited
+  task adds a UI renderer; closing it releases that renderer. Native ownership: [window.md](window.md#native-ownership).
 - Extend only positive trust decisions. Unknown CLI config formats remain untouched; concurrent CLI rewrites can
   undo Kulisa's atomic trust write, safely causing another prompt.
 
@@ -552,6 +556,7 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 - Renderer task navigation lives in `components/`. `components/welcome/Welcome.tsx` owns the first-start screen,
   examples and assets; the [new-project UI module](../src/renderer/components/new-project/README.md) owns creation
   and its draft behind `index.tsx`.
+  `main/task-view.ts` attaches each visited task UI to its current native window.
   Project/account configuration lives in `components/settings/`; shared non-UI coordination in `lib/`.
   `favicons.ts`/`lib/project-color.ts` derive project identity.
 - `src/shared/names.ts`: labels, names and branch slugs. Renderer `task-view/` owns retained screens, grids and activation.
@@ -560,8 +565,8 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 Task state uses Zod schemas for stored field shapes and TypeScript types, with core checks for unique IDs,
 conversation links and Stage setup. Validation retains unknown metadata; each section update reads the current
 document, preserves its peers and writes atomically. Dockview owns serialized layout formats.
-Layout changes are debounced and flushed when leaving the task; pruning closed panes preserves the active group when it survives. A new task retains uninitialized
-profiles/development separately from deliberately empty collections. Legacy task files are imported only when
+A new task retains uninitialized profiles/development separately from deliberately empty collections. Layout
+lifecycle belongs to [window.md](window.md#the-grid). Legacy task files are imported only when
 `task.json` is absent; a verified document is authoritative, and leftover source files are cleaned on reopening.
 Malformed source data stops migration with an error and retains the source files. Browser storage, profile tabs,
 transcripts and artifacts keep their own formats and owners.

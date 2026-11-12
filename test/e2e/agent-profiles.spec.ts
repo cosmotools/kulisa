@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Profiles, the human's and the agent's: made in Settings and by profile_create, who each is, renamed, signed in by the
 // human when the agent asks; isolated, presenting as what they are, the sign-in pause (docs/profiles.md).
 import { test, expect } from './fixtures.ts';
@@ -76,7 +77,7 @@ test('profiles are made in Settings (Profiles\' + in its nav), each with its own
   // Hidden under Settings (the pages draw above the window's HTML), on screen once it is closed. Elon's first tab comes
   // after it is opened.
   await expect.poll(() => core((k, id) => !!k.shell.profiles.get(id).view.getVisible(), elon)).toBe(true);
-  await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(2);
+  await expect((await taskPage(ui)).locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(2);
 });
 
 test('agent: create a profile with profile_create; removed from the project, it stays in Settings → Profiles until deleted there', async ({ core, call, ui, files }) => {
@@ -89,7 +90,7 @@ test('agent: create a profile with profile_create; removed from the project, it 
   expect(list.map((p) => p.name), 'by name: the agent never sees an id').toEqual(['Sam.seller', 'Elon.buyer', 'Ann.admin']);
   expect(list.every((p) => !('id' in p))).toBe(true);
   expect(list.map((p) => [p.avatar, p.description])).toEqual([['fox', 'seller in the test shop'], ['penguin', null], ['frog', 'the shop\'s admin']]);
-  await expect(ui.locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(3);
+  await expect((await taskPage(ui)).locator('[data-task-view][data-active] [role="region"][data-profile]')).toHaveCount(3);
   const removed = act(ui, 'profile:delete', { profile: ann }); // Remove from Project… in its pane's menu
   expect((await answer(ui)).message).toMatch(/^Remove the profile Ann\.admin from /);
   await removed;
@@ -110,7 +111,7 @@ test('who a profile is: the agent is told to choose by it and to ask; it saves t
   await expect(call('profile_describe', { profile: 'Elon.buyer', description: 'x'.repeat(501) })).rejects.toThrow(/at most 500/);
   // The editor shows it and the human changes it there; the pane's name tells it on hover (under the whole name, which a
   // narrow pane cuts), the task's tab's menu under the name.
-  const header = ui.locator('[data-task-view][data-active] [data-panel^="profile:"]').filter({ has: ui.getByTestId('profile-name').getByText('Elon.buyer', { exact: true }) });
+  const header = (await taskPage(ui)).locator('[data-task-view][data-active] [data-panel^="profile:"]').filter({ has: (await taskPage(ui)).getByTestId('profile-name').getByText('Elon.buyer', { exact: true }) });
   await expect(header.getByTestId('profile-name')).toHaveAttribute('title', /^Elon\.buyer\nbuyer; pays by card/);
   await expect.poll(() => header.locator('img').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true); // the picture is drawn (no web-first assertion reads an image's load)
   const items = (await taskMenu(ui)).getByRole('menuitem');
@@ -157,7 +158,7 @@ test('agent: rename a profile; ask the human to sign one in and wait until they 
   await call('profile_rename', { profile: 'elon.payer', name: 'Elon.buyer' });
   const back = await core((k) => k.profile('Elon.buyer').get().wc.getURL());
   const asking = call('profile_ask_signin', { profile: 'Elon.buyer', url: `${SITE}/form`, why: 'as Elon' });
-  const caption = ui.locator(`[data-task-view][data-active] [data-panel="profile:${elon}"] [role="status"]`);
+  const caption = (await taskPage(ui)).locator(`[data-task-view][data-active] [data-panel="profile:${elon}"] [role="status"]`);
   await expect(caption).toContainText('sign in, please: as Elon');
   expect(await core((k) => k.profile('Elon.buyer').get().wc.getURL()), 'the sign-in page opened').toMatch(/\/form$/);
   await core((k, url) => { void k.profile('Elon.buyer').get().wc.loadURL(url); }, back); // the human signs in and lands elsewhere

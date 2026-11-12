@@ -138,22 +138,24 @@ export function driver(shell: Shell, openedExternally: string[]) {
     webContents: () => electron.webContents.getAllWebContents().length,
     // A window given the keyboard, as the human's click gives it (helpers.ts, focusWindow waits until its page has it).
     // On macOS a click also brings the app to the front, and only the front app's windows take the keyboard.
-    focus(w: electron.BrowserWindow = shell.win) {
+    focus(w: electron.BaseWindow = shell.win) {
       if (process.platform === 'darwin') electron.app.focus({ steal: true });
-      w.focus(); w.webContents.focus();
+      w.focus();
+      if (w instanceof electron.BrowserWindow) w.webContents.focus();
+      else shell.windows.find((owner) => owner.win === w)?.focusUi.focus();
     },
     // A sandboxed page: its preload's world (999, contextIsolation's) has no Node's process (Electron's tutorial/sandbox.md).
     noNode: async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined',
     // Where an agent's hooks report (tasks.ts, env): the agent's terminal of the task, the one picks go to.
     hooksOf: (task = shell.task) => `${task.env(task.promptTarget()).KULISA_URL}/hooks`,
-    viewIn(view: electron.View, win: electron.BrowserWindow) {
+    viewIn(view: electron.View, win: electron.BaseWindow) {
       const contains = (parent: electron.View): boolean => parent.children.some((child) => child === view || contains(child));
       return contains(win.contentView);
     },
     // Whether a profile's page lies on its pane's box (CSS pixels of the window's page, from helpers.ts' pageBox):
     // the view is placed in window pixels, times the Kulisa zoom.
     viewOn(name: string, box: { x: number; y: number; width: number; height: number } | null) {
-      const p = profile(name), t = p.get(), z = shell.win.webContents.getZoomFactor();
+      const p = profile(name), t = p.get(), z = shell.windows[0].ui.getZoomFactor();
       const parent = p.view.getBounds(), child = t.view.getBounds();
       const bounds = { ...child, x: parent.x + child.x, y: parent.y + child.y };
       const scaled = box && Object.fromEntries(Object.entries(box).map(([key, v]) => [key, Math.round(v * z)]));
@@ -162,9 +164,9 @@ export function driver(shell: Shell, openedExternally: string[]) {
     // The whole window as the screen shows it, its profiles' views included (window.ts, screenshot): on macOS only with
     // the screen recording permission (docs/testing.md, On macOS), else its page alone.
     canShoot: () => process.platform !== 'darwin' || electron.systemPreferences.getMediaAccessStatus('screen') === 'granted',
-    async shot(file: string, w: { win: electron.BrowserWindow; screenshot(file: string): Promise<unknown> } = shell.windows[0]) {
+    async shot(file: string, w: { win: electron.BaseWindow; screenshot(file: string): Promise<unknown> } = shell.windows[0]) {
       if (k.canShoot()) return w.screenshot(file);
-      const image = await w.win.webContents.capturePage();
+      const image = await shell.windows.find((owner) => owner.win === w.win).ui.capturePage();
       fs.writeFileSync(file, image.toPNG());
       return file;
     },

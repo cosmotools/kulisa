@@ -5,12 +5,13 @@
 // agents, the windows) is app.ts's, the open tasks with their one change after another (serial) open-tasks.ts's; what happens to projects and tasks,
 // whichever window shows them, is the core's (projects.ts, tasks.ts).
 import type { PageLayout } from '../shared/ipc.ts';
-import { BrowserWindow, desktopCapturer, screen, shell as electronShell } from 'electron';
+import { BaseWindow, WebContentsView, desktopCapturer, screen, shell as electronShell } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import { TaskView } from './task-view.ts';
 import { page } from './pages.ts';
 import { log, summary } from './log.ts';
-import { focusWindow } from '../browser/main/index.ts';
+import { focusWindow, registerWindowUi, allowFocus } from '../browser/main/index.ts';
 import { Thumbnails } from '../screenshots/main/index.ts';
 import { ArtifactViewer } from './artifact-viewer.ts';
 import type { Rectangle, Point } from 'electron';
@@ -22,7 +23,7 @@ import type { Arg, Events } from '../shared/ipc.ts';
 type Question = Sent.Question;
 
 // Where a window was ({ bounds, maximized }), or where a new one goes: next to a window (near), under a point (at).
-interface Place { bounds?: Rectangle | null; maximized?: boolean; near?: Electron.BrowserWindow; at?: Point }
+interface Place { bounds?: Rectangle | null; maximized?: boolean; near?: Electron.BaseWindow; at?: Point; workspace?: Rectangle }
 type Shade = 'dark' | 'light';
 
 const TITLE_BAR_HEIGHT = 44; // the title bar's (components/TopBar.tsx): keep in step
@@ -32,7 +33,7 @@ const MAC_BUTTONS = { height: 14, x: 7 };
 // page: an empty tab's, as the pane's box under it (--card).
 const COLORS: Record<Shade, { window: string; text: string; page: string }> = {
   dark: { window: '#0a0a0a', text: '#fafafa', page: '#171717' }, light: { window: '#ffffff', text: '#0a0a0a', page: '#ffffff' } };
-// The smallest window whose UI still works (the top bar with the OS buttons, ☰ and a task's tab, something under
+// The smallest window whose UI still works (the top bar with the OS buttons and ☰, a task's tab, something under
 // it), as VS Code's: fixed, times the Kulisa zoom, in DIP. Not the grid's own minimum: with five profiles in a row it
 // would keep the window from half a screen next to the human's IDE. The OS holds it for the human's drag only;
 // the constructor's bounds and setSize pass below it, so a window is raised to it here.
@@ -45,18 +46,24 @@ let windows = 0;
 const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
 
 class AppWindow {
+  readonly appDevTools: boolean;
   shell: Shell; id: number; tabs: Task[]; current: Task | null; switching: boolean;
   private readonly laidOut = new Set<Task>();
-  private covered = false;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   thumbnails: Thumbnails; // a screenshot's, in its pane's corner (src/screenshots)
   artifactViewer: ArtifactViewer;
-  win: Electron.BrowserWindow; place: { bounds: Rectangle; maximized: boolean }; barHeight: number; // the title bar's, as the window was made
+  win: Electron.BaseWindow;
+  readonly shellView: Electron.WebContentsView;
+  private globalCovered = false;
+  private focusBeforeCover: { task: string; contents: Electron.WebContents } | undefined;
+  workspace: Rectangle = { x: 0, y: 44, width: 0, height: 0 }; place: { bounds: Rectangle; maximized: boolean }; barHeight: number; // the title bar's, as the window was made
+  private insets: { top: number; bottom: number; left: number; right: number };
   // shell: the app (app.ts). place: where it was ({ bounds, maximized }, settings.json), or { near: a window } for a
   // new one of its size next to it, or under the pointer (at: a point on the screen, where a tab was let go).
   // appDevTools: Kulisa's own DevTools (only when running from source).
-  constructor(shell: Shell, { bounds, maximized, near, at }: Place = {}, { appDevTools = false } = {}) {
+  constructor(shell: Shell, { bounds, maximized, near, at, workspace }: Place = {}, { appDevTools = false } = {}) {
+    this.appDevTools = appDevTools;
     this.shell = shell;
     this.id = ++windows; // for a page to name another window (task:move)
     this.tabs = []; // the tasks open in it (tasks.ts: Task), its tabs in order
@@ -77,6 +84,10 @@ class AppWindow {
     } else if (bounds && !onScreen(bounds)) bounds = null;
     const min = minSize(shell.uiZoom);
     this.barHeight = Math.round(TITLE_BAR_HEIGHT * shell.uiZoom);
+    const [sourceWidth = 0, sourceHeight = 0] = near?.getContentSize() ?? [];
+    this.insets = workspace ? { top: workspace.y, left: workspace.x, right: sourceWidth - workspace.x - workspace.width,
+      bottom: sourceHeight - workspace.y - workspace.height }
+      : { top: this.barHeight, bottom: Math.round(44 * shell.uiZoom), left: 0, right: 0 };
     if (bounds) bounds = { ...bounds, width: Math.max(bounds.width, min.width), height: Math.max(bounds.height, min.height) };
     else {
       const area = screen.getPrimaryDisplay().workArea;
@@ -85,7 +96,7 @@ class AppWindow {
       const height = Math.max(min.height, Math.min(960, area.height - 32));
       bounds = { x: area.x + Math.round((area.width - width) / 2), y: area.y + Math.round((area.height - height) / 2), width, height };
     }
-    const win = (this.win = new BrowserWindow({
+    const win = (this.win = new BaseWindow({
       ...bounds, minWidth: min.width, minHeight: min.height, title: 'Kulisa', backgroundColor: COLORS[shell.shade()].window,
       icon: path.join(import.meta.dirname, '..', '..', 'assets', 'icon.png'), // taskbar and window switcher on Linux and Windows
       // One row on top, as in VS Code: no system title bar; the OS window buttons are drawn over the right end of
@@ -93,15 +104,32 @@ class AppWindow {
       // Its color is see-through, as macOS's traffic lights have no strip of their own: the top bar under it shows, and a
       // dialog's backdrop dims it with the rest.
       titleBarStyle: 'hidden', titleBarOverlay: { color: CLEAR, symbolColor: COLORS[shell.shade()].text, height: this.barHeight },
-      // DevTools of Kulisa's own UI only while developing it; a packaged build has none (profiles' tabs still do).
-      webPreferences: { preload: PRELOAD, sandbox: true, devTools: appDevTools,
-        zoomFactor: shell.uiZoom },
     }));
+    this.shellView = new WebContentsView({ webPreferences: { preload: PRELOAD, sandbox: true, devTools: appDevTools, zoomFactor: shell.uiZoom } });
+    this.shellView.setBackgroundColor('#00000000');
+    win.contentView.addChildView(this.shellView);
+    if (process.platform === 'linux') {
+      // Electron rounds only a primary web view on Linux; match its Chromium frame radius (docs/testing.md).
+      const updateCorners = () => this.shellView.setBorderRadius(win.isMaximized() || win.isFullScreen() ? 0 : 8);
+      win.on('maximize', updateCorners); win.on('unmaximize', updateCorners);
+      win.on('enter-full-screen', updateCorners); win.on('leave-full-screen', updateCorners);
+      updateCorners();
+    }
+    registerWindowUi(this.ui, () => this.win);
+    const resize = () => {
+      const [width = 0, height = 0] = win.getContentSize();
+      this.shellView.setBounds({ x: 0, y: 0, width, height });
+      // Keep hidden groups sized, without waiting on their renderer or a shell layout round trip.
+      const { top, bottom, left, right } = this.insets;
+      this.placeWorkspace({ x: left, y: top, width: Math.max(0, width - left - right), height: Math.max(0, height - top - bottom) });
+    };
+    win.on('resize', resize);
+    resize();
     if (maximized) win.maximize();
     this.place = this.where();
     this.artifactViewer = new ArtifactViewer(this);
     // Send to Agent: its file's path into the prompt of the shown task's agent.
-    this.thumbnails = new Thumbnails(win, { page: page('thumbnail.html'), preload: PRELOAD,
+    this.thumbnails = new Thumbnails(this.ui, win.contentView, { page: page('thumbnail.html'), preload: PRELOAD,
       open: async (file) => { const r = await this.task?.viewArtifact(file); if (r?.error) throw new Error(r.error); },
       send: async (file) => { const r = await this.task?.sendArtifact(file); if (r?.error) throw new Error(r.error); },
       remove: async (file) => { const r = await this.task?.deleteArtifacts([file]); if (r?.error) throw new Error(r.error); } });
@@ -111,20 +139,30 @@ class AppWindow {
     // GNOME (X11) shows its window menu for a right-click on the title bar's drag region at a NaN place: invisible,
     // it holds the pointer and keyboard of the whole desktop until the overview opens (docs/window.md, The title bar).
     if (process.platform === 'linux') win.on('system-context-menu', (e) => e.preventDefault());
-    keepPage(win);
+    keepPage(this.ui);
     // Its title names the shown task (show), not the page's <title>, which may load after.
-    win.on('page-title-updated', (e) => e.preventDefault());
+    this.ui.on('page-title-updated', (e) => e.preventDefault());
+    // Input into the bars is outside task-local layers, even though it belongs to the same OS window.
+    this.ui.on('before-mouse-event', (_e, input) => {
+      if (input.type === 'mouseDown') { this.task?.send('task:dismiss'); focusWindow(this.ui); }
+    });
+    this.ui.on('before-input-event', (_e, input) => { if (input.type === 'keyDown') focusWindow(this.ui); });
     // Questions the page was asking go unanswered once it is gone or loaded again (ask).
-    win.webContents.on('render-process-gone', () => { this.unanswered(); this.artifactViewer.close(); });
-    win.webContents.on('did-start-navigation', (d) => { if (d.isMainFrame && !d.isSameDocument) { this.unanswered(); this.artifactViewer.close(); } });
+    this.ui.on('render-process-gone', () => { this.unanswered(); this.artifactViewer.close(); });
+    this.ui.on('did-start-navigation', (d) => { if (d.isMainFrame && !d.isSameDocument) { this.unanswered(); this.artifactViewer.close(); } });
     // Where it was is kept for the next start; the app decides whether it closes now (app.ts, closeWindow).
     win.on('close', (e) => { this.place = this.where(); shell.windowClosing(this, e); });
-    win.on('closed', () => { this.unanswered(); this.artifactViewer.close(); });
-    win.on('focus', () => this.seen());
-    win.on('blur', () => { if (this.task) this.shell.dictation.letGo(this.task.key); this.send('window:blur'); });
+    win.on('closed', () => this.closeContents());
+    win.on('focus', () => { this.seen(); shell.noteFront(this); });
+    win.on('blur', () => { if (this.task) this.shell.dictation.letGo(this.task.key); this.send('window:blur'); this.task?.send('window:blur'); });
   }
+  get ui() { return this.shellView.webContents; }
+  get taskUi() { return this.task?.view?.ui ?? this.ui; }
+  get focusUi() { return this.globalCovered || this.task?.view?.failure ? this.ui : this.taskUi; }
+  get shellCovered() { return this.globalCovered; }
+  owns(sender: Electron.WebContents) { return sender === this.ui || TaskView.owner(sender)?.window === this; }
   get task() { return this.current; }
-  get viewsHidden() { return this.covered || this.switching || !this.task || this.task.viewFailed || !this.laidOut.has(this.task); }
+  get viewsHidden() { return this.task?.view?.covered || this.switching || !this.task || this.task.viewFailed || !this.laidOut.has(this.task); }
   get profiles(): Map<string, Profile> { return this.task?.profiles || NONE; }
   get closed(): Task['closed'] { return this.task?.closed || NONE; }
   where() { return { bounds: this.win.getNormalBounds(), maximized: this.win.isMaximized() }; }
@@ -140,24 +178,28 @@ class AppWindow {
   focus() { if (this.win.isMinimized()) this.win.restore(); if (!this.win.isVisible()) this.win.show(); this.win.focus(); }
   // Kulisa's own DevTools (only when running from source: appDevTools), detached like the profiles' DevTools: docked
   // ones would sit under the profile views.
-  toggleDevTools() {
-    const wc = this.win.webContents;
+  toggleDevTools(wc = this.focusUi) {
     if (wc.isDevToolsOpened()) wc.closeDevTools(); else wc.openDevTools({ mode: 'detach', title: 'Kulisa · DevTools' });
   }
-  destroy() { this.unanswered(); this.thumbnails.destroy(); this.artifactViewer.close(); if (!this.win.isDestroyed()) this.win.destroy(); }
+  private closeContents() {
+    this.unanswered(); this.thumbnails.destroy(); this.artifactViewer.close();
+    for (const task of this.tabs) { task.view?.close(); task.view = undefined; }
+    if (!this.ui.isDestroyed()) this.ui.close();
+  }
+  destroy() { this.closeContents(); if (!this.win.isDestroyed()) this.win.destroy(); }
 
-  // Its page, loaded once; its tabs, the one to be shown (shown), the theme, where the tasks' bar is and
+  // Its page, loaded once; its tabs, the one to be shown (shown), the theme and
   // the keyboard shortcuts (keys.ts: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
   async load(shown: Task | null) {
-    await this.win.loadFile(page('index.html'), { query: {
-      theme: this.shell.theme, bar: this.shell.bar, stageFollow: String(this.shell.stageFollow), keys: JSON.stringify(this.shell.keys()),
+    await this.ui.loadFile(page('index.html'), { query: {
+      theme: this.shell.theme, stageFollow: String(this.shell.stageFollow), keys: JSON.stringify(this.shell.keys()),
       projects: JSON.stringify(this.info(shown)) } });
     this.loaded = true;
-    for (const [channel, data] of this.pending.splice(0)) this.win.webContents.send(channel, ...data);
+    for (const [channel, data] of this.pending.splice(0)) this.ui.send(channel, ...data);
   }
   send<C extends keyof Events>(channel: C, ...data: Arg<Events[C]>) {
     if (this.win.isDestroyed()) return;
-    if (this.loaded) this.win.webContents.send(channel, ...data); else this.pending.push([channel, data]);
+    if (this.loaded) this.ui.send(channel, ...data); else this.pending.push([channel, data]);
   }
 
   // The projects (store.ts), its tabs in order (each task with what its agent does), the one shown (shown: the one
@@ -173,42 +215,55 @@ class AppWindow {
       windows: others.map((w) => ({ id: w.id, name: w.label() })),
       settings: shell.projects().length > 0 || shell.accounts.all().some((a) => !a.own) || shell.profileStore.all().length > 0 };
   }
-  sendProjects() { this.send('project:state', this.info()); }
+  sendProjects() { this.send('project:state', this.info()); for (const task of this.tabs) task.view?.send('project:state', task.view.info()); this.sendTaskSummary(); }
   // The shown task's profiles, open and closed, and its terminals, for the page to build its grid from; their tabs
   // saved.
   pushState() {
     clearTimeout(this.stateTimer); this.stateTimer = undefined;
-    const task = this.task;
-    if (!task || this.switching) return;
-    this.sendDevelopmentTerminals();
-    this.send('stage-terminal:state', { task: task.key, list: task.stageTerminals.info() });
-    this.send('profile:state', { task: task.key, list: [...task.profiles.values()].map((p) => p.info()) });
-    this.send('profile:closed', { task: task.key, list: [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
+    for (const task of this.tabs) if (task.loaded) this.pushTaskState(task);
+  }
+  pushTaskState(task: Task) {
+    task.send('development-terminal:state', { task: task.key, ...task.developmentTerminalsInfo() });
+    task.send('stage-terminal:state', { task: task.key, list: task.stageTerminals.info() });
+    task.send('profile:state', { task: task.key, list: [...task.profiles.values()].map((p) => p.info()) });
+    task.send('profile:closed', { task: task.key, list: [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
       ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })) });
-    task.list.saveTabs();
+    if (task.loaded) task.list.saveTabs();
+    this.sendTaskSummary();
+  }
+  sendTaskSummary() {
+    const task = this.task;
+    this.send('task:summary', task ? { key: task.key,
+      profiles: [...task.profiles.values()].map((p) => ({ id: p.id, name: p.name, avatar: p.avatar, description: p.description, tabs: p.tabs.length })),
+      closedProfiles: [...task.closed.values()].map(({ cfg }) => ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '' })),
+      terminals: task.stageTerminals.info().length, shells: [...task.developmentTerminals.values()].filter((t) => !t.agent).map((t) => t.name),
+      failure: task.view?.failure ?? null, presentation: task.presentation } : null);
   }
   // The shown task's artifacts (Resources.tsx): when it is shown, and when either the human or agent makes one.
-  private artifactsSequence = 0;
+  private readonly artifactsSequence = new WeakMap<Task, number>();
   async sendArtifacts(task = this.task) {
-    if (!task || task !== this.task) return;
-    const sequence = ++this.artifactsSequence;
+    if (!task?.view) return;
+    const view = task.view, frame = view.ui.mainFrame;
+    const sequence = (this.artifactsSequence.get(task) ?? 0) + 1;
+    this.artifactsSequence.set(task, sequence);
     const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);
-    if (task === this.task && sequence === this.artifactsSequence) {
+    if (task.loaded && task.window === this && task.view === view && !view.ui.isDestroyed()
+      && view.ui.mainFrame === frame && sequence === this.artifactsSequence.get(task)) {
       this.artifactViewer.reconcile(task.key, list.map((a) => a.file));
-      this.send('task:artifact:state', { task: task.key, list, bytes });
+      task.send('task:artifact:state', { task: task.key, list, bytes });
     }
   }
-  sendDevelopmentTerminals() { if (this.task && !this.switching) this.send('development-terminal:state', { task: this.task.key, ...this.task.developmentTerminalsInfo() }); }
+  sendDevelopmentTerminals() { if (this.task && !this.switching) this.task.send('development-terminal:state', { task: this.task.key, ...this.task.developmentTerminalsInfo() }); }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }
   // A task of its tabs changed: its profiles (now: right away), or its agent's state (shown on its tab).
   changed(task: Task, now?: boolean, agentState?: boolean) {
     if (agentState) {
       if (task === this.task && this.win.isFocused()) task.see(); // done before the human's eyes: nothing to come and see
-      if (task === this.task) this.sendDevelopmentTerminals();
+      task.send('development-terminal:state', { task: task.key, ...task.developmentTerminalsInfo() });
+      this.send('agent:handover:state', { task: task.key, list: task.developmentTerminalsInfo().list.map(({ id, state }) => ({ id, state })) });
       return this.sendProjects();
     }
-    if (task !== this.task) return task.loaded && task.list.saveTabs(); // not one being unloaded
-    if (now) this.pushState(); else this.scheduleState();
+    if (now) this.pushTaskState(task); else this.scheduleState();
   }
 
   // ---------- its tabs ----------
@@ -223,10 +278,11 @@ class AppWindow {
     this.sendProjects();
   }
   async show(task: Task) {
-    log.info(`[window] wc=${this.win.webContents.id} shows ${task.key}`);
+    log.info(`[window] wc=${this.ui.id} shows ${task.key}`);
     if (task === this.current) return;
     if (this.current) this.leaveGrid();
     this.current = task;
+    task.view ??= new TaskView(task, this);
     this.shell.saveWindows();
     this.win.setTitle(`${task.displayName} · ${task.project.name} — Kulisa`);
     this.sendProjects();
@@ -237,16 +293,21 @@ class AppWindow {
     const task = this.task!;
     if (!task.loaded) task.loadProfiles();
     this.switching = false;
+    this.thumbnails.rebind(task.view!.ui, task.view!.group);
     // Not waited for: the human may first have to choose the agent (or switch away meanwhile). Its tabs come at once,
     // each starting, so the grid comes with them, not with the terminals' buttons.
-    const developmentTerminals = task.loadDevelopmentTerminals();
+    if (task.view?.ready) void task.loadDevelopmentTerminals();
     this.pushState();
     this.seen();
     this.updateViews();
-    developmentTerminals.catch((e) => console.error('[agent]', e));
+    for (const t of this.tabs) t.view?.activity();
+    this.taskAvailability();
+    if (!this.globalCovered && this.win.isFocused()) this.restoreTaskFocus();
   }
   private leaveGrid() {
     if (!this.current) return;
+    if (this.current.view) this.current.view.covered = false;
+    this.current.view?.send('task:activity', { active: false, covered: this.globalCovered });
     this.current.cancelArtifactView();
     if (this.stateTimer) this.pushState();
     else if (!this.switching) this.current.list.saveTabs();
@@ -263,7 +324,7 @@ class AppWindow {
     if (next) await this.show(next);
     else { this.leaveGrid(); this.updateViews(); }
   }
-  // Then the tab goes, and the page forgets the task (terminals, pictures).
+  // Remove the tab after its task UI closes or moves out.
   drop(task: Task) {
     this.laidOut.delete(task);
     this.tabs.splice(this.tabs.indexOf(task), 1);
@@ -272,8 +333,12 @@ class AppWindow {
       this.current = null;
       this.win.setTitle('Kulisa');
     }
+    this.coveredAfterDrop();
     this.sendProjects();
-    this.send('task:closed', [task.key]);
+  }
+  private coveredAfterDrop() {
+    if (!this.task) { this.switching = false; if (this.win.isFocused()) focusWindow(this.ui); }
+    this.taskAvailability();
   }
   // The human sees the shown task: an agent done there has nothing more to show (its ✓ says "come and see").
   seen() { if (this.task?.see()) { this.sendDevelopmentTerminals(); this.sendProjects(); } }
@@ -287,17 +352,56 @@ class AppWindow {
   // ---------- the profiles' views ----------
   failTaskView({ task: key, kind, frames }: { task: string; kind: string; frames: string[] }) {
     const task = this.tabs.find((t) => t.key === key);
-    if (!task || task.viewFailed) return;
+    if (!task) return;
     task.viewFailed = true;
     task.cancelArtifactView();
     this.laidOut.delete(task);
-    log.error(`[task-view] failed wc=${this.win.webContents.id} ${summary({ task: key, kind, frames }, 1200)}`);
+    log.error(`[task-view] failed wc=${this.ui.id} ${summary({ task: key, kind, frames }, 1200)}`);
     for (const p of task.profiles.values()) p.setHidden(true);
     if (task === this.task) {
       for (const { cancel } of this.picking.values()) cancel();
-      this.thumbnails.close(); this.artifactViewer.close(); this.updateViews(); focusWindow(this.win.webContents);
+      this.thumbnails.close(); this.artifactViewer.close(); this.updateViews(); focusWindow(this.focusUi);
     }
     this.sendProjects();
+  }
+  invalidateTaskLayout(task: Task) {
+    this.laidOut.delete(task); for (const p of task.profiles.values()) p.setHidden(true);
+    if (task === this.task) { this.artifactViewer.native.setHidden(true); this.thumbnails.setHidden(true); }
+  }
+  taskAvailability() {
+    for (const task of this.tabs) task.view?.group.setVisible(task === this.task && !task.view.failure);
+    if (this.globalCovered || this.task?.view?.failure) this.win.contentView.addChildView(this.shellView);
+    else if (this.task?.view) this.win.contentView.addChildView(this.task.view.group);
+    this.updateViews(); this.sendTaskSummary();
+  }
+  placeWorkspace(bounds: Rectangle) {
+    if (![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite)) return;
+    const [width = 0, height = 0] = this.win.getContentSize();
+    this.insets = { top: bounds.y, left: bounds.x, bottom: height - bounds.y - bounds.height, right: width - bounds.x - bounds.width };
+    this.workspace = bounds;
+    for (const task of this.tabs) task.view?.place(bounds);
+  }
+  private restoreTaskFocus() {
+    const target = this.task?.view?.failure ? this.ui : this.task?.view?.focusTarget;
+    if (!target || target.isDestroyed()) return focusWindow(this.focusUi);
+    allowFocus(target); focusWindow(target);
+  }
+  coverShell(covered: boolean) {
+    if (this.globalCovered === covered) return;
+    if (covered && this.task?.view) this.focusBeforeCover = { task: this.task.key, contents: this.ui.isFocused() ? this.ui : this.task.view.focusTarget };
+    this.globalCovered = covered;
+    for (const task of this.tabs) { if (covered && task.view) task.view.covered = false; task.view?.activity(); }
+    if (covered) { for (const { cancel } of this.picking.values()) cancel(); focusWindow(this.ui); }
+    this.taskAvailability();
+    if (!covered && this.win.isFocused()) {
+      const previous = this.focusBeforeCover;
+      if (previous && previous.task === this.task?.key && !previous.contents.isDestroyed() && this.task?.view) {
+        if (previous.contents === this.ui) focusWindow(this.ui);
+        else { this.task.view.focusTarget = previous.contents; this.restoreTaskFocus(); }
+      } else this.restoreTaskFocus();
+      this.focusBeforeCover = undefined;
+    }
+    log.info(`[window] shell overlay wc=${this.ui.id} covered=${covered}`);
   }
   private updateViews() {
     // One main-process turn avoids an empty native layer between prepared tasks.
@@ -308,15 +412,15 @@ class AppWindow {
   }
   // Capturing and covering are separate so the renderer can paint the replacement before hiding native pages.
   hideViews(hidden: boolean, { focus = true, task }: { focus?: boolean; task?: string } = {}) {
-    if (task !== undefined && (task !== this.task?.key || this.task.viewFailed) || !hidden && !this.covered) return;
-    this.covered = hidden;
+    if (!this.task?.view || task !== undefined && (task !== this.task.key || this.task.viewFailed)) return;
+    this.task.view.covered = hidden;
     // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and the dialog's focus
     // trap (Radix's) works in a page that has the keyboard, its keys going nowhere else: the window's page takes it. Menus
     // (pictures) put the keyboard back themselves as they close.
     const pdf = this.artifactViewer.native.contents;
     const from = hidden && focus && (pdf && !pdf.isDestroyed() && pdf.isFocused() || [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); }));
     this.updateViews();
-    if (from) focusWindow(this.win.webContents);
+    if (from) focusWindow(this.focusUi);
   }
   // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no frame (covered, the
   // monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it would hold every menu after it closed.
@@ -347,15 +451,17 @@ class AppWindow {
   }
   // Where the grid puts each pane's page (key: the task the page laid out), in CSS pixels; the views are placed
   // in window pixels.
-  layout(key: string | null, rects: Record<string, PageLayout>) {
+  layout(key: string | null, rects: Record<string, PageLayout>, revision: number, viewport: { width: number; height: number }) {
     const task = this.tabs.find((t) => t.key === key);
-    if (!task?.loaded || task.viewFailed) return;
-    const z = this.win.webContents.getZoomFactor();
+    if (!task?.loaded || task.viewFailed || !task.view || task.view.revision !== revision) return;
+    const z = task.view.ui.getZoomFactor(), bounds = task.view.group.getBounds();
+    if (!viewport || Math.abs(Math.round(viewport.width * z) - bounds.width) > 1
+      || Math.abs(Math.round(viewport.height * z) - bounds.height) > 1) return;
     const scale = (r: Partial<Bounds>): Bounds => ({ x: Math.round((r.x ?? 0) * z), y: Math.round((r.y ?? 0) * z), width: Math.round((r.width ?? 0) * z), height: Math.round((r.height ?? 0) * z) });
     for (const [id, { clip, ...r }] of Object.entries(rects)) task.profiles.get(id)?.layout(r.shown === false ? r : { ...scale(r), ...(clip && { clip: scale(clip) }) });
     if (!this.laidOut.has(task)) {
       this.laidOut.add(task);
-      log.info(`[window] wc=${this.win.webContents.id} grid ready task=${task.key}`);
+      log.info(`[window] wc=${this.ui.id} grid ready task=${task.key}`);
     }
     if (task === this.task) { this.updateViews(); this.thumbnails.place(this.paneBox); }
   }
@@ -371,7 +477,8 @@ class AppWindow {
   // (a window now smaller grows to it; Electron leaves it as it is).
   setZoom(z: number) {
     if (this.win.isDestroyed()) return;
-    this.win.webContents.setZoomFactor(z);
+    this.ui.setZoomFactor(z);
+    for (const task of this.tabs) { task.view?.ui.setZoomFactor(z); if (task.view) { task.view.revision++; this.invalidateTaskLayout(task); task.view.send('task:viewport', task.view.viewport()); task.send('zoom:state', z); } }
     const min = minSize(z), [width = 0, height = 0] = this.win.getSize();
     this.win.setMinimumSize(min.width, min.height);
     if ((width < min.width || height < min.height) && !this.win.isMaximized() && !this.win.isFullScreen()) this.win.setSize(Math.max(width, min.width), Math.max(height, min.height));
@@ -388,13 +495,13 @@ class AppWindow {
     if (this.win.isDestroyed()) return;
     this.win.setBackgroundColor(COLORS[shade].window);
     if (process.platform !== 'darwin') this.win.setTitleBarOverlay({ symbolColor: COLORS[shade].text });
-    this.send('theme:state', theme);
+    this.send('theme:state', theme); for (const task of this.tabs) task.send('theme:state', theme);
   }
 
   // Brought to the front with it while another of Kulisa's windows has the focus (Settings, another tasks' window): left
   // behind, it would look as if nothing happened (the OS's × works behind Settings on macOS). Never from another app.
   ask(q: Question) {
-    const focused = BrowserWindow.getFocusedWindow();
+    const focused = BaseWindow.getFocusedWindow();
     if (focused && focused !== this.win) this.focus();
     return this.questions.ask(q);
   }
@@ -414,7 +521,7 @@ class AppWindow {
   }
 }
 
-// A question in a window's own dialog (the renderer's lib/ask.ts), as all of Kulisa's dialogs look: a button that does
+// A question in a window's own dialog (the renderer's lib/shell-ask.ts), as all of Kulisa's dialogs look: a button that does
 // it (ok), maybe a second way (other, as New Window next to This Window), and Cancel. The button clicked: 'ok' or
 // 'other'; null for Cancel, or no answer (the page gone).
 let asked = 0;
@@ -434,16 +541,16 @@ class Questions {
 
 // Links in a window of Kulisa's (☰'s: the documentation, GitHub; a terminal's, Open in your browser) open in the user's
 // browser; the window itself never leaves its page.
-function keepPage(win: Electron.BrowserWindow) {
-  win.webContents.setWindowOpenHandler(({ url }) => {
+function keepPage(wc: Electron.WebContents) {
+  wc.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) void electronShell.openExternal(url);
     return { action: 'deny' };
   });
-  win.webContents.on('will-navigate', (e) => e.preventDefault());
+  wc.on('will-navigate', (e) => e.preventDefault());
   // What the page says is wrong (an uncaught error, a warning of its own), in the log with the main process's lines;
   // also as the window closes, its BrowserWindow already destroyed.
-  const id = win.webContents.id;
-  win.webContents.on('console-message', (d) => {
+  const id = wc.id;
+  wc.on('console-message', (d) => {
     if (d.level === 'error' || d.level === 'warning') log.warn(`[page wc=${id}] ${d.message} (${d.sourceId}:${d.lineNumber})`);
   });
 }

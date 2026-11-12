@@ -19,6 +19,7 @@ import { removeTree } from '../../src/main/remove.ts';
 import type { Kulisa } from './driver.ts';
 import { data } from './data.ts';
 import type { Files } from './data.ts';
+import { registerPages, taskPage } from './pages.ts';
 import { BASE } from './helpers.ts';
 
 // A function run in Kulisa's main process with its driver and one argument; only data crosses (Playwright serializes
@@ -125,6 +126,7 @@ async function ready(k: Pick<Running, 'file' | 'automation' | 'child' | 'exited'
   // behind by the worker's end.
   const browser = await chromium.connectOverCDP(endpoint, { noDefaults: true, artifactsDir: path.join(k.root, 'playwright') });
   const context = browser.contexts()[0];
+  registerPages(context, core);
   // Kulisa's own pages' uncaught errors fail the test (a site's are the site's); a DOMException's stack is ''.
   const attach = (p: Page) => { if (own(p)) p.on('pageerror', (e) => errors.push(`${path.basename(new URL(p.url()).pathname)}: ${e.stack || `${e.name}: ${e.message}`}`)); };
   context.on('page', attach);
@@ -138,12 +140,12 @@ async function ready(k: Pick<Running, 'file' | 'automation' | 'child' | 'exited'
     const session = await context.newCDPSession(p);
     const { targetInfo } = await session.send('Target.getTargetInfo');
     await session.detach();
-    return core((k, id) => k.electron.webContents.fromDevToolsTargetId(id) === k.shell.windows[0].win.webContents, targetInfo.targetId);
+    return core((k, id) => k.electron.webContents.fromDevToolsTargetId(id) === k.shell.windows[0].ui, targetInfo.targetId);
   };
   let ui: Page | undefined;
   await expect.poll(async () => { for (const p of context.pages()) if (await first(p).catch(() => false)) ui = p; return !!ui; }, { timeout: 30000, message: 'first window attached' }).toBe(true);
   // Restoring Diff can leave an agent waiting for its terminal's first visible size.
-  await expect.poll(async () => await core((d) => !!d.shell.pty) || await ui.getByRole('region', { name: 'Diff review', exact: true }).isVisible(), { timeout: 30000, message: 'initial terminal or Diff ready' }).toBe(true);
+  await expect.poll(async () => await core((d) => !!d.shell.pty) || await (await taskPage(ui)).getByRole('region', { name: 'Diff review', exact: true }).isVisible(), { timeout: 30000, message: 'initial terminal or Diff ready' }).toBe(true);
   await core((d) => { if (d.shell.pty) d.watchPty(d.shell.pty); });
   await context.tracing.start({ screenshots: true, snapshots: true });
   return { ...k, browser, context, ui, errors, clients: new Map() };

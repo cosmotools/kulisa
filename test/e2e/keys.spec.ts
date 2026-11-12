@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Keyboard shortcuts (main/keys.ts, docs/window.md "Keys"): Chrome's keys in a profile's page act on its pane, the
 // terminal keeps the agent's keys, Kulisa's own work everywhere, Keyboard Shortcuts lists them. Keys are sent as input
 // events into the page or the window, where the human's keyboard would put them.
@@ -15,12 +16,12 @@ test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the
   }, `${SITE}/app`);
   const tabs = () => core((k) => k.profile('Sam').tabs.length);
   await expect.poll(tabs).toBe(2);
-  await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe(`pane:${id}`);
-  await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="Address"]`)).toBeFocused();
+  await expect.poll(() => core((k) => (k.shell.windows[0].shellCovered ? k.shell.windows[0].keyZone : k.shell.task.view.keyZone))).toBe(`pane:${id}`);
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="Address"]`)).toBeFocused();
   const siteGotKeys = () => core((k) => k.profile('Sam').tabs[0].wc.executeJavaScript('__ctrlKeys'));
   expect(await siteGotKeys(), 'the site did not get Ctrl+T').toBe(0);
   // From the address bar: Ctrl+W closes the new tab (empty: nothing to open again).
-  await core((k) => k.press(k.shell.win.webContents, 'W', k.CMD));
+  await core((k) => k.press(k.shell.windows[0].focusUi, 'W', k.CMD));
   await expect.poll(tabs).toBe(1);
 
   // A tab with a page, closed from its page: the keyboard goes to the page shown next; Ctrl+Shift+T brings it back.
@@ -35,7 +36,7 @@ test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the
   await core((k) => k.press(k.profile('Sam').tabs[0].wc, 'T', k.CMD, 'shift'));
   await expect.poll(() => core((k) => { const sam = k.profile('Sam'); return sam.tabs.length === 2 && sam.get().wc.getURL().endsWith('?second'); })).toBe(true);
   // Tab shortcuts read the window's list; wait for it to show the reopened tab too.
-  await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"]`).getByRole('tab')).toHaveCount(2);
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"]`).getByRole('tab')).toHaveCount(2);
   // Ctrl+1 the first tab, Ctrl+Tab the next; the keyboard stays in the pages.
   await core(async (k) => { const t = k.profile('Sam').get(); await t.ready; t.wc.focus(); k.press(t.wc, '1', k.CMD); });
   await expect.poll(() => core((k) => { const sam = k.profile('Sam'); return sam.active === sam.tabs[0].id && sam.tabs[0].wc.isFocused(); })).toBe(true);
@@ -45,38 +46,38 @@ test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the
 });
 
 test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the agent; Ctrl+` goes to the page used last and back; Ctrl+Shift+/ lists the keys", async ({ core, ui }) => {
-  await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
+  await core((k) => k.press(k.shell.windows[0].focusUi, '`', 'control'));
   // Sam's pane used last (its address bar: the window knows only its own focus): Ctrl+` goes back to its page.
   const id = await core(async (k, url) => (await k.ensureProfile('Sam', url)).id, `${SITE}/app`);
   await focusWindow(core, ui);
-  await ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"]`).getByRole('tab', { selected: true }).dblclick();
+  await (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"]`).getByRole('tab', { selected: true }).dblclick();
   // A tab button also reports the pane zone; the editor's deferred focus must finish before leaving it.
-  await expect(ui.locator(`[data-task-view][data-active] [data-profile="${id}"]`).getByRole('textbox', { name: 'Address', exact: true })).toBeFocused();
-  await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe(`pane:${id}`);
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [data-profile="${id}"]`).getByRole('textbox', { name: 'Address', exact: true })).toBeFocused();
+  await expect.poll(() => core((k) => (k.shell.windows[0].shellCovered ? k.shell.windows[0].keyZone : k.shell.task.view.keyZone))).toBe(`pane:${id}`);
   const tabsBefore = await core((k) => k.profile('Sam').tabs.length);
-  await termKeys(ui).focus();
-  await expect(termKeys(ui)).toBeFocused();
-  await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
+  await (await termKeys(ui)).focus();
+  await expect((await termKeys(ui))).toBeFocused();
+  await expect.poll(() => core((k) => (k.shell.windows[0].shellCovered ? k.shell.windows[0].keyZone : k.shell.task.view.keyZone))).toBe('terminal');
   // Windows echoes input before the fake agent reads it: wait for the agent's reply too.
   if (WIN) {
     await core((k) => k.shell.pty.write('terminal-ready\r'));
     await expect.poll(() => termText(ui)).toContain('terminal-ready\nterminal-ready');
   }
-  await core((k) => { k.press(k.shell.win.webContents, 'T', 'control'); k.press(k.shell.win.webContents, 'Enter'); });
+  await core((k) => { k.press(k.shell.windows[0].focusUi, 'T', 'control'); k.press(k.shell.windows[0].focusUi, 'Enter'); });
   // The fake agent (cat -v) shows what it got once its line is sent (Windows' console echoes a control key as it is,
   // which draws nothing); on macOS the terminal's own line discipline takes Ctrl+T first (BSD's status key, SIGINFO)
   // and prints the load: it reached the terminal all the same.
   await expect.poll(() => termText(ui)).toContain(MAC ? 'load: ' : '^T');
   expect(await core((k) => k.profile('Sam').tabs.length), 'no tab opened').toBe(tabsBefore);
   // Ctrl+`: to the page used last, and from there back to the terminal.
-  await core((k) => k.press(k.shell.win.webContents, '`', 'control'));
+  await core((k) => k.press(k.shell.windows[0].focusUi, '`', 'control'));
   await expect.poll(() => core((k) => k.profile('Sam').get().wc.isFocused())).toBe(true);
   await core((k) => k.press(k.profile('Sam').get().wc, '`', 'control'));
-  await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
+  await expect.poll(() => core((k) => (k.shell.windows[0].shellCovered ? k.shell.windows[0].keyZone : k.shell.task.view.keyZone))).toBe('terminal');
 
   // Keyboard Shortcuts: from the terminal too, every group with this OS's keys; also in ☰ with its key.
   const shortcuts = shortcutsDialog(ui);
-  await core((k) => k.press(k.shell.win.webContents, '/', k.CMD, 'shift'));
+  await core((k) => k.press(k.shell.windows[0].focusUi, '/', k.CMD, 'shift'));
   await expect(shortcuts).toBeVisible();
   await expect(shortcuts.locator('legend')).toHaveText(['Everywhere', 'In a profile\'s page', 'In the terminal']);
   const keysOf = (label: string) => shortcutKeys(ui, label);
@@ -84,9 +85,9 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
   await expect(keysOf('Tab 1 to 8')).toHaveText([MAC ? '⌘1…8' : 'Ctrl+1…8']);
   await expect(keysOf('Copy')).toHaveText([MAC ? '⌘C' : WIN ? 'Ctrl+C' : 'Ctrl+Shift+C']);
   // In a dialog the keys are the dialog's: Ctrl+Shift+N makes no task.
-  await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('dialog');
+  await expect.poll(() => core((k) => (k.shell.windows[0].shellCovered ? k.shell.windows[0].keyZone : k.shell.task.view.keyZone))).toBe('dialog');
   const from = await core((k) => k.logged.length);
-  await core((k) => k.press(k.shell.win.webContents, 'N', k.CMD, 'shift'));
+  await core((k) => k.press(k.shell.windows[0].focusUi, 'N', k.CMD, 'shift'));
   // Taken, the key is logged as it is pressed ([key]), and the window then asks for the task (task:new): both done once
   // the window's channel has gone there and back twice (the key's command to it, its ask back).
   await ipcSettled(ui); await ipcSettled(ui);
@@ -94,22 +95,23 @@ test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the
   expect(await core((k) => k.shell.current.tasks.size)).toBe(1);
   await shortcuts.getByRole('button', { name: 'Close' }).click();
   await ui.locator('#windowMenu').click();
-  const row = item(ui, 'Keyboard Shortcuts');
+  const row = (await item(ui, 'Keyboard Shortcuts'));
   await expect(row).toContainText(MAC ? '⇧⌘/' : 'Ctrl+Shift+/');
   await row.click();
   await expect(shortcuts).toBeVisible();
   await shortcuts.getByRole('button', { name: 'Close' }).click();
   // The buttons say their keys, as Chrome's toolbar does; the menus too.
-  await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="Reload"]`)).toHaveAttribute('title', MAC ? 'Reload (⌘R)' : 'Reload (Ctrl+R)');
-  await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="Pick an element"]`)).toHaveAttribute('title', MAC ? /\(⇧⌘C\)$/ : /\(Ctrl\+Shift\+C\)$/);
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="Reload"]`)).toHaveAttribute('title', MAC ? 'Reload (⌘R)' : 'Reload (Ctrl+R)');
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="Pick an element"]`)).toHaveAttribute('title', MAC ? /\(⇧⌘C\)$/ : /\(Ctrl\+Shift\+C\)$/);
 });
 
 test('a page that took the keyboard by itself, then given it for the human within the moment it would give it back, keeps it', async ({ core }) => {
+  await expect.poll(() => core((k) => k.shell.windows[0].shellCovered)).toBe(false);
   // Loading pages take the keyboard (page-focus.ts gives it back to where the human left it): Ctrl+` to such a page,
   // or a tab chosen by a key, at once after it loaded.
   expect(await core(async (k, url) => {
     const sam = await k.ensureProfile('Sam', url), t = sam.get();
-    k.shell.win.webContents.focus();
+    k.shell.windows[0].focusUi.focus();
     const decided = k.focusDecided(t.wc, true);
     t.wc.focus(); // the page's own
     sam.focusTab(t); // Kulisa's, for the human

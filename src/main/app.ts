@@ -19,6 +19,7 @@ import { registerViewerSchemes, installMediaProtocol } from '../file-viewer/main
 import { Dictation, installDictation } from '../dictation/main/index.ts';
 import { recognizer } from './recognizer.ts';
 import { COLORS } from './window.ts';
+import { TaskView } from './task-view.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
 import { AGENTS, findAgent, startMcpServer, installGhost } from '../kulisa-plugin/main/index.ts';
@@ -38,6 +39,7 @@ import { registerProfiles } from './ipc/profiles.ts';
 import { registerAgents } from './ipc/agents.ts';
 import { registerPanes } from './ipc/panes.ts';
 import { registerWindow } from './ipc/window.ts';
+import { ipcAuthority } from './ipc.ts';
 import type { Ipc, IpcEvent } from './ipc.ts';
 import type { Shell } from './shell.ts';
 import type { Agent } from '../kulisa-plugin/main/index.ts';
@@ -138,7 +140,7 @@ function start(options: Options = {}) {
   // Speaking to the agent (src/dictation); for an agent without dictation of its own, another agent's account
   // recognizes (recognizer.ts).
   const speech = recognizer(shell, userData);
-  shell.dictation = new Dictation((task, voice) => shell.taskByKey(task)?.window?.send('voice:state', { task, voice }), { recognizer: speech });
+  shell.dictation = new Dictation((task, voice) => shell.taskByKey(task)?.send('voice:state', { task, voice }), { recognizer: speech });
   shell.github = new GitHub({ dir: userData, fetch: (url, init) => net.fetch(url, init), secrets: shell.secrets });
   shell.github.accounts.logAll();
   // What Kulisa takes on the computer (src/activity-monitor), told where every task's data is.
@@ -175,7 +177,7 @@ function start(options: Options = {}) {
   shell.taskOf = (project, id) => shell.open.get(project)?.tasks.get(id) || null;
   shell.taskByKey = (key) => { for (const p of shell.open.values()) { const task = p.taskByKey(key); if (task) return task; } return null; };
   // The window a page's message comes from (IPC: event.sender).
-  shell.windowOf = (sender) => shell.windows.find((w) => !w.win.isDestroyed() && w.win.webContents === sender) || null;
+  shell.windowOf = (sender) => shell.windows.find((w) => !w.win.isDestroyed() && w.owns(sender)) || null;
   // A profile's tab by its page, of a task shown in a window (its keys, its right-click menu).
   shell.tabOf = (wc) => {
     for (const w of shell.windows) for (const profile of w.profiles.values()) {
@@ -185,9 +187,33 @@ function start(options: Options = {}) {
     return null;
   };
   const at = (e: IpcEvent) => shell.windowOf(e.sender);
+  ipcAuthority((e, channel, args) => {
+    if (e.sender.isDestroyed() || !e.senderFrame || e.senderFrame !== e.sender.mainFrame) return false;
+    const window = at(e), task = shell.taskUiOf(e.sender);
+    if (!window) {
+      // Packages own their sign-in/thumbnail sender maps. Core task/window channels accept registered UIs only.
+      return /^(thumbnail:|master:)/.test(channel);
+    }
+    const value = args[0];
+    if (channel.startsWith('pty:')) {
+      const key = value && typeof value === 'object' ? (value as { task?: unknown }).task : null;
+      if (typeof key !== 'string') return false;
+      if (task ? !key.startsWith(task.key + '#') : !window.tabs.some((t) => key.startsWith(t.key + '#')) && !shell.accounts.signins.has(key)) return false;
+    }
+    if (!task) return !/^(task:ready|task:presentation|task:drained|layout:apply|layout:save)$/.test(channel);
+    if (task.closing || task.view?.failure === 'crashed') return false;
+    if (value && typeof value === 'object') {
+      const target = value as { key?: unknown; task?: unknown };
+      if (typeof target.key === 'string' && channel.startsWith('task:') && target.key !== task.key) return false;
+      if ('task' in target && target.task !== task.key && !(typeof target.task === 'string' && channel.startsWith('pty:') && target.task.startsWith(task.key + '#'))) return false;
+    }
+    if (typeof value === 'string' && /^(task:(show|close|delete|show-folder|reload|files:folders|artifact:refresh)|voice:get)$/.test(channel) && value !== task.key) return false;
+    return !/^(shell:cover|shell:workspace|ask:answer|agent:choice:submit)$/.test(channel);
+  });
   // Clicked, or brought up by the keyboard or the OS: the window the macOS menu's Settings… and Quit act in.
   let front: AppWindow | null = null;
-  app.on('browser-window-focus', (_e, win) => { front = shell.windows.find((w) => w.win === win) ?? front; });
+  shell.noteFront = (window) => { front = window; };
+  shell.taskUiOf = TaskView.owner;
   shell.front = () => (front && shell.windows.includes(front) && !front.win.isDestroyed() ? front : first());
   shell.openSettings = (at, w = shell.front()) => {
     if (!w) return;
@@ -295,18 +321,11 @@ function start(options: Options = {}) {
     for (const w of shell.windows) w.send('language:state', shell.languageInfo());
     return { language: code };
   };
-  // Where the bar of the open projects and their tasks is: 'bottom' (the default: by the terminal, where the hand
-  // goes anyway) or 'top' (under the title bar, as browsers' tabs), chosen in ☰.
-  shell.bar = store.settings().bar || 'bottom';
-  shell.setBar = (bar) => {
-    shell.bar = bar; store.saveSettings({ ...store.settings(), bar });
-    for (const w of shell.windows) w.send('bar:state', bar);
-  };
   shell.stageFollow = store.settings().stageFollow ?? false;
   shell.setStageFollow = (follow) => {
     if (shell.stageFollow === follow) return;
     shell.stageFollow = follow; store.saveSettings({ ...store.settings(), stageFollow: follow });
-    for (const w of shell.windows) w.send('stage:follow:state', follow);
+    for (const w of shell.windows) { w.send('stage:follow:state', follow); for (const task of w.tabs) task.send('stage:follow:state', follow); }
   };
   const allTasks = () => [...shell.open.values()].flatMap((p) => [...p.tasks.values()]);
   // Every open profile: the tasks' copies, and the masters open to sign in to (master.ts).
@@ -433,16 +452,17 @@ function start(options: Options = {}) {
   };
   shell.findAgent = findAgent;
   registerAgents(ipc);
-  installShortcuts(shell, { appDevTools });
+  installShortcuts(shell, { appDevTools, tasks });
 
   // Save session cookies and flush persistent ones before quitting, so sign-ins survive a restart; the windows and
   // their tabs open again at the next start.
+  let shutdownFinished = false;
   app.on('before-quit', async (e) => {
-    if (quitting) return;
+    if (shutdownFinished) return;
     log.info('[kulisa] quitting');
     e.preventDefault();
     await shutdown();
-    app.quit();
+    shutdownFinished = true; app.quit();
   });
   // Into a new version (updates.ts): saved as at quitting, then Squirrel's apply (quitAndInstall, which closes the
   // windows before before-quit: Electron's api/auto-updater.md; quitting is set already, so they close without a
@@ -452,8 +472,11 @@ function start(options: Options = {}) {
     if (apply) apply();
     else { app.relaunch(); app.quit(); }
   };
-  async function shutdown() {
+  let shutdownCompletion: Promise<void> | undefined;
+  function shutdown() { return shutdownCompletion ??= finishShutdown(); }
+  async function finishShutdown() {
     quitting = true;
+    await Promise.all(allTasks().filter((task) => task.view).map((task) => task.view!.drain()));
     for (const w of shell.windows) w.pushState();
     for (const task of allTasks()) if (task !== task.window?.task && task.loaded) task.list.saveTabs();
     shell.saveWindows();
@@ -462,11 +485,9 @@ function start(options: Options = {}) {
     shell.dictation.close();
     for (const folder of [...(shell.masters?.keys() || [])]) await shell.closeMaster(folder); // their tabs and sign-ins saved
     for (const m of shell.cookieSync.masters()) await shell.sessionCookies?.persist(m); // kept in step, not open in a window
-    for (const p of allProfiles()) {
-      await shell.sessionCookies?.persist(p);
-      await p.disconnect();
-    }
-    await stopAllTerminals(); // the dictation's and the sign-ins' too
+    await Promise.all(allTasks().filter((task) => task.loaded || task.view).map((task) => task.unload()));
+    await stopAllTerminals(); // the dictation's and sign-ins' sessions too
+    for (const w of shell.windows) w.destroy();
   }
   process.on('SIGINT', () => app.quit());
   process.on('SIGTERM', () => app.quit());

@@ -5,8 +5,7 @@ import { flushSync } from 'react-dom';
 import { taskStore } from './state';
 import { coverUnder, dialogsShown } from '../lib/cover';
 
-// A menu or a drag too (frozen): the pages stay pictures until it ends (unfreeze), or the next task's grid shown under a
-// menu would show them over it.
+// Local menus and drags keep native pages covered until their image handoff ends.
 const viewsCovered = () => dialogsShown() > 0 || prepared;
 export const showViews = () => kulisa.invoke('views:hidden', viewsCovered(), { task: taskStore().getState().key });
 
@@ -16,7 +15,7 @@ let prepared = false;
 export function freeze() {
   if (frozen) return frozen;
   const owner = taskStore();
-  const current = () => frozen === pending && owner === taskStore();
+  const current = () => frozen === pending;
   const pending = kulisa.invoke('views:pictures').then(async (pics) => {
     if (!current()) return;
     // A second menu can arrive while the first one's native views are still covered.
@@ -45,9 +44,9 @@ export async function unfreeze() {
   const owner = taskStore(), pending = frozen;
   frozen = null; prepared = false;
   await pending;
-  if (frozen || owner !== taskStore()) return;
+  if (frozen) return;
   await showViews();
-  if (!frozen && owner === taskStore()) owner.setState({ pictures: {} });
+  if (!frozen) owner.setState({ pictures: {} });
 }
 // A task switch forgets a capture still in progress (controller.ts).
 export const forgetFrozen = () => { frozen = null; prepared = false; };

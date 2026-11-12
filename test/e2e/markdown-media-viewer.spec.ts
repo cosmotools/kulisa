@@ -1,7 +1,7 @@
+import { taskPage } from './pages.ts';
 // Formatted Markdown and Chromium playback through real Artifacts controls (src/file-viewer/README.md).
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { test, expect } from './fixtures.ts';
 import { showResources, invoke, ipcSettled, closeSettings } from './helpers.ts';
 import { openFolder, showTask } from './tasks-helpers.ts';
@@ -16,9 +16,9 @@ test('Markdown renders GFM, confines local images and links, and keeps searchabl
   fs.writeFileSync(path.join(folder, 'nested', 'next #.txt'), 'Linked report opened');
   fs.writeFileSync(path.join(folder, 'report.md'), '# Result\n\n**Success** with ~~old text~~.\n\n| Check | Value |\n| --- | --- |\n| Passed | 42 |\n\n- [x] Done\n\n```js\nconst answer = 42;\n```\n\n![Local figure](figure.png)\n\n![Remote figure](https://example.invalid/figure.png)\n\n![Foreign file](../../../outside.png)\n\n[This report](report.md)\n\n[Outside](../../../outside.png)\n\n[Next report](nested/next%20%23.txt)\n\n[Website](https://example.invalid/)\n\n<script>window.markdownExecuted=true</script>\n\n<img src=x onerror="window.markdownExecuted=true">\n');
   await showResources(ui, 'Artifacts');
-  await ui.getByRole('treeitem', { name: 'markdown-report', exact: true }).click();
-  await ui.getByRole('treeitem', { name: 'report.md', exact: true }).click();
-  const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true });
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'markdown-report', exact: true }).click();
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'report.md', exact: true }).click();
+  const preview = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true });
   const article = preview.getByRole('article', { name: 'Formatted Markdown' });
   await expect(article.getByRole('heading', { name: 'Result', exact: true })).toBeVisible();
   await expect(article.getByRole('cell', { name: '42', exact: true })).toBeVisible();
@@ -28,7 +28,7 @@ test('Markdown renders GFM, confines local images and links, and keeps searchabl
   await expect(article.getByText(/Remote figure — External images are not loaded/)).toBeVisible();
   await expect(article.getByText(/Foreign file —/)).toBeVisible();
   await expect(article.getByRole('link', { name: 'Website' })).toHaveAttribute('target', '_blank');
-  expect(await ui.evaluate(() => (window as any).markdownExecuted)).toBeUndefined();
+  expect(await (await taskPage(ui)).evaluate(() => (window as any).markdownExecuted)).toBeUndefined();
   expect(await core((k) => k.shell.task.editor.execute({ type: 'list' }))).toMatchObject({ tabs: [] });
   const image = await article.getByRole('img', { name: 'Local figure' }).elementHandle();
   const oldUrl = await image.getAttribute('src');
@@ -38,18 +38,18 @@ test('Markdown renders GFM, confines local images and links, and keeps searchabl
   await expect(preview.getByRole('status', { name: 'Search results' })).toHaveText('1 / 1');
   await expect.poll(() => image.getAttribute('src')).toBeNull(); await image.dispose();
   // Revocation is observable through the browser's object-URL loader, outside locator APIs.
-  expect(await ui.evaluate(async (url) => { try { await fetch(url); return true; } catch { return false; } }, oldUrl)).toBe(false);
+  expect(await (await taskPage(ui)).evaluate(async (url) => { try { await fetch(url); return true; } catch { return false; } }, oldUrl)).toBe(false);
   await preview.getByRole('radio', { name: 'Preview', exact: true }).click();
-  await ui.getByRole('treeitem', { name: 'markdown-report', exact: true }).click();
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'markdown-report', exact: true }).click();
   await article.getByRole('link', { name: 'This report', exact: true }).click();
-  await expect(ui.getByRole('treeitem', { name: 'report.md', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: 'report.md', exact: true })).toHaveAttribute('aria-selected', 'true');
   const localUrl = await article.getByRole('img', { name: 'Local figure', exact: true }).getAttribute('src');
   await article.getByRole('link', { name: 'Outside', exact: true }).click();
   await expect(article.getByRole('status')).toHaveText('That link does not name an artifact of this task.');
   await expect(article.getByRole('img', { name: 'Local figure', exact: true })).toHaveAttribute('src', localUrl);
   await article.getByRole('link', { name: 'Next report', exact: true }).click();
-  await expect(ui.getByRole('treeitem', { name: 'next #.txt', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await expect(ui.getByRole('treeitem', { name: 'report.md', exact: true })).toHaveAttribute('aria-selected', 'false');
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: 'next #.txt', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: 'report.md', exact: true })).toHaveAttribute('aria-selected', 'false');
   await expect(preview.getByRole('searchbox')).toBeVisible();
   await preview.getByRole('searchbox').fill('Linked report opened');
   await expect(preview.getByRole('status', { name: 'Search results' })).toHaveText('1 / 1');
@@ -59,8 +59,8 @@ test('oversized formatted Markdown retains its source toggle and bounded source 
   const { artifacts } = JSON.parse((await call('task_files')).text);
   fs.writeFileSync(path.join(artifacts, 'large.markdown'), `# Long report\n${'ordinary line\n'.repeat(21000)}last-marker\n`);
   await showResources(ui, 'Artifacts');
-  await ui.getByRole('treeitem', { name: 'large.markdown', exact: true }).click();
-  const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true });
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'large.markdown', exact: true }).click();
+  const preview = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true });
   await expect(preview.getByRole('status')).toHaveText(/Formatted Markdown is limited to 256 KiB/);
   await preview.getByRole('radio', { name: 'Source', exact: true }).click();
   await preview.getByRole('searchbox').fill('last-marker');
@@ -80,8 +80,8 @@ test('audio streams and seeks, and revokes access on view/task changes and delet
   const file = path.join(artifacts, 'sample.wav'); fs.writeFileSync(file, wave(12));
   const before = await core((k) => k.webContents());
   await showResources(ui, 'Artifacts');
-  await ui.getByRole('treeitem', { name: 'sample.wav', exact: true }).click();
-  const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true }), audio = preview.locator('audio');
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'sample.wav', exact: true }).click();
+  const preview = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true }), audio = preview.locator('audio');
   await expect.poll(() => audio.evaluate((audio: HTMLMediaElement) => audio.duration)).toBe(12);
   const url = await audio.getAttribute('src');
   await audio.press('Space');
@@ -101,7 +101,7 @@ test('audio streams and seeks, and revokes access on view/task changes and delet
   await expect.poll(() => retained.evaluate((audio) => ({ paused: (audio as HTMLMediaElement).paused, src: audio.getAttribute('src') }))).toEqual({ paused: true, src: null });
   await retained.dispose(); await ipcSettled(ui);
   // Custom schemes are served in the Workbench session; observe status there, not in a browser profile.
-  const status = (url: string) => core(async (k, url) => (await k.shell.win.webContents.session.fetch(url)).status, url);
+  const status = (url: string) => core(async (k, url) => (await k.shell.windows[0].focusUi.session.fetch(url)).status, url);
   expect(await status(url)).toBe(404);
   await showResources(ui, 'Artifacts'); await expect(audio).toBeVisible();
   await expect.poll(() => audio.evaluate((audio: HTMLMediaElement) => audio.duration)).toBe(12);
@@ -112,14 +112,14 @@ test('audio streams and seeks, and revokes access on view/task changes and delet
   await showTask(core, ui, task); await expect.poll(() => audio.evaluate((audio: HTMLMediaElement) => audio.duration)).toBe(12);
   const finalUrl = await audio.getAttribute('src');
   await preview.getByRole('button', { name: 'Delete', exact: true }).click();
-  await expect(ui.getByText('Artifact is no longer available', { exact: true })).toBeVisible();
+  await expect((await taskPage(ui)).getByText('Artifact is no longer available', { exact: true })).toBeVisible();
   expect(await status(finalUrl)).toBe(404);
 });
 
 test('video plays a Chromium-recorded WebM and unsupported media retains system opening', async ({ ui, call }) => {
   const { artifacts } = JSON.parse((await call('task_files')).text);
   // Generate a codec fixture with Chromium itself; no platform encoder or checked-in binary is needed.
-  const bytes = await ui.evaluate(async () => {
+  const bytes = await (await taskPage(ui)).evaluate(async () => {
     const canvas = document.createElement('canvas'); canvas.width = 16; canvas.height = 16;
     const context = canvas.getContext('2d'), stream = canvas.captureStream(10), chunks: Blob[] = [];
     const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
@@ -137,12 +137,12 @@ test('video plays a Chromium-recorded WebM and unsupported media retains system 
   fs.writeFileSync(path.join(artifacts, 'sample.webm'), Buffer.from(bytes));
   fs.writeFileSync(path.join(artifacts, 'damaged.mp4'), 'not a supported video');
   await showResources(ui, 'Artifacts');
-  await ui.getByRole('treeitem', { name: 'sample.webm', exact: true }).click();
-  const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true }), video = preview.locator('video');
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'sample.webm', exact: true }).click();
+  const preview = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true }), video = preview.locator('video');
   await expect.poll(() => video.evaluate((video: HTMLVideoElement) => video.videoWidth)).toBe(16);
   await video.press('Space');
   await expect.poll(() => video.evaluate((video: HTMLVideoElement) => video.currentTime)).toBeGreaterThan(.1);
-  await ui.getByRole('treeitem', { name: 'damaged.mp4', exact: true }).click();
+  await (await taskPage(ui)).getByRole('treeitem', { name: 'damaged.mp4', exact: true }).click();
   await expect(preview.getByRole('alert')).toHaveText(/could not play this file or codec/);
   await expect(preview.getByRole('button', { name: 'Open in System Application' })).toBeVisible();
 });
@@ -152,16 +152,12 @@ test('large audio uses bounded ranges, rejects stale revisions and releases a he
   const size = 256 * 1024 * 1024, header = wave(1).subarray(0, 44);
   header.writeUInt32LE(size - 8, 4); header.writeUInt32LE(size - 44, 40);
   fs.writeFileSync(file, header); fs.truncateSync(file, size);
-  const memory = async () => process.platform === 'linux' ? execFileSync('ps', ['-o', 'pid=,rss=', '-p',
-    (await core((k) => [process.pid, k.shell.win.webContents.getOSProcessId()])).join(',')], { encoding: 'utf8' }) : null;
-  const before = await memory();
-  await showResources(ui, 'Artifacts'); await ui.getByRole('treeitem', { name: 'large.wav', exact: true }).click();
-  const audio = ui.getByRole('region', { name: 'Artifact preview', exact: true }).locator('audio');
+  await showResources(ui, 'Artifacts'); await (await taskPage(ui)).getByRole('treeitem', { name: 'large.wav', exact: true }).click();
+  const audio = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true }).locator('audio');
   await expect.poll(() => audio.evaluate((audio: HTMLMediaElement) => Number.isFinite(audio.duration))).toBe(true);
   const url = await audio.getAttribute('src'), key = await core((k) => k.shell.task.key);
-  const opened = await memory();
   const response = await core(async (k, url) => {
-    const response = await k.shell.win.webContents.session.fetch(url, { headers: { Range: 'bytes=-16' } });
+    const response = await k.shell.windows[0].focusUi.session.fetch(url, { headers: { Range: 'bytes=-16' } });
     return { status: response.status, range: response.headers.get('content-range'), bytes: Array.from(new Uint8Array(await response.arrayBuffer())) };
   }, url);
   expect(response).toEqual({ status: 206, range: `bytes ${size - 16}-${size - 1}/${size}`, bytes: Array(16).fill(0) });
@@ -189,8 +185,7 @@ test('large audio uses bounded ranges, rejects stale revisions and releases a he
     await core((k) => k.stash.mediaRead.release());
     await expect.poll(() => core((k) => k.stash.mediaRead.finished)).toBe(true);
     expect(await core((k) => k.stash.mediaRead.lengths)).toEqual([256 * 1024]);
-    expect(await core(async (k, url) => (await k.shell.win.webContents.session.fetch(url)).status, active)).toBe(404);
-    await test.info().attach('large-media-rss', { body: JSON.stringify({ before, opened, closed: await memory(), sourceBytes: size }), contentType: 'application/json' });
+    expect(await core(async (k, url) => (await k.shell.windows[0].focusUi.session.fetch(url)).status, active)).toBe(404);
   } finally {
     await core((k) => { const s = k.stash.mediaRead; s.release(); s.task.readArtifact = s.original; delete k.stash.mediaRead; });
   }

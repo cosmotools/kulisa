@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // What a project's tasks are after a restart (docs/tasks.md, Tasks; docs/window.md, The grid): the open ones back in the
 // bar, the one in the background loaded when shown, still signed in; a closed one closed; the grid as it was left.
 import fs from 'fs';
@@ -56,7 +57,7 @@ test('after a restart: the other task waits in the bar with its tabs, loads when
 test('after a restart: Stage stays left and both grids keep their saved sizes', async ({ core, ui, files, restart }) => {
   await begin(core, ui, files, { featureX: true });
   // Delay animation frames past the save debounce: Dockview delivers nested resizes on a frame.
-  const held = await ui.evaluateHandle(() => {
+  const held = await (await taskPage(ui)).evaluateHandle(() => {
     const request = window.requestAnimationFrame, cancel = window.cancelAnimationFrame;
     const frames = new Map<number, FrameRequestCallback>();
     let next = -1;
@@ -77,7 +78,7 @@ test('after a restart: Stage stays left and both grids keep their saved sizes', 
   // Saved as laid out (the task's task.json, 300 ms after the grid's last change: lib/grid.ts), before the restart;
   // the grid's shape from dockview's API.
   await expect(async () => {
-    const now = await ui.evaluate(() => (window as any).__dock.toJSON().grid);
+    const now = await (await taskPage(ui)).evaluate(() => (window as any).__dock.toJSON().grid);
     const saved = files.json(files.pfile('task.json')).workspace;
     expect(saved.stagePosition).toBe('left');
     expect(saved.developmentLayout.grid).toEqual(now);
@@ -89,7 +90,7 @@ test('after a restart: Stage stays left and both grids keep their saved sizes', 
   const sam = `[role="region"][data-profile="${files.idOf(SAM)}"]`, elon = `[role="region"][data-profile="${files.idOf(ELON)}"]`;
   // Once the grid is laid out: Sam's column, Elon's, the terminal right of them.
   await expect.poll(async () => {
-    if (await ui2.locator(`${sam}, ${elon}`).count() !== 2) return false;
+    if (await (await taskPage(ui2)).locator(`${sam}, ${elon}`).count() !== 2) return false;
     const s = await at(`${sam} [data-testid="page"]`), e = await at(`${elon} [data-testid="page"]`), term = await at('[data-testid="terminal"]');
     return s.width > 0 && s.x < e.x && term.x > e.x + e.width - 1;
   }, { timeout: 10000 }).toBe(true); // a loaded machine takes over 3 s

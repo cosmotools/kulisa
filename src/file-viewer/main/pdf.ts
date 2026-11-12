@@ -1,7 +1,7 @@
 // One ephemeral native PDF view per host; no preload, filesystem or network access (../README.md).
 import electron from 'electron';
 import { randomUUID } from 'node:crypto';
-import type { BrowserWindow, WebContents, WebContentsView } from 'electron';
+import type { View, Rectangle, WebContents, WebContentsView } from 'electron';
 import type { ViewerBox, ViewerSearchResult } from '../ipc.ts';
 
 const LIMIT = 32 * 1024 * 1024;
@@ -23,16 +23,15 @@ function pdfSession() {
   });
   return isolated;
 }
-interface Shown { url: string; view: WebContentsView }
+interface Shown { url: string; view: WebContentsView; parent: View }
 export class NativePdf {
   private shown: Shown | null = null;
   private hidden = false;
   private placed = false;
   private cancelFind: (() => void) | null = null;
   private query = '';
-  private window: BrowserWindow;
-  private host: { onContents?(contents: WebContents): void; onFind?(): void };
-  constructor(window: BrowserWindow, host: { onContents?(contents: WebContents): void; onFind?(): void } = {}) { this.window = window; this.host = host; }
+  private host: { parent(): View; zoom(): number; bounds(): Rectangle; onContents?(contents: WebContents): void; onFind?(): void };
+  constructor(host: { parent(): View; zoom(): number; bounds(): Rectangle; onContents?(contents: WebContents): void; onFind?(): void }) { this.host = host; }
   get contents() { return this.shown?.view.webContents ?? null; }
   async open(bytes: Uint8Array, name: string, box: ViewerBox): Promise<void> {
     this.close();
@@ -42,11 +41,11 @@ export class NativePdf {
       session: pdfSession(), plugins: true, sandbox: true, contextIsolation: true, nodeIntegration: false,
       navigateOnDragDrop: false, devTools: false,
     } });
-    const shown = { url, view };
+    const shown = { url, view, parent: this.host.parent() };
     documents.set(url, new Uint8Array(bytes));
     this.shown = shown;
     view.setVisible(false);
-    this.window.contentView.addChildView(view);
+    shown.parent.addChildView(view);
     const wc = view.webContents;
     this.host.onContents?.(wc);
     wc.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -66,9 +65,9 @@ export class NativePdf {
   place(box: ViewerBox) {
     if (![box.x, box.y, box.width, box.height].every(Number.isFinite)) return;
     const shown = this.shown;
-    if (!shown || shown.view.webContents.isDestroyed() || this.window.isDestroyed()) return;
-    const zoom = this.window.webContents.getZoomFactor();
-    const { width, height } = this.window.getContentBounds();
+    if (!shown || shown.view.webContents.isDestroyed()) return;
+    const zoom = this.host.zoom();
+    const { width, height } = this.host.bounds();
     const left = Math.max(0, Math.round(box.x * zoom)), top = Math.max(0, Math.round(box.y * zoom));
     const right = Math.min(width, Math.round((box.x + box.width) * zoom)), bottom = Math.min(height, Math.round((box.y + box.height) * zoom));
     shown.view.setBounds({ x: left, y: top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) });
@@ -100,7 +99,7 @@ export class NativePdf {
     if (!shown) return;
     this.shown = null;
     documents.delete(shown.url);
-    if (!this.window.isDestroyed()) this.window.contentView.removeChildView(shown.view);
+    shown.parent.removeChildView(shown.view);
     if (!shown.view.webContents.isDestroyed()) shown.view.webContents.close();
   }
 }

@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // The agent's browser tools on the profiles' pages (src/kulisa-plugin/main/tools/, docs/profiles.md, The agent's
 // tools): tabs, highlights, acting by ref and locator (the ghost showing where), screenshots, typing, dialogs,
 // waiting, several profiles at once.
@@ -49,11 +50,6 @@ test('agent: highlight elements for the human (also on Trusted Types pages), the
       { locator: 'locator("a").first()' }] });
     expect(r.text).toMatch(/Highlighted 2 element/);
     await expect.poll(colored, { message: `${url}: outline and label visible` }).toBeGreaterThan(300);
-    if (url.endsWith('/app')) {
-      const file = test.info().outputPath('highlight.png');
-      await core((k, f) => k.shot(f), file);
-      await test.info().attach('highlight', { path: file, contentType: 'image/png' });
-    }
     await call('browser_highlight', { profile: 'Sam.seller', elements: [] });
     await expect.poll(colored, { message: `${url}: cleared` }).toBeLessThan(50);
   }
@@ -201,7 +197,7 @@ test('agent: keys, hover, select, files, waiting, evaluate, back and forward; di
   const del = { ...p, locator: "getByRole('button', { name: 'Delete' })" };
   // The agent's action answers its own dialog: none is shown.
   const view = () => core((k) => k.profile('Sam.seller').view.getVisible());
-  const pane = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`), paneDialog = pane.getByRole('alertdialog');
+  const pane = (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`), paneDialog = pane.getByRole('alertdialog');
   const openDialog = paneDialog;
   expect((await call('browser_click', del)).text).toMatch(/asked: confirm "Delete the draft\?"; dismissed/);
   expect(await out()).toBe('kept');

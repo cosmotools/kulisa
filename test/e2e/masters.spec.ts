@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // A task's profiles and their masters: Sign In to Master…, About this profile…, real accounts' sign-ins kept in step
 // across the tasks and the master (docs/profiles.md, "One store, a master and copies", "Sign-ins kept in step").
 import fs from 'fs';
@@ -17,7 +18,7 @@ async function closeMaster(core: Core) {
 
 test("Sign In to Master… opens its master in a window of its own, nothing automated on it; a task's copy made before keeps its own sign-in to a local app", async ({ core, ui, call, files }) => {
   const { sam } = await begin(core, ui, files);
-  await rightClick(ui, ui.locator(`[data-task-view][data-active] [data-panel="profile:${sam}"]`).getByTestId('profile-name'));
+  await rightClick(ui, (await taskPage(ui)).locator(`[data-task-view][data-active] [data-panel="profile:${sam}"]`).getByTestId('profile-name'));
   await choose(ui, 'Sign In to Master…');
   await oneMaster(core);
   const m = await core(async (k) => {
@@ -41,14 +42,14 @@ test("Sign In to Master… opens its master in a window of its own, nothing auto
 
 test("About this profile… shows Settings at it, over the task's window (its pages hidden under it, back after); asked again, the other profile's; its Sign In… opens the same master window, once", async ({ core, ui, sui, files }) => {
   const { sam, elon } = await begin(core, ui, files);
-  await rightClick(ui, ui.locator(`[data-task-view][data-active] [data-panel="profile:${sam}"]`).getByTestId('profile-name'));
+  await rightClick(ui, (await taskPage(ui)).locator(`[data-task-view][data-active] [data-panel="profile:${sam}"]`).getByTestId('profile-name'));
   await choose(ui, 'About this profile…');
   const s = await sui();
   const name = s.getByRole('textbox', { name: 'Name', exact: true });
   await expect(pathOf(s)).toHaveText(/^Profiles\s*Sam\.admin$/);
   await expect(name).toHaveValue('Sam.admin');
-  // The pages draw above the window's HTML: hidden while it is shown.
-  await expect.poll(() => core((k, id) => k.shell.task.profiles.get(id).view.getVisible(), sam), 'pages hidden').toBe(false);
+  // Settings raises the loaded shell over live profile pages.
+  await expect.poll(() => core((k, id) => { const w = k.shell.windows[0]; return w.shellCovered && w.win.contentView.children.at(-1) === w.shellView && k.shell.task.profiles.get(id).view.getVisible(); }, sam), 'shell above live pages').toBe(true);
   // Asked again (the main process, as macOS's menu): the same Settings, at that page.
   await core((k, id) => k.shell.openSettings({ section: 'profiles', id }), elon);
   await expect(name).toHaveValue('Elon.buyer');

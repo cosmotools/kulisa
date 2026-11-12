@@ -17,7 +17,7 @@ import { useProjectColor } from '../lib/project-color';
 import { keyText } from '../lib/common';
 import { dialog } from '../lib/dialogs';
 import { lastWorked, projectMenu } from '../lib/project-menu';
-import { profilesMenu, prepareTaskMove } from '../task-view';
+import { profilesMenu } from '../lib/task-summary';
 import { useStrip } from '../lib/strip';
 import { toggleSidebar } from '../lib/sidebar';
 import type { MenuItem } from '../lib/menu';
@@ -44,20 +44,19 @@ const taskMenu = ({ key, name, repos, resources }: TaskInfo): MenuItem[] => [
     .map((r) => ({ label: r.label, title: r.folder, run: () => kulisa.invoke('task:repo:remove', { key, repo: r.folder }) })), '-' as const] : []),
   { label: 'Rename…', run: () => rename(key, name) },
   { label: 'Show Folder', run: () => kulisa.invoke('task:show-folder', key) },
-  '-', ...moveRows((to) => kulisa.invoke('task:move', { key, to, ...prepareTaskMove(key) })),
+  { label: 'Reload task screen', run: () => kulisa.invoke('task:reload', key) },
+  '-', ...moveRows((to) => kulisa.invoke('task:move', { key, to })),
   '-', { label: 'Close', run: () => kulisa.invoke('task:close', key) },
   { label: 'Delete Task…', run: () => kulisa.invoke('task:delete', key) },
 ];
 // A project's rows (its submenu). Move All Tasks: its open tasks of this window, together.
 function projectItems(p: ProjectEntry): MenuItem[] {
   const { projects } = store.getState(), id = p.id, mine = projects.tabs.filter((t) => t.project === id);
-  const terminalContents = () => Object.assign({}, ...mine.map((t) => prepareTaskMove(t.key).terminalContents));
   return projectMenu(p, { newTask: () => kulisa.invoke('task:new', { project: id }), keys: id === projects.project ? keyText('task.new') : undefined,
-    move: moveRows((to) => kulisa.invoke('project:task:move-all', { id, to, terminalContents: terminalContents() }), { enabled: mine.length < projects.tabs.length, label: 'Move All Tasks to' }) });
+    move: moveRows((to) => kulisa.invoke('project:task:move-all', { id, to }), { enabled: mine.length < projects.tabs.length, label: 'Move All Tasks to' }) });
 }
 
-// HTML drag and drop, which also crosses windows. The tab carries its task and what its terminals show (the window it
-// goes to has neither), as a type of Kulisa's own: a page under the pointer takes nothing from it.
+// HTML drag and drop carries the task's identity; main reparents its retained native group across windows.
 const DRAG = 'application/x-kulisa-task';
 
 const shown = (key: string) => new Promise<void>((resolve) => {
@@ -66,7 +65,7 @@ const shown = (key: string) => new Promise<void>((resolve) => {
 });
 
 export function TaskBar() {
-  const all = useWindow((s) => s.projects), current = useWindow((s) => s.current), top = useWindow((s) => s.bar === 'top');
+  const all = useWindow((s) => s.projects), current = useWindow((s) => s.current);
   const projectColor = useProjectColor();
   const byId = new Map(all.projects.map((p) => [p.id, p]));
   const tabs = all.tabs.flatMap((t) => { const p = byId.get(t.project); return p ? [{ t, p }] : []; });
@@ -130,7 +129,7 @@ export function TaskBar() {
       if (!at) return;
       setDragged(at.t.key);
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData(DRAG, JSON.stringify({ key: at.t.key, ...prepareTaskMove(at.t.key) }));
+      e.dataTransfer.setData(DRAG, JSON.stringify({ key: at.t.key }));
     },
     // Over a tab (entered, and as the pointer moves on it): where it would go, marked.
     onDragOver: (e: DragEvent) => over(e),
@@ -141,25 +140,22 @@ export function TaskBar() {
       setMark(null);
       if (!at || !data) return;
       e.preventDefault();
-      const { key, terminalContents } = JSON.parse(data);
-      void kulisa.invoke('task:drop', { key, index: at.index, terminalContents });
+      const { key } = JSON.parse(data);
+      void kulisa.invoke('task:drop', { key, index: at.index });
     },
     // Let go where no Kulisa window took it: outside them all, it goes to a new window there (the main process checks).
     onDragEnd: (e: DragEvent) => {
       const key = dragged;
       setDragged(null);
-      if (key && e.dataTransfer.dropEffect === 'none') void kulisa.invoke('task:drag-out', { key, ...prepareTaskMove(key) });
+      if (key && e.dataTransfer.dropEffect === 'none') void kulisa.invoke('task:drag-out', { key });
     },
   };
 
-  return <nav id="taskbar" aria-label="Open tasks" data-top={top || undefined}
-    className={top ? 'flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]' : 'flex w-full min-w-0 items-center gap-1 px-2 py-1'}>
+  return <nav id="taskbar" aria-label="Open tasks" className="flex w-full min-w-0 items-center gap-1 bg-background px-2 py-1">
     {/* Its tooltip beside it, as the +'s: above or under, it would open over the pages. */}
     <Tip text="Projects and tasks" side="right">
       <Button variant="ghost" size="icon-sm" aria-label="Projects and tasks" onClick={toggleSidebar}><PanelLeftIcon /></Button>
     </Tip>
-    {/* In the title bar the tabs are no handle to drag the window by (TopBar.tsx drags after them). Under the grid,
-        centered between the bar's two buttons at its ends. */}
     <RightClickMenu items={menu} className="mx-auto flex min-w-0">
       <TabStrip id="taskTabs" bar stripRef={strip} label="Open tasks" value={current ?? ''} onChoose={onTabSelect}
         onAuxClick={onAuxClick} onDoubleClick={onDoubleClick} {...drag}>

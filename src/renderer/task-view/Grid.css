@@ -13,10 +13,6 @@
 }
 /* Nested content must shrink with its group; its overlays stay below Dockview's separators. */
 #dock .dv-content-container { min-width: 0; isolation: isolate; }
-/* Skipping contents keeps controls from animating inherited visibility when a task is shown. */
-[data-task-view]:not([data-active]) {
-  content-visibility: hidden; pointer-events: none;
-}
 /* A pane narrower than its header: dockview's tab shrinks with it (else it runs past the pane, its × out of sight and
    dockview's list of hidden tabs shown for it). */
 #dock .dv-tab { min-width: 0; flex-shrink: 1; }

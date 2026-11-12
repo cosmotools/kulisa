@@ -37,7 +37,8 @@ Use Electron's W3C Clipboard API (`ClipboardItem` with `image/png`), not `writeI
 
 One `Thumbnails` instance per window; a new capture replaces the previous one. Place the preview at its pane's
 bottom-right, 20 CSS px inset, at most 240 × 180; tall images show their top. Auto-close after about 5 s, paused by
-hover or menu. The caller supplies placement (`place`), covered-page state (`setHidden`), task close and file actions.
+hover or menu. The caller supplies an explicit UI webContents/native parent, placement (`place`), covered-page state (`setHidden`),
+task close and file actions. `rebind` closes the ephemeral preview and replaces sender ownership on task changes/moves.
 
 - Fade on timeout, × or Close; remove immediately on replacement, artifact deletion, hidden pane or task close.
 - Click invokes the caller’s artifact-opening callback, selecting the same Artifacts viewer as a tree row;
@@ -64,6 +65,6 @@ result in Artifacts and shows the thumbnail. `ghost.ts` captions agent captures;
 - `main/`: capture/clipboard and thumbnail lifecycle; `renderer/`: native preview page, snapshot substitute and menu rows.
 - Core owns tab eligibility (`Profile.screenshot`), artifacts (`Task`), Pick and keyboard/menu triggers. The plugin
   owns `browser_screenshot` and human-capture annotation suppression.
-- `window.ts` supplies placement/coverage/task lifecycle; `App.tsx` supplies shared menus/prompt actions.
+- `window.ts` supplies placement/coverage/task lifecycle; the task entry supplies shared menu actions.
   `src/renderer/thumbnail.html` is Vite's loader shell.
 - E2e: `test/e2e/agent-tools.spec.ts`, `profiles.spec.ts`, using `/tall` for full-page/element coverage.

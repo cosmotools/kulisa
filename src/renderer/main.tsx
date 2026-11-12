@@ -4,8 +4,10 @@ import './window.css';
 import { createRoot } from 'react-dom/client';
 import { App } from './components/App';
 import './lib/names';
-import './lib/keys';
-import './lib/test-hooks';
+import './lib/shell-keys';
+import './lib/shell-cover';
+import { keyText } from './lib/common';
+Object.assign(window, { keyText });
 
 // TaskBoundary reports caught errors without React's default dump of the thrown object to the window log.
 createRoot(document.getElementById('app')!, { onCaughtError: () => {} }).render(<App />);

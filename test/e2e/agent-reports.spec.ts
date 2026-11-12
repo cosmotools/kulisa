@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // What the agent reads of a page besides its look: its console and requests, parts of a snapshot, what is too large for
 // an answer, and the artifacts this leaves, in Resources and for the agent (docs/profiles.md, The agent's tools).
 import fs from 'fs';
@@ -139,27 +140,27 @@ test('Artifacts tree shows ordinary results with metadata and screenshot preview
   const note = path.join(artifacts, 'notes.txt'); fs.writeFileSync(note, 'A completed result');
   const shot = (await call('browser_screenshot', { profile: 'Elon.buyer', purpose: 'artifact' })).text.match(/^Saved as (.+\.jpg)$/)[1];
   await showResources(ui, 'Artifacts');
-  const row = (file: string) => ui.getByRole('treeitem', { name: path.basename(file), exact: true });
-  await expect(row(note)).toContainText(sizeText(fs.statSync(note).size));
-  await expect(row(shot)).toContainText('Screenshot · Elon.buyer');
-  await expect(row(shot).locator('[data-item-section="icon"] use')).toHaveAttribute('href', /^#artifact-thumbnail-/);
+  const row = async (file: string) => (await taskPage(ui)).getByRole('treeitem', { name: path.basename(file), exact: true });
+  await expect((await row(note))).toContainText(sizeText(fs.statSync(note).size));
+  await expect((await row(shot))).toContainText('Screenshot · Elon.buyer');
+  await expect((await row(shot)).locator('[data-item-section="icon"] use')).toHaveAttribute('href', /^#artifact-thumbnail-/);
   await core((k) => {
     k.stash.openPath = k.electron.shell.openPath; k.stash.opened = [];
     k.electron.shell.openPath = async (file: string) => { k.stash.opened.push(file); return ''; };
   });
   try {
-    await row(note).click();
-    await expect(ui.getByRole('region', { name: 'Artifact preview', exact: true })).toBeVisible();
-    await ui.getByRole('region', { name: 'Artifact preview', exact: true }).getByRole('button', { name: 'Open in System Application' }).click();
+    await (await row(note)).click();
+    await expect((await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true })).toBeVisible();
+    await (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true }).getByRole('button', { name: 'Open in System Application' }).click();
     await expect.poll(() => core((k) => k.stash.opened)).toEqual([note]);
   } finally { await core((k) => { k.electron.shell.openPath = k.stash.openPath; }); }
-  await rightClick(ui, row(shot)); await choose(ui, 'Send to Agent');
+  await rightClick(ui, (await row(shot))); await choose(ui, 'Send to Agent');
   await expect.poll(() => termText(ui)).toContain(shot);
-  await expect(termKeys(ui)).toBeFocused();
+  await expect((await termKeys(ui))).toBeFocused();
   await core((k) => k.shell.pty.write('\x15'));
-  await showResources(ui, 'Artifacts'); await rightClick(ui, row(shot)); await choose(ui, 'Delete');
-  await expect(row(shot)).toHaveCount(0); expect(fs.existsSync(shot)).toBe(false);
-  await rightClick(ui, row(note)); await choose(ui, 'Delete'); await expect(row(note)).toHaveCount(0);
+  await showResources(ui, 'Artifacts'); await rightClick(ui, (await row(shot))); await choose(ui, 'Delete');
+  await expect((await row(shot))).toHaveCount(0); expect(fs.existsSync(shot)).toBe(false);
+  await rightClick(ui, (await row(note))); await choose(ui, 'Delete'); await expect((await row(note))).toHaveCount(0);
   expect((await invoke(ui, 'task:artifact:delete', { key: await core((k) => k.shell.task.key), files: [path.join(files.root, 'package.json')] })).error).toMatch(/not an artifact/);
 });
 
@@ -167,7 +168,7 @@ test('screenshots from the agent show the same thumbnail, copy JPEG as PNG, and 
   await profiles(core);
   const file = (await call('browser_screenshot', { profile: 'Elon.buyer', purpose: 'artifact' })).text.match(/^Saved as (.+\.jpg)$/)[1];
   await expect.poll(() => core((k) => k.shell.windows[0].thumbnails.file)).toBe(file);
-  await expect(ui.locator('#shotthumb')).toHaveCount(1);
+  await expect((await taskPage(ui)).locator('#shotthumb')).toHaveCount(1);
   await invoke(ui, 'thumbnail:act', { action: 'copy' });
   const image = await core(async (k) => {
     const item = (await k.electron.clipboard.read())[0];
@@ -177,10 +178,10 @@ test('screenshots from the agent show the same thumbnail, copy JPEG as PNG, and 
   expect(image.width).toBeGreaterThan(0);
   expect(image.height).toBeGreaterThan(0);
   await showResources(ui, 'Artifacts');
-  await rightClick(ui, ui.getByRole('treeitem', { name: path.basename(file), exact: true }));
+  await rightClick(ui, (await taskPage(ui)).getByRole('treeitem', { name: path.basename(file), exact: true }));
   await choose(ui, 'Delete');
   await expect.poll(() => core((k) => k.shell.windows[0].thumbnails.file)).toBeNull();
-  await expect(ui.locator('#shotthumb')).toHaveCount(0);
+  await expect((await taskPage(ui)).locator('#shotthumb')).toHaveCount(0);
   expect(fs.existsSync(file)).toBe(false);
 });
 
@@ -191,9 +192,9 @@ test('Artifacts drag as disk files and Send to Agent inserts their paths without
   const snapshot = path.join(JSON.parse((await call('task_files')).text).artifacts, 'snapshot.yml');
   fs.writeFileSync(snapshot, 'A completed snapshot');
   // Newest-first insertion moves existing rows; publish both prepared files before pointer actions.
-  await expect(ui.getByRole('treeitem', { name: path.basename(snapshot), exact: true })).toBeVisible();
+  await expect((await taskPage(ui)).getByRole('treeitem', { name: path.basename(snapshot), exact: true })).toBeVisible();
   await core((k) => {
-    const wc = k.shell.windows[0].win.webContents;
+    const wc = k.shell.windows[0].taskUi;
     k.stash.startDrag = wc.startDrag;
     k.stash.dragged = [];
     // Native OS dragging is outside CDP; observe the file handed to the desktop without moving a real file.
@@ -203,13 +204,13 @@ test('Artifacts drag as disk files and Send to Agent inserts their paths without
     for (const file of [screenshot, snapshot]) {
       const before = await core((k) => k.ptyOutput());
       await showResources(ui, 'Artifacts');
-      const row = ui.getByRole('treeitem', { name: path.basename(file), exact: true });
-      await row.dragTo(resourcesGroup(ui).getByRole('tab', { name: 'Artifacts', exact: true }));
+      const row = (await taskPage(ui)).getByRole('treeitem', { name: path.basename(file), exact: true });
+      await row.dragTo((await resourcesGroup(ui)).getByRole('tab', { name: 'Artifacts', exact: true }));
       await expect.poll(() => core((k) => k.stash.dragged.at(-1))).toEqual({ file, icon: false });
       await rightClick(ui, row);
       await choose(ui, 'Send to Agent');
       await expect.poll(() => termText(ui)).toContain(file);
-      await expect(termKeys(ui)).toBeFocused();
+      await expect((await termKeys(ui))).toBeFocused();
       if (!WIN) expect((await core((k) => k.ptyOutput())).slice(before.length), 'the prompt is not submitted').not.toMatch(/[\r\n]/);
       await core((k) => k.shell.pty.write('\x15'));
     }
@@ -218,7 +219,7 @@ test('Artifacts drag as disk files and Send to Agent inserts their paths without
       expect((await invoke(ui, channel, { key, file: path.join(files.project, 'package.json') })).error).toMatch(/not an artifact/);
     }
   } finally {
-    await core((k) => { k.shell.windows[0].win.webContents.startDrag = k.stash.startDrag; });
+    await core((k) => { k.shell.windows[0].taskUi.startDrag = k.stash.startDrag; });
   }
 });
 
@@ -229,13 +230,13 @@ test('Artifacts sizes separate results and temporary files; Delete All preserves
   fs.writeFileSync(path.join(tmp, 'working.txt'), 'Keep working');
   const listed = JSON.parse((await call('task_artifacts')).text);
   await showResources(ui, 'Artifacts');
-  await expect(ui.getByTestId('artifacts-size')).toHaveText(sizeText(listed.bytes));
+  await expect((await taskPage(ui)).getByTestId('artifacts-size')).toHaveText(sizeText(listed.bytes));
   expect(JSON.parse((await call('task_artifacts', { area: 'all' })).text).bytes).toBeGreaterThan(listed.bytes);
   expect((await call('task_artifacts_delete', { files: [result] })).text).toMatch(/^Deleted 1 entries/);
   fs.writeFileSync(result, 'Another result');
-  await expect(ui.getByTestId('artifacts-size')).not.toHaveText('0 KB');
-  await ui.getByRole('button', { name: 'Delete All Artifacts' }).click();
-  await expect(ui.getByTestId('artifacts-size')).toHaveText('0 KB');
+  await expect((await taskPage(ui)).getByTestId('artifacts-size')).not.toHaveText('0 KB');
+  await (await taskPage(ui)).getByRole('button', { name: 'Delete All Artifacts' }).click();
+  await expect((await taskPage(ui)).getByTestId('artifacts-size')).toHaveText('0 KB');
   expect(fs.readdirSync(artifacts)).toEqual([]);
   expect(fs.readFileSync(path.join(tmp, 'working.txt'), 'utf8')).toBe('Keep working');
 });

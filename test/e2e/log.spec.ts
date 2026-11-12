@@ -6,7 +6,7 @@ import { CHECKOUT, menu, choose, closeSettings, invoke, seen } from './helpers.t
 
 test("☰ → Report a Problem… opens Settings at the Log page: the log so far and live, each line with its time and tag, Follow; what to show and a text filter; Copy All, Save As… (a file), Open Folder; Report… → On GitHub… opens a new issue with the environment filled in", async ({ core, ui, sui, files }) => {
   await ui.locator('#windowMenu').click();
-  await expect(menu(ui)).toBeVisible();
+  await expect((await menu(ui))).toBeVisible();
   await choose(ui, 'Report a Problem…');
   const s = await sui();
   const log = s.getByRole('log', { name: 'Log' }), line = log.locator('[data-tag]'), lines = () => line.allTextContents();
@@ -105,7 +105,7 @@ test("☰ → Report a Problem… opens Settings at the Log page: the log so far
   await invoke(ui, 'theme:set', theme);
 });
 
-test('a large log scrolls through every entry with few rendered rows; filtering and Copy All reach the whole log', async ({ core, ui, sui, files }, testInfo) => {
+test('a large log scrolls through every entry with few rendered rows; filtering and Copy All reach the whole log', async ({ core, ui, sui, files }) => {
   const file = path.join(files.userData, 'logs', 'kulisa.log');
   const text = Array.from({ length: 1600 }, (_, i) => `[2026-01-01T12:00:00.000+00:00] [info] [task] virtual-entry-${String(i).padStart(4, '0')}${i % 7 === 0 ? ' wrapped words'.repeat(30) : ''}`).join('\n') + '\n';
   fs.appendFileSync(file, text);
@@ -141,13 +141,11 @@ test('a large log scrolls through every entry with few rendered rows; filtering 
   await s.getByRole('button', { name: 'Copy All' }).click();
   await expect.poll(() => core((k) => k.electron.clipboard.readText())).toContain('virtual-entry-0000');
   const copied = await core((k) => k.electron.clipboard.readText());
-  expect(copied).toContain('virtual-entry-0000');
   expect(copied).toContain('virtual-entry-1599');
   await s.getByRole('searchbox', { name: 'Filter' }).fill('');
   await s.getByRole('radio', { name: 'All', exact: true }).click();
   await expect(rows.filter({ hasText: 'virtual-live-after-pause' })).toBeInViewport();
   await expect.poll(() => rows.count()).toBeLessThan(100);
-  await core((k, f) => k.shot(f), testInfo.outputPath('log-virtual.png'));
   await closeSettings(core, ui, sui);
 });
 
@@ -163,7 +161,7 @@ test('a delayed update from an older log snapshot is ignored while the current s
     });
   }, stream);
   await filter.fill('stale-before-snapshot');
-  await seen(s, 'stale-log-update', () => core((k, old) => k.shell.win.webContents.send('log:lines', {
+  await seen(s, 'stale-log-update', () => core((k, old) => k.shell.windows[0].focusUi.send('log:lines', {
     stream: old, text: '[2026-01-01T12:00:00.000+00:00] [info] [task] stale-before-snapshot\n',
   }), stream));
   await expect(log.getByText('Nothing matches.', { exact: true })).toBeVisible();

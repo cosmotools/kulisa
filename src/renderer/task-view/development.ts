@@ -6,7 +6,7 @@ import type { TaskStore } from './state';
 import type { DiffSelection } from '../../diff/ipc';
 import { createDiff } from '../../diff/renderer';
 import { menuAt } from '../lib/menu';
-import { ask } from '../lib/ask';
+import { ask } from './ask';
 import { createEditorSession } from '../../editor/renderer';
 
 export const activityItems = { terminals: 'Agents', project: 'Project', diff: 'Diff', artifacts: 'Artifacts' } as const;
@@ -30,6 +30,7 @@ export class DevelopmentGrid {
       confirmDiscard: async (path) => await ask({ message: 'Discard unsaved changes?', detail: `${path}\nThe changes cannot be saved automatically.`, ok: 'Discard changes', danger: true }) === 'ok',
     });
   }
+  drainEditor() { return this.editorSession?.drain(); }
   receiveEditor(state: Parameters<ReturnType<typeof createEditorSession>['receive']>[0]) { this.editorSession?.receive(state); }
   constructor(private readonly store: TaskStore, private readonly changed: () => void) {}
   get review() {

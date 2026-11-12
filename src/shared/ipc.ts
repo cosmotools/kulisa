@@ -8,7 +8,7 @@ import type { ViewerBox, ViewerSearchResult } from '../file-viewer/ipc.ts';
 import type { Result } from './result.ts';
 import type { DiffOptions, Diff, FileDiff, Review } from '../diff/ipc.ts';
 import type { StageTerminal, StageTerminalsState, TerminalSize } from './stage-terminal.ts';
-import type { FileLink, TerminalContents, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
+import type { FileLink, TerminalEvents, TerminalInvoke, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
@@ -27,7 +27,6 @@ type Grid = Record<string, PageLayout>;
 export type Theme = 'dark' | 'light' | 'system';
 export type StagePosition = 'left' | 'right' | 'above';
 export type StageLayout = 'vertical' | 'tabs' | 'horizontal';
-export type Bar = 'top' | 'bottom';
 // Where Settings opens (components/settings): a project's page (none: the shown task's), a profile's, the
 // log (☰ → Report a Problem…), About (☰ → About Kulisa; macOS's app menu).
 export type SettingsAt = { section: 'projects' | 'profiles' | 'log' | 'about'; id?: string | null };
@@ -39,6 +38,16 @@ type Profiles = { profiles: SettingsProfile[] };
 
 // ipcRenderer.invoke / ipcMain.handle: args, the answer.
 type I<A extends unknown[], R = void> = { args: A; result: R };
+export interface TaskPresentation {
+  workbenchItem: 'terminals' | 'project' | 'diff' | 'artifacts'; selectedArtifact: string | null;
+  stagePosition: StagePosition; stageLayout: StageLayout | null; stageOverflow: boolean; stageFollowPaused: boolean;
+}
+export interface TaskSummary {
+  key: string; profiles: { id: string; name: string; avatar: string; description: string; tabs: number }[];
+  closedProfiles: { id: string; name: string; avatar: string; description: string }[];
+  terminals: number; shells: string[]; failure: 'crashed' | 'unresponsive' | null; presentation: TaskPresentation;
+}
+export type TaskDialog = { kind: 'stageTerminalSettings'; task: string; terminal: StageTerminal } | { kind: 'handover'; task: string; terminal: import('./types.ts').DevelopmentTerminalInfo };
 export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, DictationInvoke {
   'project:list': I<[], ProjectsInfo | undefined>;
   'project:refresh': I<[]>;
@@ -63,7 +72,7 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'project:github:get': I<[{ id: string }], Result<ProjectGitHub>>;
   'project:github:set': I<[{ id: string; remote: string; account: string | null }], Result<ProjectGitHub>>;
   'project:task:close-all': I<[{ id: string }]>;
-  'project:task:move-all': I<[{ id: string; to?: number | null; terminalContents: TerminalContents }]>;
+  'project:task:move-all': I<[{ id: string; to?: number | null }]>;
   'project:show-data': I<[{ id: string }]>;
   'project:delete': I<[{ id: string }], Result<{ id: string }>>;
   'account:list': I<[], AccountsInfo>;
@@ -81,12 +90,19 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'profiles:login': I<[{ profile: string; user?: string; password?: string }], Result<Profiles & { id: string }>>;
   'profiles:master': I<[{ profile: string }], Result | undefined>;
   'profiles:delete': I<[{ profile: string }], Result<Profiles, string | null>>;
-  'task:move': I<[{ key: string; to?: number | null; terminalContents: TerminalContents }]>;
-  'task:drop': I<[{ key: string; index: number; terminalContents: TerminalContents }]>;
-  'task:drag-out': I<[{ key: string; terminalContents: TerminalContents }]>;
+  'task:move': I<[{ key: string; to?: number | null }]>;
+  'task:drop': I<[{ key: string; index: number }]>;
+  'task:drag-out': I<[{ key: string }]>;
   'task:show': I<[key: string], { error: string } | void>; // { error }: no such task (ipc/tasks.ts, taskAt)
   'task:new': I<[{ project?: string }?]>;
   'task:close': I<[key: string]>;
+  'task:ready': I<[]>;
+  'task:reload': I<[string]>;
+  'task:drained': I<[number]>;
+  'shell:cover': I<[boolean]>;
+  'shell:dialog': I<[TaskDialog]>;
+  'shell:ask': I<[Question], string | null>;
+  'task:command': I<[OnTask & { command: 'profile:show' | 'terminal:open'; profile?: string }]>;
   'task:view-failed': I<[{ task: string; kind: string; frames: string[] }]>;
   'task:delete': I<[key: string]>;
   'task:delete-closed': I<[{ project: string; id: string }]>;
@@ -174,7 +190,6 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
   'language:get': I<[], LanguageInfo>;
   'language:set': I<[code: string], Result<{ language: string }>>;
   'theme:set': I<[theme: Theme]>;
-  'bar:set': I<[bar: Bar]>;
   'stage:follow:set': I<[follow: boolean]>;
   'keys:set': I<[{ id: string; code: string }], Result<{ keys: Shortcut[] }>>;
   'pick:start': I<[{ profile: string }], Result | undefined>;
@@ -188,7 +203,9 @@ export interface Invoke extends TerminalInvoke, ThumbnailInvoke, GitHubInvoke, D
 
 // ipcRenderer.send / ipcMain.on: what is sent, no answer.
 export interface Send extends TerminalSend, ThumbnailSend {
-  'layout:apply': { task: string | null; rects: Grid };
+  'layout:apply': { task: string | null; rects: Grid; revision: number; viewport: { width: number; height: number } };
+  'shell:workspace': { task: string | null; x: number; y: number; width: number; height: number; viewport: { width: number; height: number } };
+  'task:presentation': TaskPresentation;
   'layout:save': { task: string | null; layout: unknown };
   'ask:answer': { id: number; answer: string };
   'agent:choice:submit': { task: string | null; id: string | null };
@@ -199,6 +216,14 @@ export interface Send extends TerminalSend, ThumbnailSend {
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
 export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents {
+  'task:initial': TaskPresentation;
+  'task:viewport': { revision: number; width: number; height: number; zoom: number };
+  'task:activity': { active: boolean; covered: boolean };
+  'task:dismiss': void;
+  'task:drain': number;
+  'task:summary': TaskSummary | null;
+  'task:command': { command: 'profile:show' | 'terminal:open'; profile?: string };
+  'shell:dialog': TaskDialog;
   'task:editor:state': { task: string; state: EditorSnapshot };
   'project:state': ProjectsInfo;
   'profile:state': { task: string; list: Profile[] };
@@ -210,10 +235,8 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'task:artifact:selected': { task: string; file: string };
   'development-terminal:focus': void;
   'stage:arrange': { task: string; layout?: StageLayout; overflow?: boolean; position?: StagePosition };
-  'task:closed': string[];
   'zoom:state': number;
   'theme:state': string;
-  'bar:state': Bar;
   'language:state': LanguageInfo;
   'keys:state': Shortcut[];
   'ask:show': Question & { id: number };
@@ -224,6 +247,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents
   'agent:caption': { task: string; profile: string; caption: string | null; sticky?: boolean };
   'agent:choice:show': { task: string; selected: string | null };
   'agent:install:output': string;
+  'agent:handover:state': { task: string; list: { id: number; state: import('./types.ts').DevelopmentTerminalInfo['state'] }[] };
   'agent:handover:progress': { task: string; id: number; part: number; parts: number };
   'project:new': void;
   'master:url': string;

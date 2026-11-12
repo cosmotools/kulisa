@@ -53,11 +53,11 @@ export function registerPanes(ipc: Ipc) {
   handle('agent:new-conversation', (e, { task, id }) => onScreen(e, task)?.newConversation(id) || noTask);
   handle('agent:handover:start', (e, { task, id, agent }) => onScreen(e, task)?.handOver(id, agent) || noTask);
   on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));
-  on('layout:apply', (e, { task, rects }) => at(e)?.layout(task, rects));
+  on('layout:apply', (e, { task, rects, revision, viewport }) => at(e)?.layout(task, rects, revision, viewport));
 
   // A tab the human opens (+): the window keeps the keys for its address (task-view/ProfilePane.tsx); its page taking
   // them as it loads gives them back (page-focus.ts).
-  handle('tab:new', onProfile((p, { url }) => { focusWindow(p.win.webContents); return p.newTab(url || 'about:blank').id; }));
+  handle('tab:new', onProfile((p, { url }) => { focusWindow(ipc.shell.taskByKey(p.task)?.window?.focusUi ?? ipc.shell.front()!.ui); return p.newTab(url || 'about:blank').id; }));
   // focus: the keyboard was in the tab's page (a key closed or switched it): it goes to the page shown next, as in Chrome.
   handle('tab:close', onTab((p, t, { focus }) => {
     if (focus) p.once('tab-closed', () => setImmediate(() => { const next = p.get(); if (next) p.focusTab(next); }));

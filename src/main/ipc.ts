@@ -13,7 +13,7 @@ import { bare, log, summary } from './log.ts';
 // and what comes on every change, draw or hover (the grid's boxes, layouts, lists read again, the paths under the pointer), which would fill the log with
 // nothing; and Settings shown and left, which say so in lines of their own (app.ts, openSettings; ipc/window.ts). An
 // answer to a question is logged without the answer: it may be anything the human typed.
-const QUIET = new Set<string>(['pty:in', 'pty:resize', 'pty:quote-paths', 'terminal:files', 'layout:apply', 'layout:save', 'layout:load', 'views:hidden', 'views:pictures', 'keys:zone', 'zoom:get', 'voice:get', 'voice:record',
+const QUIET = new Set<string>(['pty:in', 'pty:resize', 'pty:quote-paths', 'terminal:files', 'layout:apply', 'layout:save', 'layout:load', 'views:hidden', 'views:pictures', 'keys:zone', 'shell:workspace', 'task:presentation', 'zoom:get', 'voice:get', 'voice:record',
   'language:get', 'project:refresh', 'project:list', 'account:list', 'profiles:list', 'agent:list', 'settings:open', 'settings:close', 'github:account:list', 'project:github:get']);
 const BARE = new Set<string>(['ask:answer', 'task:artifact:pdf:find']);
 function line(channel: string, e: IpcEvent, args: unknown[]) {
@@ -22,11 +22,15 @@ function line(channel: string, e: IpcEvent, args: unknown[]) {
   log.info(`[ipc] ${channel} wc=${e.sender.id}${what}`);
 }
 
+let authorized: (event: IpcEvent, channel: string, args: unknown[]) => boolean = () => true;
+export function ipcAuthority(check: typeof authorized) { authorized = check; }
+
 // An answer the window does not read (`void`) may be anything; one it reads is the table's.
 type Answer<R> = [R] extends [void] ? unknown : R | Promise<R>;
 
 export function handle<C extends keyof Invoke>(channel: C, fn: (e: IpcMainInvokeEvent, ...args: Invoke[C]['args']) => Answer<Invoke[C]['result']>) {
   electron.ipcMain.handle(channel, async (e: IpcMainInvokeEvent, ...args: unknown[]) => {
+    if (!authorized(e, channel, args)) return { error: 'This UI no longer owns that action.' };
     line(channel, e, args);
     const r = await (fn as (e: IpcMainInvokeEvent, ...args: unknown[]) => unknown)(e, ...args);
     const error = (r as { error?: unknown } | null)?.error;
@@ -36,7 +40,7 @@ export function handle<C extends keyof Invoke>(channel: C, fn: (e: IpcMainInvoke
 }
 
 export function on<C extends keyof Send>(channel: C, fn: (e: IpcMainEvent, arg: Send[C]) => void) {
-  electron.ipcMain.on(channel, (e, arg) => { line(channel, e, [arg]); fn(e, arg); });
+  electron.ipcMain.on(channel, (e, arg) => { if (!authorized(e, channel, [arg])) return; line(channel, e, [arg]); fn(e, arg); });
 }
 
 export type IpcEvent = IpcMainEvent | IpcMainInvokeEvent;

@@ -1,6 +1,6 @@
 // Kulisa's own data in the user-data folder, laid out as Chrome lays out its own (Local State, then a folder per
 // profile), so what is known about Chrome's storage applies:
-//   settings.json            the Kulisa zoom, the theme, where the tasks' bar is; the windows: the projects open
+//   settings.json            the Kulisa zoom, the theme; the windows: the projects open
 //                            in each (its tabs, in order), the one shown, where it was on screen
 //   projects.json            the projects: { list: [{ id, name, folders, color, agents, profiles }] }; id: six random
 //                            characters, made once (projectFor); folders: its folders, repositories or not, the
@@ -23,6 +23,7 @@
 //   deleted-folders.json     folders of deleted profiles and tasks, removed at the next start (a session keeps
 //                            its files open while Kulisa runs)
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
+import type { TaskPresentation } from '../shared/ipc.ts';
 import fs from 'fs';
 import { writeFileAtomic } from './files.ts';
 import { readTabs, writeTabs } from '../browser/main/index.ts';
@@ -87,7 +88,7 @@ interface TasksFile { list: TaskEntry[] }
 // A window as settings.json keeps it: its tasks by key ("<project id>/<task id>", tasks.ts) in the bar's order, the shown
 // one.
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
-interface Settings { stageFollow?: boolean; uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
+interface Settings { stageFollow?: boolean; uiZoom?: number; theme?: 'dark' | 'light' | 'system'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
 // A profile as a task keeps it in task.json (project-profiles.ts).
 const taskProfileSchema = z.object({ id: z.string(), zoom: z.record(z.string(), z.number()).optional(), closed: z.boolean().optional() });
 type TaskProfile = z.infer<typeof taskProfileSchema>;
@@ -201,7 +202,7 @@ class Store {
     }
     fs.rmSync(this.deletedFile, { force: true });
   }
-  // Kulisa's own settings: { uiZoom, theme, bar, stageFollow, windows }.
+  // Kulisa's own settings: { uiZoom, theme, stageFollow, windows }.
   settings(): Settings { return readJSON(this.settingsFile) || {}; }
   saveSettings(s: Settings) { writeJSON(this.settingsFile, s); }
 }
@@ -221,7 +222,8 @@ const taskDocumentSchema = z.object({
     layout: z.custom<TaskLayout['stage']>(),
   }),
   workspace: z.object({ stagePosition: z.enum(['left', 'right', 'above']).optional(), splitLayout: z.custom<TaskLayout['split']>().optional(),
-    developmentLayout: z.custom<TaskLayout['workspace'] | null>() }),
+    developmentLayout: z.custom<TaskLayout['workspace'] | null>(),
+    presentation: z.object({ workbenchItem: z.enum(['terminals', 'project', 'diff', 'artifacts']), selectedArtifact: z.string().nullable() }).optional() }),
 });
 type TaskDocument = z.infer<typeof taskDocumentSchema>;
 const taskFiles = ['agent.json', 'terminals.json', 'profiles.json', 'applications.json', 'layout.json'];
@@ -342,6 +344,15 @@ class TaskStore {
   saveStageTerminals(a: { next: number; list: StageTerminalConfig[] }) {
     this.update((d) => { d.stage.nextTerminalId = a.next; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'terminal'), ...a.list.map((config) => ({ ...config, type: 'terminal' as const }))]; });
   }
+  presentation(): TaskPresentation {
+    const d = this.document();
+    return { workbenchItem: d.workspace.presentation?.workbenchItem ?? 'terminals', selectedArtifact: d.workspace.presentation?.selectedArtifact ?? null,
+      stagePosition: d.workspace.stagePosition ?? 'above', stageLayout: d.stage.view ?? null, stageOverflow: d.stage.overflow, stageFollowPaused: false };
+  }
+  savePresentation(value: TaskPresentation) {
+    const presentation = taskDocumentSchema.shape.workspace.shape.presentation.parse(value);
+    this.update((d) => { d.workspace.presentation = presentation; });
+  }
   layout(): unknown {
     const d = this.document();
     return d.workspace.developmentLayout ? splitLayout({ version: 3, workspace: d.workspace.developmentLayout, stage: d.stage.layout,
@@ -350,7 +361,7 @@ class TaskStore {
   }
   saveLayout(layout: unknown) {
     const l = splitLayout(layout);
-    this.update((d) => { d.workspace = { developmentLayout: l?.workspace ?? null, stagePosition: l?.stagePosition ?? 'above', splitLayout: l?.split ?? null };
+    this.update((d) => { d.workspace = { ...d.workspace, developmentLayout: l?.workspace ?? null, stagePosition: l?.stagePosition ?? 'above', splitLayout: l?.split ?? null };
       d.stage.layout = l?.stage ?? null; d.stage.view = l?.stageLayout ?? null; d.stage.overflow = l?.stageOverflow ?? false; });
   }
   agent(): AgentFile {

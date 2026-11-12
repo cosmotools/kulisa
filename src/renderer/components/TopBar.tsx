@@ -1,10 +1,10 @@
-// The title bar and its ☰ (docs/window.md, The title bar, Menus): the logo, the tasks' bar when
-// it is here, the Kulisa zoom when not 100%, Settings, ☰; its room beside the OS window buttons (env(titlebar-area-*):
+// The title bar and its ☰ (docs/window.md, The title bar, Menus): the logo,
+// the Kulisa zoom when not 100%, Settings, ☰; its room beside the OS window buttons (env(titlebar-area-*):
 // titleBarOverlay in window.ts, 44 px there). No logo on macOS: its apps show their icon in the Dock; Exit only where
 // the OS has no menu bar with Quit (macOS: Cmd+Q).
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType } from 'react';
 import { BookOpenIcon, BugIcon, GitBranchIcon, InfoIcon, KeyboardIcon, LanguagesIcon, LogOutIcon, MenuIcon,
-  MinusIcon, PanelBottomIcon, PlusIcon, SettingsIcon, SunMoonIcon, ZoomInIcon } from 'lucide-react';
+  MinusIcon, PlusIcon, SettingsIcon, SunMoonIcon, ZoomInIcon } from 'lucide-react';
 import { Button, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuShortcut, DropdownMenuSub,
   DropdownMenuSubTrigger, Toggle, Item, ItemContent, ItemDescription, ItemTitle } from '@ui';
 import { ButtonMenu, SubmenuContent } from './Menus';
@@ -12,13 +12,13 @@ import { Tip } from './Tip';
 import { AppLogo, Logo } from './ProjectIcon';
 import { useWindow } from '../lib/store';
 import { keyText, withKeys } from '../lib/common';
-import { StageMenu } from '../task-view/TaskView';
-import { ask } from '../lib/ask';
+import { StageMenu } from './StageMenu';
+import { ask } from '../lib/shell-ask';
 import { dialog } from '../lib/dialogs';
 import { leaveSettings, openSettings, useSettings } from '../lib/settings';
 import { refused } from '../../shared/result';
 import type { MenuItem } from '../lib/menu';
-import type { Bar, Theme } from '../../shared/ipc';
+import type { Theme } from '../../shared/ipc';
 
 const mac = kulisa.platform === 'darwin';
 
@@ -35,7 +35,7 @@ function ZoomRow() {
 }
 
 // A row of ☰ with a few choices, in a menu beside it, the chosen one at the row's end; a choice leaves the menus open,
-// so another can be tried. name: the data attribute each choice has (data-theme, data-bar, data-language).
+// so another can be tried. name: the data attribute each choice has (data-theme, data-language).
 type Choice = { value: string; label: string; sub?: string; title?: string };
 function ChoiceRow({ name, icon: Icon, label, title, choices, chosen, choose }: { name: string; icon: ComponentType; label: string; title?: string;
   choices: Choice[]; chosen: string; choose: (value: string) => unknown }) {
@@ -55,11 +55,8 @@ function ChoiceRow({ name, icon: Icon, label, title, choices, chosen, choose }: 
 }
 
 const THEMES = [{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }, { value: 'system', label: 'System', title: 'As the operating system' }];
-const BARS = [{ value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' }];
 const ThemeRow = () => <ChoiceRow name="theme" icon={SunMoonIcon} label="Theme" choices={THEMES} chosen={useWindow((s) => s.theme)}
   choose={(t) => kulisa.invoke('theme:set', t as Theme)} />;
-const BarRow = () => <ChoiceRow name="bar" icon={PanelBottomIcon} label="Tasks bar" choices={BARS} chosen={useWindow((s) => s.bar)}
-  choose={(b) => kulisa.invoke('bar:set', b as Bar)} />;
 
 // Language (docs/window.md, Language): the system's first, then by name in each language itself; its tooltip says what
 // it changes, and for which agents (agents/, language).
@@ -87,7 +84,7 @@ const LINKS = [
   { label: 'GitHub', href: 'https://github.com/cosmotools/kulisa', icon: GitBranchIcon },
 ];
 const windowMenu = (): MenuItem[] => [
-  { component: ZoomRow }, { component: ThemeRow }, { component: BarRow }, { component: LanguageRow },
+  { component: ZoomRow }, { component: ThemeRow }, { component: LanguageRow },
   '-', { label: 'Keyboard Shortcuts', icon: KeyboardIcon, keys: keyText('shortcuts'), run: async () => (await dialog('shortcuts')).showShortcuts() },
   '-', ...LINKS.map((l) => ({ label: l.label, icon: l.icon, run: () => { open(l.href); } })),
   { label: 'Report a Problem…', icon: BugIcon, title: 'The log of what Kulisa did, and how to send it', run: () => openSettings('log') },
@@ -95,27 +92,24 @@ const windowMenu = (): MenuItem[] => [
   ...(mac ? [] : ['-' as const, { label: 'Exit', icon: LogOutIcon, run: () => kulisa.invoke('app:quit') }]),
 ];
 
-export function TopBar({ children }: { children?: ReactNode }) {
+export function TopBar() {
   const current = useWindow((s) => s.current);
   const zoom = useWindow((s) => s.zoom), settings = useWindow((s) => s.projects.settings), shown = !!useSettings();
   const toggle = <Toggle id="settingsButton" aria-label="Settings" pressed={shown} onPressedChange={() => (shown ? void leaveSettings() : openSettings())}>
     <SettingsIcon /></Toggle>;
-  // The logo and the space after the tasks' bar drag the window, however many tabs: Chromium takes tabs scrolled past
-  // the bar's edges as no-drag over them too (it does not clip them to the bar) and the regions in the page's order, the
-  // last one winning; so both come after the tasks' bar in the page, the logo put first by order. The space is at least
-  // 40 px, as Chrome's after its +.
-  return <header id="topbar" className="flex h-11 w-[calc(env(titlebar-area-x,0px)+env(titlebar-area-width,100%))] min-w-0 items-center gap-2
-    ps-[calc(env(titlebar-area-x,0px)+--spacing(2))] [-webkit-app-region:drag]">
-    {children}
-    {!mac && <span data-testid="title-logo" className="-order-1 flex [-webkit-app-region:drag]">{current ? <Logo color="var(--project, var(--foreground))" size={24} /> : <AppLogo size={24} />}</span>}
-    <span data-testid="drag-area" className="grow shrink-0 basis-10 self-stretch [-webkit-app-region:drag]" />
-    <span className="me-2 flex gap-1 [-webkit-app-region:no-drag]">
-      {zoom !== 1 && <Tip text={`Kulisa's zoom. Click to reset (${keyText('zoom.reset')})`}>
-        <Button id="zoomReset" variant="ghost" onClick={() => kulisa.invoke('zoom:ui', 0)}>{Math.round(zoom * 100)}%</Button></Tip>}
-      {current && !shown && <StageMenu />}
-      {/* No tooltip while Settings is shown: one under the pointer would take its first Esc */}
-      {shown ? toggle : settings && <Tip text="Settings: projects, agents, profiles">{toggle}</Tip>}
-      <ButtonMenu items={windowMenu} end><Button id="windowMenu" variant="ghost" size="icon" aria-label="Menu"><MenuIcon /></Button></ButtonMenu>
-    </span>
+  return <header className="h-11 bg-background">
+    <div id="topbar" className="flex h-full w-[calc(env(titlebar-area-x,0px)+env(titlebar-area-width,100%))] min-w-0 items-center gap-2
+      ps-[calc(env(titlebar-area-x,0px)+--spacing(2))] [-webkit-app-region:drag]">
+      {!mac && <span data-testid="title-logo" className="flex [-webkit-app-region:drag]">{current ? <Logo color="var(--project, var(--foreground))" size={24} /> : <AppLogo size={24} />}</span>}
+      <span data-testid="drag-area" className="grow shrink-0 basis-10 self-stretch [-webkit-app-region:drag]" />
+      <span className="me-2 flex gap-1 [-webkit-app-region:no-drag]">
+        {zoom !== 1 && <Tip side="left" text={`Kulisa's zoom. Click to reset (${keyText('zoom.reset')})`}>
+          <Button id="zoomReset" variant="ghost" onClick={() => kulisa.invoke('zoom:ui', 0)}>{Math.round(zoom * 100)}%</Button></Tip>}
+        {current && !shown && <StageMenu />}
+        {/* No tooltip while Settings is shown: one under the pointer would take its first Esc */}
+        {shown ? toggle : settings && <Tip side="left" text="Settings: projects, agents, profiles">{toggle}</Tip>}
+        <ButtonMenu items={windowMenu} end><Button id="windowMenu" variant="ghost" size="icon" aria-label="Menu"><MenuIcon /></Button></ButtonMenu>
+      </span>
+    </div>
   </header>;
 }

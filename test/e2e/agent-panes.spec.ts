@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // A profile's pane as the human uses it next to the agent: where the keyboard stays, the tab strip, the toolbar and the
 // address, Chrome's menu in a page, point and tell (docs/profiles.md, docs/window.md).
 import fs from 'fs';
@@ -16,8 +17,8 @@ test('the keyboard stays where the human put it: a tab the agent opens, its page
   // loads, and the next keys go to the site, unless kept (page-focus.ts).
   await focusWindow(core, ui);
   await showResources(ui, 'Agents');
-  await termKeys(ui).focus();
-  await expect.poll(() => core((k) => k.shell.windows[0].keyZone)).toBe('terminal');
+  await (await termKeys(ui)).focus();
+  await expect.poll(() => core((k) => (k.shell.windows[0].shellCovered ? k.shell.windows[0].keyZone : k.shell.task.view.keyZone))).toBe('terminal');
   const id = opened(await call('browser_tab_new', { profile: 'Elon.buyer', url: 'data:text/html,<input autofocus>' }));
   // The page taking the keyboard by itself, as one loading does on macOS: given back (page-focus.ts).
   expect(await core(async (k, t) => {
@@ -27,8 +28,8 @@ test('the keyboard stays where the human put it: a tab the agent opens, its page
     tab.wc.focus();
     return decided;
   }, id)).toBe('given back to the window');
-  await expect(termKeys(ui), 'still in the terminal').toBeFocused();
-  expect(await ui.evaluate(() => document.hasFocus()), 'the window has the keyboard (Playwright reads no window focus)').toBe(true);
+  await expect((await termKeys(ui)), 'still in the terminal').toBeFocused();
+  expect(await (await taskPage(ui)).evaluate(() => document.hasFocus()), 'the window has the keyboard (Playwright reads no window focus)').toBe(true);
   await call('browser_tab_close', { profile: 'Elon.buyer', tab: id });
   await expect.poll(() => core((k) => k.profile('Elon.buyer').tabs.length)).toBe(1);
 });
@@ -36,7 +37,7 @@ test('the keyboard stays where the human put it: a tab the agent opens, its page
 test('tab strip: + opens a tab with the focus in its empty address, a click on a tab makes it active, × closes it', async ({ core, ui }) => {
   const { elon } = await profiles(core);
   const state = () => core((k) => { const e = k.profile('Elon.buyer'); return { active: e.active, tabs: e.tabs.length }; });
-  const pane = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${elon}"]`), strip = pane.locator('nav[aria-label="Tabs"]');
+  const pane = (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${elon}"]`), strip = pane.locator('nav[aria-label="Tabs"]');
   const { active: first, tabs: n } = await state();
   // Its element kept in the page, to tell it is the same one after (Playwright tells no element from another).
   await strip.locator(`[data-tab="${first}"]`).evaluate((t) => { (window as any).__firstTab = t; });
@@ -55,7 +56,7 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
   // run), no view has them, and Kulisa rightly leaves it so.
   const keys = () => core((k, id) => {
     const page = k.profile('Elon.buyer').get(id).wc, win = k.shell.win;
-    return !win.isFocused() ? 'another app' : win.webContents.isFocused() ? 'window' : page.isFocused() ? 'page' : 'none';
+    return !win.isFocused() ? 'another app' : k.shell.windows[0].taskUi.isFocused() ? 'window' : page.isFocused() ? 'page' : 'none';
   }, added);
   // The page taking the keyboard by itself, as one loading does on macOS: given back (page-focus.ts).
   expect(await core(async (k, id) => {
@@ -82,7 +83,7 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
   await expect.poll(async () => (await state()).tabs).toBe(n);
   // With reduced motion (the OS's setting, emulated) it does not grow, and is not left growing: no animation ends
   // there, and the tab would stay opening.
-  await ui.emulateMedia({ reducedMotion: 'reduce' });
+  await (await taskPage(ui)).emulateMedia({ reducedMotion: 'reduce' });
   try {
     await strip.getByRole('button', { name: 'New tab' }).click();
     await expect.poll(async () => (await state()).tabs).toBe(n + 1);
@@ -92,7 +93,7 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
     expect(await strip.locator('[role="tab"][data-opening]').count(), 'not growing').toBe(0);
     await core((k) => { const e = k.profile('Elon.buyer'); e.closeTab(e.active); });
     await expect.poll(async () => (await state()).tabs).toBe(n);
-  } finally { await ui.emulateMedia({ reducedMotion: null }); }
+  } finally { await (await taskPage(ui)).emulateMedia({ reducedMotion: null }); }
 });
 
 test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page stay inside the pane', async ({ core, ui, files }) => {
@@ -101,15 +102,15 @@ test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page s
   const pane = `[role="region"][data-profile="${elon}"]`;
   const before = await pageBox(ui, files, 'Elon.buyer');
   // A lone tab has its full width (220px, as Chrome's), not shrunk while there is room.
-  expect(Math.round((await ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"] [role="tab"]`).boundingBox()).width)).toBe(220);
+  expect(Math.round((await (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"] [role="tab"]`).boundingBox()).width)).toBe(220);
   for (let i = 0; i < 24; i++) await act(ui, 'tab:new', { profile: elon });
-  await expect(ui.locator(`${pane} [role="tab"]`)).toHaveCount(n + 24);
-  await expect(ui.locator(`${pane} [role="tab"][data-opening]`)).toHaveCount(0); // grown in
+  await expect((await taskPage(ui)).locator(`${pane} [role="tab"]`)).toHaveCount(n + 24);
+  await expect((await taskPage(ui)).locator(`${pane} [role="tab"][data-opening]`)).toHaveCount(0); // grown in
   // Nothing past the pane's right edge, nor scrolling it or its group (Playwright reads no scroll).
   const right = async (l: Locator) => { const r = await l.boundingBox(); return r.x + r.width; };
-  const edge = await right(ui.locator(pane)), nav = ui.locator(`${pane} nav[aria-label="Tabs"]`), add = nav.getByRole('button', { name: 'New tab' });
-  for (const l of [nav, add, ui.locator(`${pane} [aria-label="More"]`)]) expect(await right(l)).toBeLessThanOrEqual(edge);
-  expect(await ui.locator(pane).evaluate((p) => [p.scrollWidth <= p.clientWidth, p.closest('.dv-groupview').scrollWidth <= p.closest('.dv-groupview').clientWidth])).toEqual([true, true]);
+  const edge = await right((await taskPage(ui)).locator(pane)), nav = (await taskPage(ui)).locator(`${pane} nav[aria-label="Tabs"]`), add = nav.getByRole('button', { name: 'New tab' });
+  for (const l of [nav, add, (await taskPage(ui)).locator(`${pane} [aria-label="More"]`)]) expect(await right(l)).toBeLessThanOrEqual(edge);
+  expect(await (await taskPage(ui)).locator(pane).evaluate((p) => [p.scrollWidth <= p.clientWidth, p.closest('.dv-groupview').scrollWidth <= p.closest('.dv-groupview').clientWidth])).toEqual([true, true]);
   // The active one (the last opened) in sight; every one its icon and × (not the active one alone, as Chrome's: the
   // author's choice).
   const active = nav.locator('[role="tab"][aria-selected="true"]'), other = nav.locator('[role="tab"]:not([aria-selected="true"])').first();
@@ -126,14 +127,14 @@ test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page s
   // Past that the strip scrolls (lib/strip.ts): the edge with tabs past it fades; a mouse's wheel scrolls it; a tab
   // not shown that changes (its page loads, its title) leaves it where the human scrolled it, not back at the active
   // one. Where it is scrolled to, and how far it can be: Playwright reads no scroll.
-  const s = ui.locator(`${pane} [role="tablist"]`);
+  const s = (await taskPage(ui)).locator(`${pane} [role="tablist"]`);
   const at = () => s.evaluate((e) => [Math.round(e.scrollLeft), e.scrollWidth - e.clientWidth] as [number, number]);
   // Scrolled to the active one at the end, the start faded.
   await expect.poll(async () => { const [left, max] = await at(); return max > 0 && left === max; }).toBe(true);
   await expect(s).toHaveAttribute('data-past-start');
   await expect(s).not.toHaveAttribute('data-past-end');
   await s.hover();
-  await ui.mouse.wheel(0, -100000); // up: to the start
+  await (await taskPage(ui)).mouse.wheel(0, -100000); // up: to the start
   await expect.poll(async () => (await at())[0]).toBe(0);
   await expect(s).toHaveAttribute('data-past-end');
   await expect(s).not.toHaveAttribute('data-past-start');
@@ -147,7 +148,7 @@ test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page s
 
 test('back and forward buttons are enabled only when there is somewhere to go', async ({ core, call, ui }) => {
   const { sam } = await profiles(core);
-  const pane = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`);
+  const pane = (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`);
   const back = pane.locator('[aria-label="Back"]'), forward = pane.locator('[aria-label="Forward"]');
   await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app?n=1` });
   await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app?n=2` });
@@ -162,18 +163,12 @@ test('back and forward buttons are enabled only when there is somewhere to go', 
   await expect(pane.getByRole('tab', { selected: true })).toHaveAttribute('title', /n=1$/);
 });
 
-test('tabs share one row with controls; double-click edits a full selected address, Enter navigates and Escape or leaving cancels', async ({ core, ui, files }, info) => {
+test('tabs share one row with controls; double-click edits a full selected address, Enter navigates and Escape or leaving cancels', async ({ core, ui, files }) => {
   const { sam } = await profiles(core);
-  const pane = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`), addr = pane.getByRole('textbox', { name: 'Address' });
+  const pane = (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`), addr = pane.getByRole('textbox', { name: 'Address' });
   const tabs = pane.getByRole('tablist'), active = pane.getByRole('tab', { selected: true });
   const full = await core((k) => k.profile('Sam.seller').get().url);
   await expect(addr).toBeHidden();
-  const shot = async (name: string) => {
-    const file = path.join(files.root, `${name}.png`);
-    await core((k, f) => k.shot(f), file);
-    await info.attach(name, { path: file, contentType: 'image/png' });
-  };
-  await shot('combined-profile-row');
   const before = await pageBox(ui, files, 'Sam.seller');
   const boxes = await Promise.all([pane.getByRole('button', { name: 'Reload', exact: true }), tabs,
     pane.getByRole('button', { name: 'New tab' }), pane.getByRole('button', { name: 'Pick an element' })].map((l) => l.boundingBox()));
@@ -186,7 +181,6 @@ test('tabs share one row with controls; double-click edits a full selected addre
   // Playwright reads no input selection.
   const sel = () => addr.evaluate((a: HTMLInputElement) => [a.selectionStart, a.selectionEnd, a.value.length]);
   expect(await sel()).toEqual([0, full.length, full.length]);
-  await shot('profile-address-editor');
   expect(await pageBox(ui, files, 'Sam.seller'), 'editing keeps the page in place').toEqual(before);
   await addr.click();
   await expect.poll(async () => { const [start, end] = await sel(); return start === end; }).toBe(true);
@@ -212,7 +206,7 @@ test('tabs share one row with controls; double-click edits a full selected addre
 
 test('automation preserves an address draft; a press in another profile cancels it', async ({ core, ui, call }) => {
   const { sam } = await profiles(core);
-  const pane = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`), addr = pane.getByRole('textbox', { name: 'Address' });
+  const pane = (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`), addr = pane.getByRole('textbox', { name: 'Address' });
   await pane.getByRole('tab', { selected: true }).dblclick();
   await addr.fill('draft.example');
   await call('browser_click', { profile: 'Sam.seller', locator: "locator('input')" });
@@ -233,7 +227,7 @@ test('Edit address targets an inactive tab; Ctrl+L selects the address and chang
   const second = await core(async (k, url) => {
     const t = k.profile('Sam.seller').newTab(url); await t.ready; return t.id;
   }, `${SITE}/app?second`);
-  const pane = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`), addr = pane.getByRole('textbox', { name: 'Address' });
+  const pane = (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"]`), addr = pane.getByRole('textbox', { name: 'Address' });
   const first = pane.getByRole('tab').first();
   const firstId = await first.getAttribute('data-tab');
   await rightClick(ui, first);
@@ -248,7 +242,7 @@ test('Edit address targets an inactive tab; Ctrl+L selects the address and chang
   await core((k) => { const p = k.profile('Sam.seller'); p.focusTab(p.get()); k.press(p.get().wc, 'L', k.CMD); });
   await expect(addr).toBeFocused();
   await expect(addr).toHaveValue(`${SITE}/app?second`);
-  await core((k) => k.press(k.shell.win.webContents, 'L', k.CMD));
+  await core((k) => k.press(k.shell.windows[0].focusUi, 'L', k.CMD));
   // Playwright reads no input selection.
   expect(await addr.evaluate((a: HTMLInputElement) => [a.selectionStart, a.selectionEnd])).toEqual([0, `${SITE}/app?second`.length]);
   await addr.press('Escape');
@@ -387,13 +381,13 @@ test('point and tell: a pick puts a reference into the agent\'s prompt, not sent
   const after = text.slice(text.lastIndexOf(ref)).trimEnd(); // the paste's end mark (^[[201~) between
   expect(!after.includes('\n') && after.endsWith(mark), text).toBe(true);
   expect(text.split(ref).length - 1, text).toBe(1);
-  await expect(termKeys(ui), 'the terminal has focus').toBeFocused();
+  await expect((await termKeys(ui)), 'the terminal has focus').toBeFocused();
   await core((k) => k.shell.pty.write('\x15')); // Ctrl+U: the line cleared, nothing sent
 });
 
 test('point and tell: Pick again or Esc in the page cancels it; nothing goes to the prompt', async ({ core, ui }) => {
   const { elon } = await profiles(core);
-  const button = ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${elon}"] [aria-label="Pick an element"]`);
+  const button = (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${elon}"] [aria-label="Pick an element"]`);
   const picking = () => core((k, id) => k.shell.windows[0].picking.has(id), elon);
   const before = (await core((k) => k.ptyOutput())).length;
   for (const cancel of ['button', 'esc']) {
@@ -404,7 +398,7 @@ test('point and tell: Pick again or Esc in the page cancels it; nothing goes to 
     else await core((k) => { const wc = k.profile('Elon.buyer').get().wc; wc.focus(); k.press(wc, 'Escape'); });
     await expect(button).toHaveAttribute('aria-pressed', 'false');
     await expect.poll(picking).toBe(false);
-    await expect(ui.locator(`[data-task-view][data-active] [data-panel="profile:${elon}"] [role="status"]`), cancel).toHaveText('Idle');
+    await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [data-panel="profile:${elon}"] [role="status"]`), cancel).toHaveText('Idle');
   }
   // A pick types its reference as it ends (picker.ts), before Kulisa says it no longer picks: echoed before what is
   // typed after.

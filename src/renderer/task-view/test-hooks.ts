@@ -1,9 +1,11 @@
-// What the tests (test/e2e) reach in the window by name: the shown task's profiles and key, its actions, the terminal's
+// What the tests (test/e2e) reach in one task page by name: its profiles and key, its actions, the terminal's
 // copy and paste keys, its links, the keys as shown, dockview's API and arrangements, the terminal shown.
-import { store } from './store';
-import { act, taskStore, dockApi, stageApi, panelView, shownTerm } from '../task-view';
+import { store } from '../lib/store';
+import { act, taskStore } from './state';
+import { dockApi, stageApi } from './controller';
+import { panelView, shownTerm } from './terminals';
 import { clipboardKey, termLinks } from '../../terminal/renderer';
-import { keyText } from './common';
+import { keyText } from '../lib/common';
 
 Object.assign(window, { act, clipboardKey, termLinks, keyText });
 Object.defineProperty(window, 'state', { get: () => taskStore().getState().profiles });

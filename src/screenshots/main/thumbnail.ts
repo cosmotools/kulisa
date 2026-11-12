@@ -3,7 +3,7 @@ import electron from 'electron';
 import { handle, on } from '../../main/ipc.ts';
 import { log } from '../../main/log.ts';
 import { copyFile } from './clipboard.ts';
-import type { BrowserWindow, Rectangle, WebContents, WebContentsView } from 'electron';
+import type { View, Rectangle, WebContents, WebContentsView } from 'electron';
 import type { ThumbnailAction } from '../ipc.ts';
 
 // Its size and place in CSS pixels, times the Kulisa zoom: at most this wide and tall, this far from the pane's corner.
@@ -24,16 +24,19 @@ interface Shown { owner: string; file: string; view: WebContentsView; src: strin
 // A window's thumbnail: one at a time, the next taking its place. The window says where its panes are (place) and
 // when its pages are covered (setHidden); the rest is here.
 class Thumbnails {
-  private win: BrowserWindow; private page: string; private preload: string; private send: (file: string) => Promise<unknown>; private remove: (file: string) => Promise<unknown>;
+  private ui: WebContents; private parent: View; private page: string; private preload: string; private send: (file: string) => Promise<unknown>; private remove: (file: string) => Promise<unknown>;
   private openFile: (file: string) => Promise<unknown>;
   private shown: Shown | null = null; private hidden = false; private timer?: NodeJS.Timeout; private over = false; private held = false;
 
   // page: its page's file; preload: the windows'; send: its file for the agent's prompt (Send to Agent: the agents are
   // the window's tasks', not the package's); remove: the task's artifact deletion, as in Resources.
-  constructor(win: BrowserWindow, { page, preload, open, send, remove }: { page: string; preload: string; open: (file: string) => Promise<unknown>; send: (file: string) => Promise<unknown>; remove: (file: string) => Promise<unknown> }) {
+  constructor(ui: WebContents, parent: View, { page, preload, open, send, remove }: { page: string; preload: string; open: (file: string) => Promise<unknown>; send: (file: string) => Promise<unknown>; remove: (file: string) => Promise<unknown> }) {
     install();
-    this.win = win; this.page = page; this.preload = preload; this.openFile = open; this.send = send; this.remove = remove;
-    byWindow.set(win.webContents, this);
+    this.ui = ui; this.parent = parent; this.page = page; this.preload = preload; this.openFile = open; this.send = send; this.remove = remove;
+    byWindow.set(ui, this);
+  }
+  rebind(ui: WebContents, parent: View) {
+    this.close(); byWindow.delete(this.ui); this.ui = ui; this.parent = parent; byWindow.set(ui, this);
   }
   get file() { return this.shown?.file ?? null; }
   get bounds() { return this.shown?.bounds ?? null; }
@@ -55,7 +58,7 @@ class Thumbnails {
     byPage.set(wc, this);
     wc.once('did-finish-load', () => { if (!wc.isDestroyed()) wc.send('thumbnail:image', src); });
     void wc.loadFile(this.page);
-    this.win.contentView.addChildView(view);
+    this.parent.addChildView(view);
     this.over = false; this.held = false;
     this.wait();
     this.place(() => box);
@@ -70,7 +73,7 @@ class Thumbnails {
     const z = this.zoom(), width = Math.round((s.size.width + 2 * PAD) * z), height = Math.round((s.size.height + 2 * PAD) * z), m = Math.round((MARGIN - PAD) * z);
     s.bounds = { x: box.x + box.width - width - m, y: box.y + box.height - height - m, width, height };
     s.view.setBounds(s.bounds);
-    this.win.contentView.addChildView(s.view);
+    this.parent.addChildView(s.view);
     s.view.setVisible(!this.hidden);
     // The window draws it too, seen while its pages are pictures (renderer/index.ts), in CSS pixels.
     this.tell('thumbnail:place', { src: s.src, x: s.bounds.x / z + PAD, y: s.bounds.y / z + PAD, width: s.size.width, height: s.size.height });
@@ -87,7 +90,7 @@ class Thumbnails {
     this.shown = null;
     clearTimeout(this.timer);
     byPage.delete(s.view.webContents);
-    try { this.win.contentView.removeChildView(s.view); } catch {}
+    try { this.parent.removeChildView(s.view); } catch {}
     if (!s.view.webContents.isDestroyed()) s.view.webContents.close();
     this.tell('thumbnail:place', null);
   }
@@ -102,7 +105,7 @@ class Thumbnails {
     setTimeout(() => { if (this.shown === s) this.close(); }, FADE);
   }
   // The window going: nothing more to tell it.
-  destroy() { this.close(); byWindow.delete(this.win.webContents); }
+  destroy() { this.close(); byWindow.delete(this.ui); }
 
   // Its menu's rows (the window's menu: renderer/index.ts), and the menu closing (resume: its time goes on).
   async act(action: ThumbnailAction) {
@@ -133,13 +136,13 @@ class Thumbnails {
     const s = this.shown;
     if (!s?.bounds) return;
     this.held = true; this.wait();
-    this.win.webContents.focus();
+    this.ui.focus();
     const z = this.zoom();
     this.tell('thumbnail:open-menu', { x: s.bounds.x / z + x, y: s.bounds.y / z + y });
   }
 
-  private zoom() { return this.win.webContents.getZoomFactor(); }
-  private tell(channel: 'thumbnail:place' | 'thumbnail:open-menu', data: unknown) { if (!this.win.isDestroyed()) this.win.webContents.send(channel, data); }
+  private zoom() { return this.ui.getZoomFactor(); }
+  private tell(channel: 'thumbnail:place' | 'thumbnail:open-menu', data: unknown) { if (!this.ui.isDestroyed()) this.ui.send(channel, data); }
   private wait() {
     clearTimeout(this.timer);
     if (this.shown && !this.shown.fading && !this.over && !this.held) this.timer = setTimeout(() => this.fade(), STAYS);

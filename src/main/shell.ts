@@ -1,6 +1,6 @@
 // The app (shell: app.ts) every module of the main process is given, as a type. Types only: nothing here runs.
 import type { EventEmitter } from 'events';
-import type { BrowserWindow, Point, WebContents } from 'electron';
+import type { BaseWindow, Point, WebContents } from 'electron';
 import type { Store } from './store.ts';
 import type { ProfileStore } from './profile-store.ts';
 import type { CookieSync } from '../browser/main/index.ts';
@@ -43,7 +43,7 @@ interface Shell {
   typingSecret: Set<string>; // '<task key>/<profile id>'
   profilesChanged(from?: Task): void;
   projectsHome: string;
-  readonly win: BrowserWindow | null; readonly current: Project | null; readonly task: Task | null; // current: the shown task's project
+  readonly win: BaseWindow | null; readonly current: Project | null; readonly task: Task | null; // current: the shown task's project
   readonly profiles: Map<string, Profile>; readonly closed: Task['closed']; readonly pty: Pty | null;
   readonly resumedSession: string | null; readonly quitting: boolean;
   taskOf(project: string, id: string): Task | null;
@@ -55,13 +55,14 @@ interface Shell {
   askWhich(q: Question, w?: AppWindow | null): Promise<string | null>;
   restart(apply?: () => void): Promise<void>; // into a new version: everything saved as at quitting (updates.ts)
   ask(q: Question, w?: AppWindow | null): Promise<boolean>;
+  noteFront(window: AppWindow): void;
+  taskUiOf(sender: WebContents): Task | null;
   front(): AppWindow | null; // the tasks' window last in front
   saveWindows(): void;
   sendProjects(): void;
   uiZoom: number; setUiZoom(z: number): void;
   theme: 'dark' | 'light' | 'system'; shade(): 'dark' | 'light'; blankColor(): string; setTheme(theme?: 'dark' | 'light' | 'system'): void;
   stageFollow: boolean; setStageFollow(follow: boolean): void;
-  bar: 'top' | 'bottom'; setBar(bar: 'top' | 'bottom'): void;
   language: string; languageInfo(): LanguageInfo; setLanguage(code: string): Result<{ language: string }>;
   keys(): Shortcut[]; // the keyboard shortcuts as shown, the human's hold keys in (keys.ts)
   firstStart(w: AppWindow): void;

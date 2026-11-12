@@ -19,7 +19,6 @@ migration and cleanup policy belong to [tasks](../../docs/tasks.md#artifacts-and
 It owns native recursive watching, replacement of the results root, polling fallback, refresh coalescing, in-flight
 scan versions and preview state. `dispose()` releases watchers, timers, queued work and previews when its caller unloads;
 pending requests cannot publish changes afterward. A reopened caller creates a new instance.
-The window still guards replies against task switches.
 
 Only rendered raster rows request thumbnails. Previews are made serially, cached by revision and invalidated on file
 changes. The queue/cache retain at most 128 entries; files above 16 MiB or dimensions above 16 million pixels are

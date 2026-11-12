@@ -1,3 +1,4 @@
+import { menuPage, inputPage, taskPage } from './pages.ts';
 // Agents and their accounts: Settings → Agents (installed, installing), an account made with the agent's own sign-in
 // and deleted, the language every agent speaks, dictation for an agent without its own (docs/tasks.md, "Choosing the
 // agent", Accounts).
@@ -154,9 +155,6 @@ test('once installed, the Agents window shows its version and where it is', asyn
   await expect(page.getByText(/^Install runs/)).toHaveCount(0);
   // A click on the row already shown keeps it chosen.
   await showAgent(s, 'fake');
-  const png = test.info().outputPath('agents.png');
-  await s.screenshot({ path: png });
-  await test.info().attach('agents', { path: png, contentType: 'image/png' });
   await closeSettings(core, ui, sui);
 });
 
@@ -257,29 +255,29 @@ test("language: one for every agent (☰ → Language): written into the agents'
   await expect.poll(() => fs.existsSync(own) && read(own), 'at its start: English, the default').toEqual({ language: 'English' });
   await focusWindow(core, ui); // the keyboard chooses below
   await ui.locator('#windowMenu').click();
-  const row = item(ui, 'Language');
+  const row = (await item(ui, 'Language'));
   await expect(row).toBeVisible();
   await expect(row, 'the language chosen, under its label').toContainText('English');
   await expect(row).toHaveAttribute('title', /^The language you speak with the agents\. Fake agent dictates and answers in it, and may write code comments in it too: your project's CLAUDE\.md or AGENTS\.md decides that\./);
   await row.click();
-  const languages = ui.getByRole('menu', { name: 'Language', exact: true });
+  const languages = (await menuPage(ui)).getByRole('menu', { name: 'Language', exact: true });
   await expect(languages).toBeVisible();
   const system = await ui.evaluate(() => navigator.language.split('-')[0]);
   await expect(languages.locator('[data-language]').first(), "the system's first").toHaveAttribute('data-language', system);
   // Russian chosen with the keyboard, as the hand does it in a long list (into the list, down to it, Enter): it is past
   // the menu's end, and the pointer jumping from the row to the list closes it.
-  await ui.keyboard.press('ArrowRight');
+  await (await inputPage(ui)).keyboard.press('ArrowRight');
   await expect(languages.locator('[data-language]').first()).toBeFocused();
   const ru = languages.locator('[data-language="ru"]');
   await expect(async () => {
-    if (!(await ru.evaluate((e) => e === document.activeElement))) { await ui.keyboard.press('ArrowDown'); throw new Error('not there yet'); }
+    if (!(await ru.evaluate((e) => e === document.activeElement))) { await (await inputPage(ui)).keyboard.press('ArrowDown'); throw new Error('not there yet'); }
   }).toPass({ intervals: [0] });
-  await ui.keyboard.press('Enter');
+  await (await inputPage(ui)).keyboard.press('Enter');
   await expect.poll(() => read(path.join(files.userData, 'settings.json')).language).toBe('ru');
   await expect.poll(() => read(own).language).toBe('Russian');
   expect(fs.existsSync(path.join(files.root, 'fake-config', 'settings.json')), "the human's own folder untouched").toBe(false);
   // Esc closes the languages first, then ☰.
-  await ui.keyboard.press('Escape');
+  await (await inputPage(ui)).keyboard.press('Escape');
   await expect(languages).toHaveCount(0);
   await closeMenu(ui);
   expect(await core((k) => k.shell.setLanguage('xx').error !== undefined), 'only one an agent takes').toBe(true);
@@ -289,7 +287,7 @@ test("language: one for every agent (☰ → Language): written into the agents'
 
 test("dictation: an agent without its own is recognized for by another agent's dictation in a hidden session (fixtures/fake-recognizer.mjs): the pill at once, then recording; let go, the text it heard goes into that agent's input, the pill saying so; ended, nothing of it is left", async ({ core, ui, files }) => {
   const { task } = await workAccount(core, ui, files);
-  const mic = ui.getByRole('button', { name: 'Speak to the agent' }), pill = ui.getByRole('status', { name: 'Dictation' });
+  const mic = (await taskPage(ui)).getByRole('button', { name: 'Speak to the agent' }), pill = (await taskPage(ui)).getByRole('status', { name: 'Dictation' });
   await core((k) => k.watchPty(k.shell.task.pty));
   await expect(mic).toBeEnabled();
   await expect(mic).toHaveAttribute('title', /^Speak to the agent in English: hold/);
@@ -300,7 +298,7 @@ test("dictation: an agent without its own is recognized for by another agent's d
   await expect.poll(() => core((k, key) => k.shell.dictation.state(key).state, task), { timeout: 15000 }).toBe('recording');
   expect(`${await mic.getAttribute('data-state')} ${await pill.getAttribute('data-state')}`).toBe('recording listening');
   // Dictation stays visible over Main pane, including Project's placeholder.
-  const [p, t] = await Promise.all([pill.boundingBox(), ui.locator('[data-task-view][data-active]').getByRole('region', { name: 'Main pane', exact: true }).boundingBox()]);
+  const [p, t] = await Promise.all([pill.boundingBox(), (await taskPage(ui)).locator('[data-task-view][data-active]').getByRole('region', { name: 'Main pane', exact: true }).boundingBox()]);
   expect(Math.abs(p.x + p.width / 2 - (t.x + t.width / 2)), 'the pill in the Main pane middle').toBeLessThan(2);
   expect((await pill.locator('i').first().boundingBox()).width, "a bar's width").toBeGreaterThan(0);
   await letGo();
@@ -378,7 +376,7 @@ test("an account lives until deleted in Settings → Agents: let go by its proje
   await expect(addAgent(s)).toBeEnabled();
   // The accounts to add are asked for again as the project's page is shown.
   await addAgent(s).click();
-  await expect(item(s, 'Fake agent · home@shop.com', settingsMenu(s))).toBeVisible();
+  await expect((await item(s, 'Fake agent · home@shop.com', settingsMenu(s)))).toBeVisible();
   await s.keyboard.press('Escape');
   await expect(settingsMenu(s)).toHaveCount(0);
   // In no project and no task: deleted at once after the question.

@@ -2,9 +2,8 @@
 import { useMemo, useState } from 'react';
 import { Button, Empty, EmptyHeader, EmptyTitle } from '@ui';
 import { FileViewer, createViewerRegistry, textViewer, pdfViewer, imageViewer, markdownViewer, audioViewer, videoViewer, type FileSource, type PdfHost, type DocumentHost, type MediaHost } from '../../file-viewer/renderer';
-import { useTask, useTaskStore } from './state';
+import { useTask, taskStore, useTaskActive } from './state';
 import { uiTextSize, useShade } from '../lib/theme';
-import { useSettings } from '../lib/settings';
 
 const registry = createViewerRegistry([pdfViewer, imageViewer, markdownViewer, audioViewer, videoViewer, textViewer]);
 let focusPdfSearch: (() => void) | null = null;
@@ -21,14 +20,14 @@ function artifactSource(key: string, file: string, size: number, revision: strin
     } };
 }
 export function Artifacts() {
-  const state = useTaskStore();
+  const state = taskStore();
   const key = useTask((s) => s.key), selected = useTask((s) => s.selectedArtifact);
   const navigation = useTask((s) => s.artifactNavigation);
   const artifact = useTask((s) => s.artifacts.list.find((a) => a.file === selected));
   const file = artifact?.directory ? undefined : artifact?.file, revision = artifact?.revision, size = artifact?.bytes ?? 0;
   const picture = useTask((s) => s.pictures['artifact-pdf']);
   const shade = useShade(), [fontSize] = useState(uiTextSize);
-  const mediaVisible = !useSettings();
+  const mediaVisible = useTaskActive();
   const source = useMemo(() => file ? artifactSource(key, file, size, revision!, navigation) : null, [file, revision, size, key, navigation]);
   const appearance = useMemo(() => ({ shade: shade === 'dark' ? 'dark' as const : 'light' as const, fontSize, fontFamily: '"JetBrains Mono", monospace' }), [shade, fontSize]);
   const pdf = useMemo<PdfHost>(() => ({

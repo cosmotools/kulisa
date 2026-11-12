@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Local preview latency and partial readiness (src/file-viewer/README.md).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,7 +26,7 @@ test('small files reuse recognition bytes; only a real wait shows progress while
   });
   await showResources(ui, 'Artifacts');
   // Mutation timing observes transient states that locator polling and final screenshots can miss.
-  await ui.evaluate(() => {
+  await (await taskPage(ui)).evaluate(() => {
     const timing = { clicked: Infinity, shown: [] as number[] };
     const clicked = (event: MouseEvent) => {
       if (event.composedPath().some(node => node instanceof Element && node.getAttribute('role') === 'treeitem')) timing.clicked = performance.now();
@@ -39,9 +40,9 @@ test('small files reuse recognition bytes; only a real wait shows progress while
     (window as any).__previewWait = { timing, stop: () => { observer.disconnect(); document.removeEventListener('click', clicked, { capture: true }); } };
   });
   try {
-    const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true });
+    const preview = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true });
     for (const [name, bytes] of Object.entries(small)) {
-      await ui.getByRole('treeitem', { name, exact: true }).click();
+      await (await taskPage(ui)).getByRole('treeitem', { name, exact: true }).click();
       if (name.endsWith('.png')) await expect(preview.getByRole('radio', { name: '100%', exact: true })).toBeEnabled();
       else if (name.endsWith('.md')) await expect(preview.getByRole('heading', { name: 'Local Markdown' })).toBeVisible();
       else await expect(preview.locator('[data-line="1"]').first()).toContainText('Local text');
@@ -50,7 +51,7 @@ test('small files reuse recognition bytes; only a real wait shows progress while
         return reads.filter(r => r.name === name).map(r => r.length);
       }, name)).toEqual([bytes.length]);
     }
-    await ui.getByRole('treeitem', { name: 'waiting.txt', exact: true }).click();
+    await (await taskPage(ui)).getByRole('treeitem', { name: 'waiting.txt', exact: true }).click();
     const search = preview.getByRole('searchbox', { name: 'Find in file' });
     await expect(search).toBeVisible();
     await search.fill('held-marker');
@@ -59,11 +60,11 @@ test('small files reuse recognition bytes; only a real wait shows progress while
     await expect(preview.getByRole('status', { name: 'Search results' })).toHaveText('1 / 1');
     await expect(preview.getByRole('status', { name: '', exact: true })).toHaveCount(0);
     await frames(ui);
-    const shown = await ui.evaluate(() => (window as any).__previewWait.timing.shown as number[]);
+    const shown = await (await taskPage(ui)).evaluate(() => (window as any).__previewWait.timing.shown as number[]);
     expect(shown.length).toBeGreaterThan(0);
     expect(Math.min(...shown)).toBeGreaterThanOrEqual(200);
   } finally {
     await core((k) => { const s = k.stash.previewRead; s.release(); s.task.readArtifact = s.read; delete k.stash.previewRead; });
-    await ui.evaluate(() => { (window as any).__previewWait.stop(); delete (window as any).__previewWait; });
+    await (await taskPage(ui)).evaluate(() => { (window as any).__previewWait.stop(); delete (window as any).__previewWait; });
   }
 });

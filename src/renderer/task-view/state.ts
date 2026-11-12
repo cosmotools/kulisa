@@ -1,13 +1,13 @@
 // State, actions and panel ownership of retained task screens (docs/window.md, The grid).
 import { createStore, useStore, type StoreApi } from 'zustand';
 import { replaceEqualDeep } from '@tanstack/react-query';
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext } from 'react';
 import type { StageTerminal } from '../../shared/stage-terminal';
 import type { DiffSelection } from '../../diff/ipc';
 import type { Artifact, ClosedProfile, Profile, DevelopmentTerminalsState } from '../../shared/types';
-import type { Invoke, OnTask, StageLayout, StagePosition } from '../../shared/ipc';
+import type { StageLayout, StagePosition } from '../../shared/ipc';
 import { refused } from '../../shared/result';
-import { store, useWindow } from '../lib/store';
+import { store, useWindow, taskIdentity } from '../lib/store';
 import type { TaskGrid } from './grid';
 import type { ActivityItem } from './development';
 
@@ -35,43 +35,23 @@ export interface TaskState {
   pictures: Record<string, string>;
 }
 export type TaskStore = StoreApi<TaskState>;
-const makeTask = (key: string) => createStore<TaskState>()(() => ({
+const key = taskIdentity ?? '';
+const ownTask = createStore<TaskState>()(() => ({
   key, profiles: [], closedProfiles: [], developmentTerminals: { task: key, front: null, list: [] },
   workbenchItem: 'terminals', developmentDiff: null, selectedArtifact: null, artifactNavigation: 0, developmentTerminalFocus: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
   stageFollowPaused: false, stageActivity: null, stagePosition: 'above', artifacts: { task: key, list: [], bytes: 0 },
   loading: true, captions: {}, picking: {}, pictures: {},
 }));
-export const tasks = createStore<Record<string, TaskStore>>(() => ({}));
-function syncTasks() {
-  const { projects, current } = store.getState();
-  const open = new Set(projects.tabs.map((t) => t.key)), previous = tasks.getState();
-  const next = Object.fromEntries(Object.entries(previous).filter(([key]) => open.has(key)));
-  if (current && !next[current]) next[current] = makeTask(current);
-  for (const tab of projects.tabs) if (tab.viewFailed && next[tab.key]?.getState().loading) next[tab.key]!.setState({ loading: false });
-  tasks.setState(replaceEqualDeep(previous, next), true);
-}
-syncTasks();
-store.subscribe((next, previous) => {
-  if (next.projects.tabs !== previous.projects.tabs || next.current && !tasks.getState()[next.current]) syncTasks();
-});
-
-// Window commands use the selected task; panels use the controller supplied by their TaskView.
-const emptyTask = makeTask('');
-export const taskStore = (key = store.getState().current) => key ? tasks.getState()[key] ?? emptyTask : emptyTask;
+export const taskStore = () => ownTask;
 export const TaskContext = createContext<TaskGrid | null>(null);
 export function useTaskGrid() {
   const grid = useContext(TaskContext);
   if (!grid) throw new Error('A grid panel requires its TaskView');
   return grid;
 }
-export function useTaskStore() {
-  const owner = useContext(TaskContext), current = useStore(store, (s) => owner ? null : s.current);
-  return owner?.state ?? taskStore(current);
-}
-export function useTask<T>(selector: (s: TaskState) => T) { return useStore(useTaskStore(), selector); }
+export function useTask<T>(selector: (s: TaskState) => T) { return useStore(ownTask, selector); }
 export function useTaskActive(enabled = true) {
-  const key = useTask((s) => s.key);
-  return useWindow((s) => enabled && s.current === key);
+  return useWindow((s) => enabled && s.active && !s.covered);
 }
 const get = store.getState;
 
@@ -80,23 +60,19 @@ const setCaption = (profile: string, caption: string, owner = taskStore()) => se
 
 // The window's actions on the shown task's profiles and tabs name it, as the grid's layout does: one sent just as the
 // human switches tasks is refused, not done in the other one (main/ipc/panes.ts, onScreen).
-type OnTaskChannel = { [C in keyof Invoke]: Invoke[C]['args'] extends [OnTask] ? C : never }[keyof Invoke];
-type Rest<C extends OnTaskChannel> = Omit<Invoke[C]['args'][0], 'task'>;
-export const actionsFor = (task: string | null) => <C extends OnTaskChannel>(channel: C, ...args: {} extends Rest<C> ? [Rest<C>?] : [Rest<C>]) =>
-  kulisa.invoke(channel, ...([{ ...args[0], task }] as Invoke[C]['args']));
-export const act = <C extends OnTaskChannel>(channel: C, ...args: {} extends Rest<C> ? [Rest<C>?] : [Rest<C>]) => actionsFor(get().current)(channel, ...args);
-export function useTaskActions() {
-  const owner = useTaskStore(), key = owner.getState().key;
-  return useMemo(() => actionsFor(key), [key]);
-}
+export { actionsFor } from '../lib/actions';
+import { actionsFor } from '../lib/actions';
+export const act = actionsFor(taskIdentity);
 
 // IPC copies objects; retaining equal parts keeps unchanged panels out of React's update path.
 function receive<K extends keyof TaskState>(task: string, field: K, value: TaskState[K]) {
-  tasks.getState()[task]?.setState((previous) => {
+  if (task !== key) return;
+  ownTask.setState((previous) => {
     const next = replaceEqualDeep(previous[field], value);
     return next === previous[field] ? previous : { ...previous, [field]: next };
   });
 }
+kulisa.on('task:initial', (presentation) => ownTask.setState(presentation));
 kulisa.on('profile:state', ({ task, list }) => receive(task, 'profiles', list));
 kulisa.on('profile:closed', ({ task, list }) => receive(task, 'closedProfiles', list));
 kulisa.on('development-terminal:state', (state) => receive(state.task ?? '', 'developmentTerminals', state));

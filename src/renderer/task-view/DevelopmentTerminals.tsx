@@ -6,7 +6,7 @@ import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMe
 import { ButtonMenu, RightClickMenu } from '../components/Menus';
 import { agentMark } from '../components/AgentMark';
 import { store, useWindow } from '../lib/store';
-import { useTask, useTaskActive, useTaskStore } from './state';
+import { useTask, useTaskActive, taskStore } from './state';
 import { profileLaunchers } from './profiles';
 import { panelView, launchers, newTerminalItems, terminalItems, terminalMenu } from './terminals';
 import { avatarSrc, withKeys } from '../lib/common';
@@ -17,7 +17,7 @@ import { termFocus } from '../../terminal/renderer';
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
 export function DevelopmentTerminals({ visible }: { visible: boolean }) {
   const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null);
-  const owner = useTaskStore();
+  const owner = taskStore();
   const active = useTaskActive();
   const task = useTask((s) => s.key), front = useTask((s) => s.developmentTerminals.front);
   const empty = useTask((s) => !s.developmentTerminals.list.length);
@@ -31,12 +31,11 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
   const shown = (visible || starting) && front !== null ? `${task}#${front}` : null;
 
   useLayoutEffect(() => {
-    if (!active) return;
     const el = host.current!;
     el.append(panelView.el);
     return () => { if (panelView.el.parentElement === el) { panelView.show(null); panelView.el.remove(); } };
-  }, [active]);
-  useLayoutEffect(() => { if (active) panelView.show(shown); }, [active, shown]);
+  }, []);
+  useLayoutEffect(() => { panelView.show(shown); }, [shown]);
   // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it. Not from a dialog
   // (Change Agent's tab comes in front under it): the dialog keeps the keyboard.
   const was = useRef(front);
@@ -49,7 +48,7 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
     void termFocus(key, () => {
       const state = owner.getState();
       return !cancelled && store.getState().current === task && state.developmentTerminals.front === front && state.workbenchItem === 'terminals'
-        && state.developmentTerminalFocus === focus && !dialogsShown() && !panelView.el.contains(document.activeElement);
+        && state.developmentTerminalFocus === focus && !store.getState().covered && !dialogsShown() && !panelView.el.contains(document.activeElement);
     }).then(() => {
       if (!cancelled && focus && owner.getState().developmentTerminalFocus === focus) owner.setState({ developmentTerminalFocus: null });
     });
@@ -63,7 +62,7 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
   useEffect(() => {
     if (!active || !big) return;
     const take = () => {
-      if (store.getState().current !== task || dialogsShown() || document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      if (store.getState().current !== task || store.getState().covered || dialogsShown() || document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
       stop();
       const a = document.activeElement;
       if (a && a !== document.body && !host.current?.contains(a) && !launch.current?.contains(a)) return;

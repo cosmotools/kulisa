@@ -18,7 +18,7 @@ computer.
   and any browser profiles it needs.
 - **Task**: one piece of work in a project: an agent in a terminal, a branch and copy of the code when needed,
   browser profiles and interactive terminals for checking the result. Several tasks of one project run at once, each building something else.
-- **Tab**: an open task in the tasks' bar (under the grid, or in the title bar), as a browser's tab; its project's icon is on it.
+- **Tab**: an open task in the tasks' bar under the grid, as a browser's tab; its project's icon is on it.
 
 ## Systems
 
@@ -162,7 +162,7 @@ copies a repository-relative path. Select/copy code or drag line numbers for a r
 
 ### Task navigation
 
-**☰ → Tasks bar** places task tabs below the grid or in the title bar. Wheel over overflowing tabs to scroll.
+Task tabs are below the grid. Wheel over overflowing tabs to scroll.
 
 ## Projects
 
@@ -290,6 +290,11 @@ positions.
   Reopening resumes agents. **Delete Task…** permanently removes these after explaining unmerged/unpushed work.
   Human project folders remain.
 - A tab's project submenu includes New Task, Move All Tasks, Project Settings, Show Data Folder and Close All Tasks.
+
+If a task's screen stops responding or crashes, its tab and running processes remain available. Choose **Reload task
+screen** in the task tab’s right-click menu. This rebuilds its screen and keeps received file edits, drafts and browser tabs. Terminal screens then show new output;
+programs that wait for terminal replies may need attention. Reload does not restart an agent or resume another copy.
+You can still switch tasks or close the affected task from its tab.
 
 ### Several windows
 

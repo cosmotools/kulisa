@@ -76,6 +76,9 @@ Each file/comparison's virtualizer owns its bounded scroll root. Wrapping it in 
 would make the entire document visible to virtualization. Pierre restores scroll on attachment. Take native focus
 before it replaces the virtualized rows, so the editor can retain focus for offscreen carets and a blank final line.
 
+The host may await `session.drain()` before closing its UI to finish already submitted actions. Core disposal
+flushes received edits independently of renderer survival; this does not collect arbitrary panel state at shutdown.
+
 ## The code
 
 - `main/workspace.ts`, `main/index.ts`: bounded reads, durable drafts, serialized document actions and autosave.

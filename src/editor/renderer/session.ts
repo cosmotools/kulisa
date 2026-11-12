@@ -56,6 +56,7 @@ export function createEditorSession(actions: EditorActions) {
   };
   const session = {
     store, receive,
+    drain: () => queue,
     stateKey(doc: EditorDocument) {
       if (states.get(doc.path)?.version !== doc.version) {
         clearState(doc.path); states.set(doc.path, { version: doc.version, key: crypto.randomUUID() });

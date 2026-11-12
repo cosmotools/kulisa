@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // The empty window and welcome, New Project validation and creation (docs/tasks.md, The empty window and Projects).
 import fs from 'fs';
 import path from 'path';
@@ -253,8 +254,9 @@ test('creating a project keeps the chosen account and folder and logs the action
     expect(await core((k, id) => k.shell.store.projects().find((p) => p.id === id).agents, shopId)).toEqual([account]);
     await notLoading(ui);
     const typed = 'private-terminal-input';
-    await expect(ui.getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await termKeys(ui).pressSequentially(typed);
+    await expect((await taskPage(ui)).getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await termShows(ui, 'fake agent in ');
+    await (await termKeys(ui)).pressSequentially(typed);
     await termShows(ui, typed);
     const logged = files.log();
     expect(logged).toMatch(new RegExp(`\\[ipc\\] task:new wc=\\d+ \\{"project":"${shopId}"\\}`));

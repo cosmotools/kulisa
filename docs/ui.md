@@ -74,26 +74,29 @@ leave links here. Dependency-cruiser protects public entries and keeps non-UI lo
 | [Settings](../src/renderer/components/settings/README.md) | Lazy settings UI and shared page controls |
 | [task-view](../src/renderer/task-view/README.md) | Retained task screens, grids, Workbench and pane drawings |
 | [Projects](tasks.md#projects) | Project creation, membership and setup behavior |
-| `components/Menus.tsx`, `lib/menu.ts`, `lib/dialogs.ts`, `lib/ask.ts` | Shared menus, dialog registration and questions |
-| `lib/store.ts` | Window state; components use `useWindow(selector)`, other code uses `store.getState()` |
+| `components/Menus.tsx`, `lib/menu.ts`, `lib/dialogs.ts`, `lib/shell-ask.ts` | Shared menus, shell dialog registration and questions |
+| `lib/store.ts` | Per-UI preferences and core projection; components use `useWindow(selector)`, other code uses `store.getState()` |
 | `src/renderer/window.css`, `public/theme.js`, `lib/theme.ts` | Theme and first-paint application |
 | `src/shared/`, `env.d.ts` | Main/renderer contracts and bridge |
 | `src/*/renderer/` | Kulisa package UI, documented by each package |
 
-Window/master HTML and scripts live under `src/renderer/`; profile pictures come from bundled Noto Emoji avatars
-in `public/avatars/`. The window has no second router or UI framework.
+Profile pictures come from bundled Noto Emoji avatars in `public/avatars/`.
 
 ## Layers over the pages
 
 `lib/cover.ts` observes Radix layers; individual dialogs/popovers do not manage native browser views themselves.
 
-- Dialog, AlertDialog and Sheet overlays hide native pages and take window-page keyboard focus. A popper/menu
-  opens over pictures of the pages only after they are ready (`lib/cover.css`, `[data-ready]`). A tooltip is not
-  a covering layer.
-- Settings covers without a Radix overlay: its owner calls `coverPage(true)` after drawing the cover and releases
-  it with `coverPage(false)` on cleanup, avoiding an empty frame between native pages and Settings.
-- Task changes close all layers; leaving the native window closes menus. Use `closeLayers` and Radix's Escape
-  handling. Dialog content remains mounted through exit animations; focus handoffs wait for removal.
+- Global dialogs/menus raise the persistent transparent shell over the selected native task group and take shell
+  keyboard focus. A popper becomes ready after native raise is acknowledged. Transparent shell areas intercept clicks.
+  Coverage lasts through exit; lowering restores prior focus. Global coverage cancels task-local transients
+  without waiting for task JS or taking a full-task screenshot.
+- Task-local dialogs hide native sibling pages; local poppers/menus use decoded pictures before hiding those pages.
+  Both use `lib/cover.css` and `[data-ready]`; a tooltip is not a covering layer.
+  [Native ownership](window.md#native-ownership) and [snapshot handoff](window.md#the-grid) define their ordering.
+- Settings uses the same shell coverage, with `coverPage` for its non-Radix lifetime.
+- Task changes dismiss menus and task-local layers; shell dialogs and Settings keep their own lifetime. Leaving
+  the native window closes menus. Use `closeLayers` and Radix's Escape handling. Dialog content remains mounted
+  through exit animations; focus handoffs wait for removal.
 
 ## Desktop behavior
 
@@ -112,7 +115,8 @@ in `public/avatars/`. The window has no second router or UI framework.
 
 Use `Tip` only where it cannot overlap a native page: title/sidebar/dialogs/Settings and suitable tasks' bar
 buttons. Pane controls, Activity bar, Side bar, master bars, list rows, clipped text and log lines use native `title`:
-native views cover HTML tooltips, and per-log-line components cost memory.
+native views cover HTML tooltips, and per-log-line components cost memory. Shell bar tooltips stay horizontally
+inside their bar: the task UI's native group covers the entire workspace, including its HTML pane headers.
 
 Disable tooltip hoverability. Crossing into a native page stops window pointer events and can leave Radix's
 grace area open. Give a dialog initial focus on itself if its first control has a tooltip, so Escape reaches
@@ -132,16 +136,17 @@ clipped by panels. ContextMenu is not the window's menu implementation. An isola
   a stale notification must not close a window that has focus again.
 - Closing restores the opener's focus, except when another menu now owns it. Remove menus immediately rather
   than fading them: a fading layer can steal focus and the next Escape from a dialog opened by its row.
-- Draw only after native-page pictures are ready; `[role="menu"][data-ready]` is the tests' handle.
+- Draw only after the owning page's native coverage is ready; `[role="menu"][data-ready]` is the tests' handle.
   Submenu padding participates in Radix's available-height limit so long lists stay scrollable inside the window.
 - Build rows as `MenuItem`s from `lib/menu.ts`. A row's accessible name is its label alone, including when a
   shortcut/icon is also shown.
 
 ## Dialogs
 
-Task-window dialogs are mounted by App and register commands through `registerDialog` in `lib/dialogs.ts`;
-callers open them by name. Content mounts only while open. State that must outlive content belongs to the
-dialog's owning module or shared store; installation continues after its controls unmount.
+Window-modal dialogs are mounted by the shell App and register commands through `registerDialog` in `lib/dialogs.ts`.
+Shell callers open them by name; task controls use core-routed `shell:dialog` requests. Content mounts only while open.
+State that must outlive content belongs to the dialog's owning module or shared store; installation continues after
+its controls unmount.
 
 A dialog awaiting an answer rejects outside clicks and ×; Escape cancels it. Queue questions through `ask`
 or core `shell.ask` in the action's window, using AlertDialog. Settings is a separate view opened through

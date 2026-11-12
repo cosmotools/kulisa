@@ -1,3 +1,4 @@
+import { taskPage } from './pages.ts';
 // Renaming and deleting profiles, DevTools, the human's screenshots; what profiles keep across a restart (docs/profiles.md).
 import fs from 'fs';
 import path from 'path';
@@ -12,8 +13,8 @@ const pngSize = (file: string) => { const b = fs.readFileSync(file); return { wi
 // taking it closes a menu just opened: lib/views.ts), as a human opens it again.
 async function openMore(ui: Page, id: string) {
   await expect(async () => {
-    if (!(await menu(ui).isVisible())) await ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="More"]`).click();
-    await expect(menu(ui)).toBeVisible({ timeout: 1500 });
+    if (!(await (await taskPage(ui)).getByRole('menu').count())) await (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="More"]`).click();
+    await expect((await menu(ui))).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 10000 });
 }
 
@@ -26,7 +27,7 @@ test('names: typed, pasted, from the agent, checked where they are made (the rul
   const field = s.getByRole('textbox', { name: 'New profile' });
   await s.getByRole('button', { name: 'New Profile', exact: true }).click();
   await expect(field).toBeFocused();
-  await core((k) => k.shell.win.webContents.insertText('ann admin·@shop.com'));
+  await core((k) => k.shell.windows[0].focusUi.insertText('ann admin·@shop.com'));
   await expect(field).toHaveValue('annadmin@shop.com');
   await field.press('Escape'); // put away, nothing made
   await expect(field).toHaveCount(0);
@@ -34,7 +35,7 @@ test('names: typed, pasted, from the agent, checked where they are made (the rul
   // Checked again where names are made: the agent, a rename, a project, a task.
   await expect(call('profile_create', { name: 'Ann admin' })).rejects.toThrow(/letters, digits and @ \. _ \+ - only/);
   await expect(call('profile_create', { name: '@' })).rejects.toThrow(/starting with a letter or a digit/);
-  const current = await ui.evaluate(() => (window as any).tasks.current);
+  const current = await (await taskPage(ui)).evaluate(() => (window as any).tasks.current);
   expect((await invoke(ui, 'profiles:rename', { profile: id, name: 'Sam admin' })).error).toMatch(/only/);
   expect((await invoke(ui, 'project:new', { name: '..' })).error).toMatch(/a letter or a digit/);
   expect((await invoke(ui, 'task:rename', { key: current, name: '@' })).error).toMatch(/a letter or a digit/);
@@ -92,7 +93,7 @@ test("delete a profile in Settings (its page's ⋯, its row's right-click): sign
   const marked = files.json('deleted-folders.json');
   expect(marked.slice(-2)).toEqual([files.pfile(tempId), path.join(files.userData, 'profiles', tempId)]);
   await expect(call('browser_snapshot', { profile: 'Temp' })).rejects.toThrow(/No profile "Temp"/);
-  await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${tempId}"]`)).toHaveCount(0);
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${tempId}"]`)).toHaveCount(0);
 
   // Same name again: a new id and folder (the old one goes at the next start), signed out.
   const again = await core(async (k) => { const r = await k.shell.task.createProfile('Temp'); if ('error' in r) throw new Error(r.error); return r.id; });
@@ -113,16 +114,16 @@ test('rename in Settings → Profiles: typed, and Enter or leaving the field sav
   await core((k) => k.focus(k.shell.win)); // the keyboard in the window, as the human's hands
   await s.getByRole('textbox', { name: 'Name', exact: true }).selectText();
   await core(async (k) => {
-    const wc = k.shell.win.webContents;
+    const wc = k.shell.windows[0].focusUi;
     await wc.insertText('Ren.admin');
     for (const type of ['keyDown', 'char', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
   });
   await expect.poll(() => core((k, p) => k.shell.profiles.get(p).name, id)).toBe('Ren.admin');
   expect(await profileId(core, 'Ren.admin'), 'only its name changed').toBe(id);
   expect(await core((k, p) => k.shell.profiles.get(p).dir, id), 'its copy too').toBe(dir);
-  await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"]`), 'its pane too').toHaveCount(1);
-  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Ren\.admin$/ })).toHaveCount(1);
-  await expect(ui.getByTestId('profile-name').filter({ hasText: /^Ren\.seller$/ })).toHaveCount(0);
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"]`), 'its pane too').toHaveCount(1);
+  await expect((await taskPage(ui)).getByTestId('profile-name').filter({ hasText: /^Ren\.admin$/ })).toHaveCount(1);
+  await expect((await taskPage(ui)).getByTestId('profile-name').filter({ hasText: /^Ren\.seller$/ })).toHaveCount(0);
   // Its id beside its new name, so the lines before and after it go together.
   await expect.poll(() => logged(core, new RegExp(`\\[profiles\\] ${id} renamed: Ren\\.admin$`))).toBeGreaterThan(0);
   expect(await who(call, 'Ren.admin')).toBe('Signed in as sam');
@@ -142,8 +143,8 @@ test('a page never makes a region that drags the window (Teams declared one, and
 test("F12 opens and closes DevTools: a tab's, or Kulisa's own outside the pages", async ({ core }) => {
   await core(async (k, url) => { await k.ensureProfile('Sam.admin', url); }, `${SITE}/app`);
   for (const which of ['tab', 'window'] as const) {
-    const press = () => core((k, w) => { const wc = w === 'tab' ? k.profile('Sam.admin').get().wc : k.shell.win.webContents; wc.focus(); k.press(wc, 'F12'); }, which);
-    const opened = () => core((k, w) => (w === 'tab' ? k.profile('Sam.admin').get().wc : k.shell.win.webContents).isDevToolsOpened(), which);
+    const press = () => core((k, w) => { const wc = w === 'tab' ? k.profile('Sam.admin').get().wc : k.shell.windows[0].focusUi; wc.focus(); k.press(wc, 'F12'); }, which);
+    const opened = () => core((k, w) => (w === 'tab' ? k.profile('Sam.admin').get().wc : k.shell.windows[0].focusUi).isDevToolsOpened(), which);
     await press();
     await expect.poll(opened).toBe(true);
     await press();
@@ -156,7 +157,7 @@ test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active 
   const opened = () => core((k) => k.profile('Sam.admin').get().wc.isDevToolsOpened());
   const click = async () => {
     await openMore(ui, id);
-    await expect(menu(ui)).toMatchAriaSnapshot(`
+    await expect((await menu(ui))).toMatchAriaSnapshot(`
       - menu:
         - text: Screenshot
         - menuitem /^Element/
@@ -195,7 +196,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   const picking = () => core((k, p) => k.shell.windows[0].picking.has(p), id);
   const fromMenu = async (label: string) => {
     await openMore(ui, id);
-    await expect(menu(ui)).toMatchAriaSnapshot(`
+    await expect((await menu(ui))).toMatchAriaSnapshot(`
       - menu:
         - text: Screenshot
         - menuitem /^Element/
@@ -203,14 +204,14 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
         - menuitem "Full Page"
         - menuitem /^DevTools/
     `);
-    await menu(ui).getByRole('menuitem', { name: new RegExp(`^${label}`) }).click();
+    await (await menu(ui)).getByRole('menuitem', { name: new RegExp(`^${label}`) }).click();
   };
   await fromMenu('Full Page');
   await expect.poll(() => shots().length).toBe(1);
   const [full] = shots();
   expect(full).toMatch(new RegExp(`^\\d+-${id}-.+-screenshot\\.png$`));
   await showResources(ui, 'Artifacts');
-  const resource = ui.getByRole('treeitem', { name: full, exact: true });
+  const resource = (await taskPage(ui)).getByRole('treeitem', { name: full, exact: true });
   await expect(resource).toContainText('Screenshot');
   await expect(resource.locator('[data-item-section=icon] use')).toHaveAttribute('href', /^#artifact-thumbnail-/);
   expect(JSON.parse((await call('task_artifacts')).text).entries.some((a: { file: string }) => a.file === path.join(dir, full))).toBe(true);
@@ -218,7 +219,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   expect(fullSize.height > 3000 * dpr - 1, `the whole page (${fullSize.height})`).toBe(true);
   const types = await core(async (k) => (await k.electron.clipboard.read())[0]?.types ?? []);
   expect(types, 'on the clipboard too').toContain('image/png');
-  await expect(ui.locator(`[data-task-view][data-active] [data-panel="profile:${id}"] [role="status"]`)).toHaveText('Screenshot copied and saved');
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [data-panel="profile:${id}"] [role="status"]`)).toHaveText('Screenshot copied and saved');
   // The element: its key, then a click on it in the page, as Pick (which reaches the page a moment after it starts:
   // clicked again until it comes, as in Pick's test).
   await core((k) => k.press(k.profile('Sam.admin').get().wc, 'S', k.CMD, 'shift'));
@@ -239,7 +240,7 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
     await expect.poll(() => shots().length, { timeout: 500 }).toBe(2);
   }).toPass({ timeout: 10000 });
   // The file can appear before writeFile finishes; Resources is notified after the save completes.
-  await expect(ui.locator('[data-task-view][data-active] [data-resources] [role=treeitem][data-item-type=file]')).toHaveCount(2);
+  await expect((await taskPage(ui)).locator('[data-task-view][data-active] [data-resources] [role=treeitem][data-item-type=file]')).toHaveCount(2);
   expect(pngSize(path.join(dir, shots().find((f) => f !== full))), 'the element alone, at the screen\'s density').toEqual({ width: Math.round(200 * dpr), height: Math.round(120 * dpr) });
   // Esc while choosing: nothing taken.
   await core((k) => k.press(k.profile('Sam.admin').get().wc, 'S', k.CMD, 'shift'));
@@ -252,10 +253,10 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   expect(actions, 'not captioned as the agent\'s').not.toContain('screenshot');
   // An empty tab: nothing to take, its rows off.
   const blank = await core((k) => k.profile('Sam.admin').newTab('about:blank').id);
-  await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="Pick an element"]`)).toBeDisabled(); // the window knows it: Pick off too
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="Pick an element"]`)).toBeDisabled(); // the window knows it: Pick off too
   expect(await core((k) => { const p = k.profile('Sam.admin'); return p.screenshot(p.get(), { scale: 'device', type: 'png', by: 'human' }).then(() => 'taken', (e: Error) => e.message); })).toMatch(/is empty/);
   await openMore(ui, id);
-  await expect(menu(ui)).toMatchAriaSnapshot(`
+  await expect((await menu(ui))).toMatchAriaSnapshot(`
     - menu:
       - text: Screenshot
       - menuitem /^Element/ [disabled]
@@ -266,9 +267,9 @@ test("a pane's ⋮ → Screenshot takes an element, the visible part or the whol
   await closeMenu(ui);
   // Back by the tab's own page: Profile.page() would look among the pages while the closed tab's is still going.
   await core(async (k, a) => { const p = k.profile('Sam.admin'); p.closeTab(a.blank); await p.get(a.tall).wc.loadURL(a.was); }, { blank, was, tall });
-  await expect(ui.locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="Pick an element"]`), 'a page again: Pick on').toBeEnabled();
-  await ui.getByRole('button', { name: 'Delete All Artifacts', exact: true }).click();
-  await expect(ui.locator('[data-task-view][data-active] [data-resources] [role=treeitem][data-item-type=file]')).toHaveCount(0);
+  await expect((await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${id}"] [aria-label="Pick an element"]`), 'a page again: Pick on').toBeEnabled();
+  await (await taskPage(ui)).getByRole('button', { name: 'Delete All Artifacts', exact: true }).click();
+  await expect((await taskPage(ui)).locator('[data-task-view][data-active] [data-resources] [role=treeitem][data-item-type=file]')).toHaveCount(0);
   await expect.poll(shots).toEqual([]);
 });
 
@@ -287,10 +288,10 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
   // The thumbnail's page (one at a time: the last one gone before the next is taken), once Playwright has it.
   let tp: Page;
   const thumbGone = () => core((k) => k.stash.thumbWc.isDestroyed());
-  const shown = ui.locator('#shotthumb');
+  const shown = (await taskPage(ui)).locator('#shotthumb');
   try {
     const take = async () => {
-      expect((await ui.evaluate((p) => (window as any).act('tab:screenshot', { profile: p, kind: 'visible' }), id)).error).toBeUndefined();
+      expect((await (await taskPage(ui)).evaluate((p) => (window as any).act('tab:screenshot', { profile: p, kind: 'visible' }), id)).error).toBeUndefined();
       await expect.poll(() => core((k) => !!k.shell.windows[0].thumbnails.bounds)).toBe(true);
       const t = await core((k) => { const t = k.shell.windows[0].thumbnails; Object.assign(k.stash, { thumb: t.view, thumbWc: t.view.webContents }); return { file: t.file, bounds: t.bounds }; });
       await expect.poll(() => { tp = ui.context().pages().find((x) => x.url().includes('thumbnail.html') && !x.isClosed()); return !!tp; }).toBe(true);
@@ -305,7 +306,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await state('in');
     await expect(shown).toHaveCount(1);
     await tp.locator('img').click();
-    const preview = ui.getByRole('region', { name: 'Artifact preview', exact: true });
+    const preview = (await taskPage(ui)).getByRole('region', { name: 'Artifact preview', exact: true });
     await expect(preview.getByRole('img', { name: path.basename(file), exact: true })).toBeVisible();
     await expect(preview.getByRole('radio', { name: '100%', exact: true })).toBeEnabled();
     expect(await did()).not.toContain(`open ${file}`);
@@ -320,7 +321,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     // Its menu, the window's, where it was right-clicked; the thumbnail stays while it is open.
     const thumbMenu = async (label: string) => {
       await tp.mouse.click(20, 10, { button: 'right' });
-      await expect(menu(ui)).toMatchAriaSnapshot(`
+      await expect((await menu(ui))).toMatchAriaSnapshot(`
         - menu:
           - menuitem "Show in Folder"
           - menuitem "Copy"
@@ -329,7 +330,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
           - menuitem "Close"
       `);
       await choose(ui, label);
-      await expect(ui.locator('[role="menu"][data-state="open"]')).toHaveCount(0);
+      await expect((await taskPage(ui)).locator('[role="menu"][data-state="open"]')).toHaveCount(0);
     };
     await thumbMenu('Show in Folder');
     await expect.poll(did).toContain(`show ${file}`);
@@ -343,7 +344,7 @@ test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, 
     await thumbMenu('Delete');
     await expect.poll(async () => !fs.existsSync(file) && await core((k) => !k.shell.windows[0].thumbnails.file) && await thumbGone()).toBe(true);
   await showResources(ui, 'Artifacts');
-    await expect(ui.locator('[data-task-view][data-active] [data-resources] [role=treeitem][data-item-type=file]').filter({ hasText: 'Screenshot' })).toHaveCount(0);
+    await expect((await taskPage(ui)).locator('[data-task-view][data-active] [data-resources] [role=treeitem][data-item-type=file]').filter({ hasText: 'Screenshot' })).toHaveCount(0);
     await expect(shown).toHaveCount(0);
     // Its ×: it fades out first, then goes.
     await take();
@@ -438,8 +439,8 @@ test("a packaged build (appDevTools off): no DevTools for Kulisa's own UI, a tab
   await core(async (k, url) => { await k.ensureProfile('Sam.admin', url); }, `${SITE}/app`);
   await restart(); // started again as a packaged build would as to DevTools
   // Both refused as they are asked (keys.ts sees the key as it is sent; the window was made without DevTools).
-  await core((k) => { const wc = k.shell.win.webContents; wc.focus(); k.press(wc, 'F12'); wc.openDevTools({ mode: 'detach' }); });
-  expect(await core((k) => k.shell.win.webContents.isDevToolsOpened())).toBe(false);
+  await core((k) => { const wc = k.shell.windows[0].focusUi; wc.focus(); k.press(wc, 'F12'); wc.openDevTools({ mode: 'detach' }); });
+  expect(await core((k) => k.shell.windows[0].focusUi.isDevToolsOpened())).toBe(false);
   await expect.poll(() => core((k) => !![...k.shell.profiles.values()].find((p) => p.name === 'Sam.admin')?.get())).toBe(true);
   await core(async (k) => { await k.profile('Sam.admin').get().ready; });
   await core((k) => { const wc = k.profile('Sam.admin').get().wc; wc.focus(); k.press(wc, 'F12'); });

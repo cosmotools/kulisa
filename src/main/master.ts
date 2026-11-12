@@ -7,7 +7,7 @@
 // One window per master; asked again, it comes to the front. Closed, its tabs and sign-ins are saved.
 import { BrowserWindow } from 'electron';
 import { handle } from './ipc.ts';
-import { Profile, toUrl } from '../browser/main/index.ts';
+import { Profile, toUrl, registerWindowUi } from '../browser/main/index.ts';
 import { readTabs, writeTabs } from '../browser/main/index.ts';
 import { page } from './pages.ts';
 import type { Shell } from './shell.ts';
@@ -30,8 +30,9 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
     const win = new BrowserWindow({ width: 1100, height: 800, title: `${g.name}: sign in once for every task — Kulisa`, backgroundColor: colors().window,
       autoHideMenuBar: true, webPreferences: { preload, sandbox: true } });
     win.removeMenu();
+    registerWindowUi(win.webContents, () => win);
     const dir = shell.profileStore.masterDir(id);
-    const profile = new Profile(win, { id, name: g.name, avatar: g.avatar, dir }, { task: `master/${id}` });
+    const profile = new Profile(win, { id, name: g.name, avatar: g.avatar, dir }, { ui: () => win.webContents, task: `master/${id}` });
     const m: Master = { win, profile, closing: null };
     shell.masters.set(id, m);
     win.on('close', (e) => { if (!m.closed && !shell.quitting) { e.preventDefault(); void close(m); } });

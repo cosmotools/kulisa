@@ -10,41 +10,43 @@ import type { Task } from './tasks.ts';
 
 export class ArtifactViewer {
   readonly native: NativePdf;
-  private owner: { kind: 'PDF' | 'media'; key: string; file: string; request: string; controller: AbortController } | null = null;
+  private owner: { kind: 'PDF' | 'media'; key: string; file: string; request: string; controller: AbortController; frame: Electron.WebFrameMain | undefined } | null = null;
   private window: AppWindow;
   constructor(window: AppWindow) {
     this.window = window;
-    this.native = new NativePdf(window.win, { onContents: (wc) => guardFocus(wc, () => window.win),
-      onFind: () => { window.win.webContents.focus(); window.send('artifact:pdf:find'); } });
+    this.native = new NativePdf({ parent: () => window.task!.view!.group, zoom: () => window.taskUi.getZoomFactor(),
+      bounds: () => ({ ...window.workspace, x: 0, y: 0 }),
+      onContents: (wc) => guardFocus(wc, () => ({ win: window.win, ui: window.focusUi })),
+      onFind: () => { window.focusUi.focus(); window.task?.send('artifact:pdf:find'); } });
   }
   async open(task: Task, file: string, request: string, box: ViewerBox) {
     if (task.viewFailed) return { error: 'That task’s screen could not be displayed.' };
     this.close();
-    const owner = { kind: 'PDF' as const, key: task.key, file, request, controller: new AbortController() };
+    const owner = { kind: 'PDF' as const, key: task.key, file, request, controller: new AbortController(), frame: task.view?.ui.mainFrame };
     this.owner = owner;
     try {
       const result = await task.readArtifactPdf(file, owner.controller.signal);
-      if (this.owner !== owner || this.window.task !== task || this.window.switching || task.viewFailed) return { error: 'PDF opening was cancelled.' };
-      if (refused(result)) { this.close(request); return result; }
+      if (owner.frame !== task.view?.ui.mainFrame || this.owner !== owner || this.window.task !== task || this.window.switching || task.viewFailed) return { error: 'PDF opening was cancelled.' };
+      if (refused(result)) { if (this.owner === owner) this.close(); return result; }
       this.native.setHidden(this.window.viewsHidden);
       await this.native.open(result.bytes, result.name, box);
       if (this.owner !== owner) return { error: 'PDF opening was cancelled.' };
       log.info(`[artifact-viewer] PDF opened task=${task.key} wc=${this.native.contents?.id}`);
       return {};
-    } catch (error) { this.close(request); return { error: (error as Error).message }; }
+    } catch (error) { if (this.owner === owner) this.close(); return { error: (error as Error).message }; }
   }
   async openMedia(task: Task, file: string, revision: string, request: string) {
     if (task.viewFailed) return { error: 'That task’s screen could not be displayed.' };
     this.close();
-    const owner = { kind: 'media' as const, key: task.key, file, request, controller: new AbortController() };
+    const owner = { kind: 'media' as const, key: task.key, file, request, controller: new AbortController(), frame: task.view?.ui.mainFrame };
     this.owner = owner;
     try {
       const found = await task.readArtifact(file, 0, 0);
       owner.controller.signal.throwIfAborted();
-      if (this.window.task !== task || this.window.switching || task.viewFailed) throw new Error('Media opening was cancelled.');
-      if (refused(found)) { this.close(request); return found; }
+      if (owner.frame !== task.view?.ui.mainFrame || this.window.task !== task || this.window.switching || task.viewFailed) throw new Error('Media opening was cancelled.');
+      if (refused(found)) { if (this.owner === owner) this.close(); return found; }
       if (found.revision !== revision) throw new Error('The artifact changed. Select it again to reload.');
-      const url = openMedia(this.window.win.webContents.session, { size: found.size,
+      const url = openMedia(this.window.taskUi.session, { size: found.size,
         read: async (offset, length, signal) => {
           signal.throwIfAborted();
           const result = await task.readArtifact(file, offset, length);
@@ -55,7 +57,7 @@ export class ArtifactViewer {
         } }, owner.controller.signal);
       log.info(`[artifact-viewer] media opened task=${task.key}`);
       return { url };
-    } catch (error) { this.close(request); return { error: (error as Error).message }; }
+    } catch (error) { if (this.owner === owner) this.close(); return { error: (error as Error).message }; }
   }
   place(request: string, box: ViewerBox) { if (this.owner?.request === request) this.native.place(box); }
   find(request: string, query: string, forward: boolean) {

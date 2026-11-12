@@ -26,6 +26,10 @@ Fixtures and app lifecycle live in `test/e2e/fixtures.ts`:
   `test.use({ automation: false })` disables the debugging port for checks affected by `navigator.webdriver`.
 - **`core(fn, arg)`** runs in the main process; only JSON crosses (`arg`, never a closure). Over a local socket: not
   stdin (Electron's main process does not read it on Windows), not Node's IPC (`NODE_CHANNEL_FD` crashes DevTools).
+- **UI ownership:** fixture `ui` is the shell page. `taskPage(ui, key?)` resolves the selected/explicit task's
+  immutable UI through main-process webContents ownership; cache locators on that page only for that task.
+  `shellPage`, `menuPage` and `inputPage` resolve window controls, open menus and covered keyboard input.
+  A task move preserves its Page; close/reopen creates another. DOM coordinates are local to their page.
 - **Profiles' pages use the core, proxy and MCP** to retain the sign-in pause and visible automation. `k.press` sends
   key input; `profile.focusTab(tab)` gives a page the keyboard. Direct `webContents.focus()` is reversed by the
   focus guard ([window.md](window.md), Keys).
@@ -131,7 +135,12 @@ its list. Kulisa package boundaries include type imports; cycle checks concern r
 
 ## Upgrading Electron
 
-Two Electron workarounds have platform-specific reproductions:
+Electron workarounds have platform-specific reproductions:
+
+- Linux client-side decoration rounds only Electron's primary web view
+  ([electron#51459](https://github.com/electron/electron/pull/51459)). The explicit shell WCV matches the frame's
+  Chromium radius (8 DIP, zero when maximized/fullscreen) in `window.ts`; Windows/macOS retain native clipping.
+  Recheck the radius and view-tree clipping on upgrades, including the bottom tasks' bar and global overlays.
 
 - A view page's drag regions outlive the page in a frameless window and take clicks over the panes
   ([electron#54743](https://github.com/electron/electron/issues/54743); [window.md](window.md), The title bar).

@@ -1,6 +1,2 @@
-// Window commands and task state; the UI entry is TaskView.tsx (docs/ui.md).
-export { act, screenshot, taskStore, useTask } from './state';
-export { dockApi, stageApi, pane } from './controller';
-export { focusDevelopmentTerminal, panelView, shownTerm } from './terminals';
-export { prepareTaskMove } from './transfer';
-export { profilesMenu } from './profiles';
+// Public task UI entry (README.md); controllers and stores stay private.
+export { TaskScreen } from './TaskView';

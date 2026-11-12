@@ -2,7 +2,7 @@
 // profile's page takes it from a click or a key of the human's in it, or when Kulisa gives it there for the human
 // (allow: a tab chosen by a key, a dialog answered, Pick, an address from its pane's bar); a page taking it by itself
 // (loading, a tab the agent opened: on macOS every one did) gives it back to where it was in its window.
-import type { BrowserWindow, WebContents } from 'electron';
+import type { BaseWindow, WebContents } from 'electron';
 import { log } from '../../main/log.ts';
 
 // A real click's order on macOS: the page's focus, then its mouseDown
@@ -12,7 +12,8 @@ import { log } from '../../main/log.ts';
 const GRACE = 150;
 const allowed = new WeakSet<WebContents>();
 // Per window (its page's webContents), where the human left the keyboard: its page, or a profile's page.
-const held = new WeakMap<WebContents, WebContents>();
+const held = new WeakMap<BaseWindow, WebContents>();
+const owners = new WeakMap<WebContents, () => BaseWindow>();
 const watched = new WeakSet<WebContents>();
 // Per profile's page, its focuses and Kulisa's gifts of it, counted: a focus the page took by itself is given back only
 // if nothing came after it, not over a later one given for the human.
@@ -20,36 +21,42 @@ const turns = new WeakMap<WebContents, number>();
 const turn = (wc: WebContents) => { const n = (turns.get(wc) ?? 0) + 1; turns.set(wc, n); return n; };
 
 // Kulisa gives a page the keyboard for the human: its next focus is theirs.
-export function allowFocus(wc: WebContents) { allowed.add(wc); turn(wc); }
+export function allowFocus(wc: WebContents) {
+  turn(wc);
+  if (wc.isFocused()) allowed.delete(wc); else allowed.add(wc);
+}
 
 // Kulisa gives the window's own page the keyboard for the human (the address of a tab they open,
 // task-view/ProfilePane.tsx): a page taking it next gives it back there, not to the page the human was in (Ctrl+T
 // from it, Linux).
-export function focusWindow(page: WebContents) { watchWindow(page); held.set(page, page); page.focus(); }
+export function registerWindowUi(page: WebContents, window: () => BaseWindow) { owners.set(page, window); watchWindow(page); }
+export function focusWindow(page: WebContents) { const win = owners.get(page)?.(); if (win) held.set(win, page); page.focus(); }
 
 // A profile's page, in the window win() is (a profile moves between windows).
-export function guardFocus(wc: WebContents, win: () => BrowserWindow) {
-  const own = () => { const w = win(); if (!w.isDestroyed()) watchWindow(w.webContents); return w.isDestroyed() ? null : w.webContents; };
+export function guardFocus(wc: WebContents, host: () => { win: BaseWindow; ui: WebContents }) {
+  const own = () => { const h = host(); if (h.win.isDestroyed() || h.ui.isDestroyed()) return null; return h; };
   let input = 0;
-  const human = () => { input = Date.now(); const page = own(); if (page) held.set(page, wc); };
+  const human = () => { input = Date.now(); const page = own(); if (page) held.set(page.win, wc); };
   wc.on('before-mouse-event', (_e, i) => { if (i.type === 'mouseDown') human(); });
   wc.on('before-input-event', (_e, i) => { if (i.type === 'keyDown') human(); });
   wc.on('focus', () => {
     const page = own();
     if (!page) return;
     const n = turn(wc);
-    if (allowed.delete(wc)) { held.set(page, wc); return; }
+    if (allowed.delete(wc)) { held.set(page.win, wc); return; }
     const at = Date.now();
     setTimeout(() => {
-      if (wc.isDestroyed() || page.isDestroyed()) return;
+      if (wc.isDestroyed() || page.ui.isDestroyed() || page.win.isDestroyed()) return;
+      const current = own();
+      if (!current || current.win !== page.win || current.ui !== page.ui) return;
       const kept = turns.get(wc) !== n ? 'a later focus' : input >= at - GRACE ? "the human's" : !wc.isFocused() ? 'gone on' : null;
       // Each decision leaves a line, kept or not: where the keyboard went is what a bug about it is read from.
       if (kept) { log.info(`[focus] page ${wc.id} took the keyboard: left (${kept})`); return; }
-      const back = held.get(page);
-      const to = back && !back.isDestroyed() && back !== wc ? back : page;
-      if (to !== page) allowed.add(to);
+      const back = held.get(page.win);
+      const to = back && !back.isDestroyed() && back !== wc ? back : page.ui;
+      if (to !== page.ui) allowed.add(to);
       to.focus();
-      log.info(`[focus] page ${wc.id} took the keyboard: given back to ${to === page ? 'the window' : `page ${to.id}`}`);
+      log.info(`[focus] page ${wc.id} took the keyboard: given back to ${to === page.ui ? 'the window' : `page ${to.id}`}`);
     }, GRACE);
   });
 }
@@ -59,7 +66,7 @@ export function guardFocus(wc: WebContents, win: () => BrowserWindow) {
 function watchWindow(page: WebContents) {
   if (watched.has(page)) return;
   watched.add(page);
-  const mine = () => held.set(page, page);
+  const mine = () => { const win = owners.get(page)?.(); if (win) held.set(win, page); };
   page.on('focus', mine);
   page.on('before-mouse-event', (_e, i) => { if (i.type === 'mouseDown') mine(); });
   page.on('before-input-event', (_e, i) => { if (i.type === 'keyDown') mine(); });
