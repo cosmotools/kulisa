@@ -1,5 +1,6 @@
 // A tasks' window (docs/window.md): the title bar, the shown task's grid or the empty window, the tasks' bar, Settings
-// over them, and the dialogs. Its theme: lib/theme.ts.
+// over them, and the dialogs. Its theme: appearance/renderer/theme.ts.
+import { usePreferences } from '../../window-client/renderer';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { TooltipProvider } from '@ui';
 import { useWindow } from '../lib/store';
@@ -14,7 +15,7 @@ import { AgentPicker } from './AgentPicker';
 import { StageTerminalSettings } from './StageTerminalSettings';
 import { TaskRename } from './TaskRename';
 import { Shortcuts } from './Shortcuts';
-import { PointMenu } from './Menus';
+import { PointMenu } from '../../menus/renderer';
 import { HandOver } from './HandOver';
 import { useSettings } from '../lib/settings';
 
@@ -25,7 +26,7 @@ type SettingsView = typeof import('./settings').default;
 
 function Workspace() {
   const host = useRef<HTMLElement>(null), summary = useWindow((s) => s.summary);
-  const current = useWindow((s) => s.current), zoom = useWindow((s) => s.zoom);
+  const current = useWindow((s) => s.current), zoom = usePreferences((s) => s.zoom);
   useLayoutEffect(() => {
     const report = () => { const r = host.current!.getBoundingClientRect(); kulisa.send('shell:workspace', { task: current, x: r.x, y: r.y, width: r.width, height: r.height, viewport: { width: innerWidth, height: innerHeight } }); };
     const observer = new ResizeObserver(report); observer.observe(host.current!); report();

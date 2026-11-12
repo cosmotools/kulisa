@@ -19,7 +19,7 @@ import { registerViewerSchemes, installMediaProtocol } from '../file-viewer/main
 import { Dictation, installDictation } from '../dictation/main/index.ts';
 import { recognizer } from './recognizer.ts';
 import { COLORS } from './window.ts';
-import { TaskView } from './task-view.ts';
+import { TaskView } from '../task-view/main/index.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
 import { AGENTS, findAgent, startMcpServer, installGhost } from '../kulisa-plugin/main/index.ts';
@@ -213,7 +213,10 @@ function start(options: Options = {}) {
   // Clicked, or brought up by the keyboard or the OS: the window the macOS menu's Settings… and Quit act in.
   let front: AppWindow | null = null;
   shell.noteFront = (window) => { front = window; };
-  shell.taskUiOf = TaskView.owner;
+  shell.taskUiOf = (contents) => {
+    const view = TaskView.owner(contents), task = view && shell.taskByKey(view.key);
+    return task?.view === view ? task : null;
+  };
   shell.front = () => (front && shell.windows.includes(front) && !front.win.isDestroyed() ? front : first());
   shell.openSettings = (at, w = shell.front()) => {
     if (!w) return;
@@ -232,7 +235,7 @@ function start(options: Options = {}) {
   function projectOfFolder(folder: string) { return store.projectFor(folder); }
   // The projects' icons as the windows show them (docs/tasks.md, Projects: nothing to choose): the picture of its
   // site's favicon, read once, again when its settings are opened (a favicon changed meanwhile). A favicon is looked for
-  // without holding the window up: it comes when found. The window takes its color from it (lib/project-color.ts).
+  // without holding the window up: it comes when found. The window takes its color from it (appearance/renderer/project-color.ts).
   const favicons = new Map<string, string | null>(); // a project's id: its favicon's file
   const pictures = new Map<string, string | null>(); // a file: its picture
   const looking = new Set<string>();
@@ -286,7 +289,7 @@ function start(options: Options = {}) {
     store.saveSettings({ ...store.settings(), uiZoom: z });
   };
   // The theme of Kulisa's own UI: 'dark' (the default, as JetBrains'), 'light', or 'system' (the OS's, followed as it
-  // changes). Only the windows' UI (its theme: src/renderer/lib/theme.ts): nativeTheme.themeSource stays the OS's, so the profiles'
+  // changes). Only the windows' UI (its theme: src/appearance/renderer/theme.ts): nativeTheme.themeSource stays the OS's, so the profiles'
   // pages keep the OS's scheme, as without Kulisa, and a site under test looks as its users see it. shade(): 'dark'
   // or 'light', what is shown, for what the page does not paint (the window's background, the OS buttons).
   shell.theme = store.settings().theme || 'dark';

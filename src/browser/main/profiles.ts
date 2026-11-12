@@ -601,5 +601,5 @@ async function targetIdOf(page: Page) {
   return targetIds.get(page);
 }
 
-export type { Tab, ProfileConfig, Bounds };
+export type { Tab, ProfileConfig };
 export { Profile, stepZoom, wipeSession, clearCaches, toUrl, ensureTarget };

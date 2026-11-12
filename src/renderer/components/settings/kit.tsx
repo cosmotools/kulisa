@@ -3,8 +3,8 @@ import { Children, useId, type KeyboardEvent, type ReactNode } from 'react';
 import { ChevronRightIcon, CircleAlertIcon, EllipsisIcon } from 'lucide-react';
 import { Button, Field, FieldDescription, FieldError, FieldLabel, Input, Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemSeparator, ItemTitle,
   Alert, AlertDescription, FieldContent, FieldGroup, Separator, Spinner } from '@ui';
-import { ButtonMenu, RightClickMenu } from '../Menus';
-import type { MenuItem } from '../../lib/menu';
+import { ButtonMenu, RightClickMenu } from '../../../menus/renderer';
+import type { MenuItem } from '../../../menus/renderer';
 
 export function SettingsLoading({ children }: { children: ReactNode }) {
   return <div role="status" className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><Spinner role={undefined} aria-hidden />{children}</div>;

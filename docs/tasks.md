@@ -36,7 +36,7 @@ so a newly appeared directory is refused too. Open a folder is the only mode tha
 clones remove the root created by that attempt, including completed repositories from a multi-repository clone.
 Failed optional core agent/profile additions are logged without discarding an already-created project.
 
-**Project identity** is automatic (`favicons.ts`, `lib/project-color.ts`):
+**Project identity** is automatic (`favicons.ts`, `appearance/renderer/project-color.ts`):
 
 - Search default repository first, then others: tracked/untracked, nonignored `favicon.*`; `icon.*` only under `app/`.
   Plain-folder scans are shallow and exclude hidden/dependency/build/vendor directories. Prefer nearest root, then
@@ -538,9 +538,8 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 - Fixed IDs keep paths stable across renames. Chrome-shaped storage supports existing Chromium knowledge.
 - Lazy task loading avoids restoring unused processes and starts agents at real terminal sizes. Restore layout
   without waiting for programs/sites or agent discovery; publish terminal rows before starting their processes.
-- Background tasks keep working; unused browser tabs discard later. Moving between windows transfers native views
-  and the retained task UI together, preserving renderer/PTy/profile identities without terminal replay. Each visited
-  task adds a UI renderer; closing it releases that renderer. Native ownership: [window.md](window.md#native-ownership).
+- Background tasks keep working; unused browser tabs discard later. UI retention/native transfer:
+  [Task view](../src/task-view/README.md#ownership-and-native-lifetime).
 - Extend only positive trust decisions. Unknown CLI config formats remain untouched; concurrent CLI rewrites can
   undo Kulisa's atomic trust write, safely causing another prompt.
 
@@ -556,17 +555,16 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 - Renderer task navigation lives in `components/`. `components/welcome/Welcome.tsx` owns the first-start screen,
   examples and assets; the [new-project UI module](../src/renderer/components/new-project/README.md) owns creation
   and its draft behind `index.tsx`.
-  `main/task-view.ts` attaches each visited task UI to its current native window.
   Project/account configuration lives in `components/settings/`; shared non-UI coordination in `lib/`.
-  `favicons.ts`/`lib/project-color.ts` derive project identity.
-- `src/shared/names.ts`: labels, names and branch slugs. Renderer `task-view/` owns retained screens, grids and activation.
+  `favicons.ts` and [Appearance](../src/appearance/README.md) derive project identity.
+- `src/shared/names.ts`: labels, names and branch slugs. [Task view](../src/task-view/README.md) owns retained screens, grids and activation.
 - Coverage: task/project/account/repository/window e2e files; store/task-document/accounts/agent-management/worktrees unit tests.
 
 Task state uses Zod schemas for stored field shapes and TypeScript types, with core checks for unique IDs,
 conversation links and Stage setup. Validation retains unknown metadata; each section update reads the current
 document, preserves its peers and writes atomically. Dockview owns serialized layout formats.
 A new task retains uninitialized profiles/development separately from deliberately empty collections. Layout
-lifecycle belongs to [window.md](window.md#the-grid). Legacy task files are imported only when
+lifecycle belongs to [Task view](../src/task-view/README.md#the-grid). Legacy task files are imported only when
 `task.json` is absent; a verified document is authoritative, and leftover source files are cleaned on reopening.
 Malformed source data stops migration with an error and retains the source files. Browser storage, profile tabs,
 transcripts and artifacts keep their own formats and owners.

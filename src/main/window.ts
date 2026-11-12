@@ -8,7 +8,7 @@ import type { PageLayout } from '../shared/ipc.ts';
 import { BaseWindow, WebContentsView, desktopCapturer, screen, shell as electronShell } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { TaskView } from './task-view.ts';
+import { TaskView } from '../task-view/main/index.ts';
 import { page } from './pages.ts';
 import { log, summary } from './log.ts';
 import { focusWindow, registerWindowUi, allowFocus } from '../browser/main/index.ts';
@@ -17,7 +17,7 @@ import { ArtifactViewer } from './artifact-viewer.ts';
 import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
 import type { Task } from './tasks.ts';
-import type { Profile, Bounds } from '../browser/main/index.ts';
+import type { Profile } from '../browser/main/index.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import type { Arg, Events } from '../shared/ipc.ts';
 type Question = Sent.Question;
@@ -48,7 +48,6 @@ const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
 class AppWindow {
   readonly appDevTools: boolean;
   shell: Shell; id: number; tabs: Task[]; current: Task | null; switching: boolean;
-  private readonly laidOut = new Set<Task>();
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   thumbnails: Thumbnails; // a screenshot's, in its pane's corner (src/screenshots)
@@ -160,9 +159,9 @@ class AppWindow {
   get taskUi() { return this.task?.view?.ui ?? this.ui; }
   get focusUi() { return this.globalCovered || this.task?.view?.failure ? this.ui : this.taskUi; }
   get shellCovered() { return this.globalCovered; }
-  owns(sender: Electron.WebContents) { return sender === this.ui || TaskView.owner(sender)?.window === this; }
+  owns(sender: Electron.WebContents) { return sender === this.ui || this.shell.taskUiOf(sender)?.window === this; }
   get task() { return this.current; }
-  get viewsHidden() { return this.task?.view?.covered || this.switching || !this.task || this.task.viewFailed || !this.laidOut.has(this.task); }
+  get viewsHidden() { return this.switching || !this.task || this.task.viewFailed || (this.task.view?.nativeHidden ?? true); }
   get profiles(): Map<string, Profile> { return this.task?.profiles || NONE; }
   get closed(): Task['closed'] { return this.task?.closed || NONE; }
   where() { return { bounds: this.win.getNormalBounds(), maximized: this.win.isMaximized() }; }
@@ -277,12 +276,54 @@ class AppWindow {
     this.shell.saveWindows();
     this.sendProjects();
   }
+  private attachTaskView(task: Task) {
+    // Resolve after transfer; retained callbacks must not keep the source window alive.
+    const shell = this.shell, window = () => task.window!;
+    return new TaskView({
+      key: task.key, loader: { page: page('task.html'), preload: PRELOAD, devTools: this.appDevTools },
+      preferences: () => ({ zoom: shell.uiZoom, theme: shell.theme, stageFollow: shell.stageFollow, keys: shell.keys() }),
+      info: () => {
+        const info = window().info(task), project = task.project.id;
+        return { ...info, tabs: [task.info()], projects: info.projects.filter((p) => p.id === project).map((p): typeof p => ({ ...p, tasks: [] })),
+          open: info.open.filter((p) => p.id === project), windows: [] };
+      },
+      presentation: () => task.presentation,
+      activity: () => ({ active: task.shown(), covered: window().shellCovered }),
+      closing: () => task.closing,
+      isCurrent: (view) => task.view === view && task.window?.win === view.nativeWindow,
+      connected: () => {
+        window().pushTaskState(task);
+        void task.loadDevelopmentTerminals().catch((error: Error) => log.warn(`[task-view] terminal start task=${task.key}: ${error.message}`));
+        void window().sendArtifacts(task);
+      },
+      navigated: () => { if (task.shown()) { window().thumbnails.close(); window().artifactViewer.close(); } },
+      failureChanged: (kind) => {
+        if (kind === 'crashed' || kind === 'unresponsive') window().failTaskView({ task: task.key, kind, frames: [] });
+        else { task.viewFailed = false; if (kind === 'responsive') window().sendProjects(); }
+      },
+      availability: () => window().taskAvailability(),
+      layoutPage: (id, rect) => task.profiles.get(id)?.layout(rect),
+      visibilityChanged: () => {
+        if (!task.shown()) for (const p of task.profiles.values()) p.setHidden(true);
+        else { window().updateViews(); window().thumbnails.place(window().paneBox); }
+      },
+      focusUi: () => window().focusUi,
+      pages: () => {
+        const pages = [...task.profiles.values()].flatMap((p) => {
+          const tab = p.get(); return tab ? [{ id: p.id, contents: tab.wc, capture: p.visible() && !tab.discarded }] : [];
+        });
+        const pdf = task.shown() && window().artifactViewer.native.contents;
+        if (pdf) pages.push({ id: 'artifact-pdf', contents: pdf, capture: true });
+        return pages;
+      },
+    }, this.win, this.workspace);
+  }
   async show(task: Task) {
     log.info(`[window] wc=${this.ui.id} shows ${task.key}`);
     if (task === this.current) return;
     if (this.current) this.leaveGrid();
     this.current = task;
-    task.view ??= new TaskView(task, this);
+    task.view ??= this.attachTaskView(task);
     this.shell.saveWindows();
     this.win.setTitle(`${task.displayName} · ${task.project.name} — Kulisa`);
     this.sendProjects();
@@ -326,7 +367,6 @@ class AppWindow {
   }
   // Remove the tab after its task UI closes or moves out.
   drop(task: Task) {
-    this.laidOut.delete(task);
     this.tabs.splice(this.tabs.indexOf(task), 1);
     if (task.window === this) task.window = null;
     if (this.current === task) {
@@ -354,8 +394,8 @@ class AppWindow {
     const task = this.tabs.find((t) => t.key === key);
     if (!task) return;
     task.viewFailed = true;
+    task.view?.invalidateLayout();
     task.cancelArtifactView();
-    this.laidOut.delete(task);
     log.error(`[task-view] failed wc=${this.ui.id} ${summary({ task: key, kind, frames }, 1200)}`);
     for (const p of task.profiles.values()) p.setHidden(true);
     if (task === this.task) {
@@ -363,10 +403,6 @@ class AppWindow {
       this.thumbnails.close(); this.artifactViewer.close(); this.updateViews(); focusWindow(this.focusUi);
     }
     this.sendProjects();
-  }
-  invalidateTaskLayout(task: Task) {
-    this.laidOut.delete(task); for (const p of task.profiles.values()) p.setHidden(true);
-    if (task === this.task) { this.artifactViewer.native.setHidden(true); this.thumbnails.setHidden(true); }
   }
   taskAvailability() {
     for (const task of this.tabs) task.view?.group.setVisible(task === this.task && !task.view.failure);
@@ -410,60 +446,15 @@ class AppWindow {
     this.thumbnails.setHidden(this.viewsHidden);
     this.artifactViewer.native.setHidden(this.viewsHidden);
   }
-  // Capturing and covering are separate so the renderer can paint the replacement before hiding native pages.
+  // Core admits only the selected, healthy task; the attachment owns local coverage and capture deadlines.
   hideViews(hidden: boolean, { focus = true, task }: { focus?: boolean; task?: string } = {}) {
     if (!this.task?.view || task !== undefined && (task !== this.task.key || this.task.viewFailed)) return;
-    this.task.view.covered = hidden;
-    // A dialog over the pages (hidden, no pictures): a page that had the keyboard keeps it unseen, and the dialog's focus
-    // trap (Radix's) works in a page that has the keyboard, its keys going nowhere else: the window's page takes it. Menus
-    // (pictures) put the keyboard back themselves as they close.
-    const pdf = this.artifactViewer.native.contents;
-    const from = hidden && focus && (pdf && !pdf.isDestroyed() && pdf.isFocused() || [...this.profiles.values()].some((p) => { const wc = p.get()?.wc; return wc && !wc.isDestroyed() && wc.isFocused(); }));
-    this.updateViews();
-    if (from) focusWindow(this.focusUi);
+    this.task.view.cover(hidden, focus);
   }
-  // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no frame (covered, the
-  // monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it would hold every menu after it closed.
-  // How long a picture takes is the computer's (a few ms, or over a hundred on a loaded one, where a fixed tenth of a
-  // second leaves every pane empty), so the pages set the pace: once the first has answered, the rest get three times as
-  // long, a tenth of a second at least; none answering, half a second.
-  async pictures() {
-    const pics: Record<string, string> = {}, t0 = Date.now();
-    let giveUp = () => {}, paced = false;
-    const gaveUp = new Promise<null>((ok) => { giveUp = () => ok(null); });
-    let timer = setTimeout(() => giveUp(), 500);
-    const pace = () => {
-      if (paced) return;
-      paced = true; clearTimeout(timer);
-      const took = Date.now() - t0;
-      timer = setTimeout(() => giveUp(), Math.max(100, 3 * took) - took);
-    };
-    const sources = [...this.profiles.values()].filter((p) => p.visible() && p.get() && !p.get()!.discarded && !p.get()!.wc.isDestroyed()).map((p) => ({ id: p.id, wc: p.get()!.wc }));
-    const pdf = this.artifactViewer.native.contents;
-    if (pdf && !pdf.isDestroyed()) sources.push({ id: 'artifact-pdf', wc: pdf });
-    await Promise.all(sources.map(async (p) => {
-      const img = await Promise.race([p.wc.capturePage().then((i) => { pace(); return i; }), gaveUp]).catch((): null => null);
-      if (!img) return;
-      pics[p.id] = `data:image/jpeg;base64,${img.toJPEG(90).toString('base64')}`;
-    }));
-    paced = true; clearTimeout(timer); // a picture given up on may still come
-    return pics;
-  }
-  // Where the grid puts each pane's page (key: the task the page laid out), in CSS pixels; the views are placed
-  // in window pixels.
+  pictures(): Promise<Record<string, string>> { return this.task?.view?.pictures() ?? Promise.resolve({}); }
   layout(key: string | null, rects: Record<string, PageLayout>, revision: number, viewport: { width: number; height: number }) {
     const task = this.tabs.find((t) => t.key === key);
-    if (!task?.loaded || task.viewFailed || !task.view || task.view.revision !== revision) return;
-    const z = task.view.ui.getZoomFactor(), bounds = task.view.group.getBounds();
-    if (!viewport || Math.abs(Math.round(viewport.width * z) - bounds.width) > 1
-      || Math.abs(Math.round(viewport.height * z) - bounds.height) > 1) return;
-    const scale = (r: Partial<Bounds>): Bounds => ({ x: Math.round((r.x ?? 0) * z), y: Math.round((r.y ?? 0) * z), width: Math.round((r.width ?? 0) * z), height: Math.round((r.height ?? 0) * z) });
-    for (const [id, { clip, ...r }] of Object.entries(rects)) task.profiles.get(id)?.layout(r.shown === false ? r : { ...scale(r), ...(clip && { clip: scale(clip) }) });
-    if (!this.laidOut.has(task)) {
-      this.laidOut.add(task);
-      log.info(`[window] wc=${this.ui.id} grid ready task=${task.key}`);
-    }
-    if (task === this.task) { this.updateViews(); this.thumbnails.place(this.paneBox); }
+    if (task?.loaded && !task.viewFailed) task.view?.layout(rects, revision, viewport);
   }
   // Where a profile's pane shows its page in the window; null: not on screen.
   paneBox = (id: string) => { const p = this.profiles.get(id); return p?.shown ? p.clip ?? p.bounds : null; };
@@ -478,7 +469,7 @@ class AppWindow {
   setZoom(z: number) {
     if (this.win.isDestroyed()) return;
     this.ui.setZoomFactor(z);
-    for (const task of this.tabs) { task.view?.ui.setZoomFactor(z); if (task.view) { task.view.revision++; this.invalidateTaskLayout(task); task.view.send('task:viewport', task.view.viewport()); task.send('zoom:state', z); } }
+    for (const task of this.tabs) task.view?.zoom(z);
     const min = minSize(z), [width = 0, height = 0] = this.win.getSize();
     this.win.setMinimumSize(min.width, min.height);
     if ((width < min.width || height < min.height) && !this.win.isMaximized() && !this.win.isFullScreen()) this.win.setSize(Math.max(width, min.width), Math.max(height, min.height));

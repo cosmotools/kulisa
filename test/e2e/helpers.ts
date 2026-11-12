@@ -114,8 +114,8 @@ export async function answer(page: Page, yes: boolean | string = true) {
   return asked;
 }
 
-// Kulisa's menus (docs/ui.md, Menus; components/Menus.tsx): the open one once it is shown (data-ready: the pages under
-// it are pictures, lib/cover.ts; data-state: not one closing), the submenu open (the last one).
+// Kulisa's menus (docs/ui.md, Menus; menus/renderer/Menus.tsx): the open one once it is shown (data-ready: the pages under
+// it are pictures, layers/renderer/cover.ts; data-state: not one closing), the submenu open (the last one).
 const openMenus = async (ui: Page) => {
   // React may commit either page's portal after the triggering input finishes. Resolve ownership only once it exists.
   await expect.poll(async () => (await menuPage(ui)).locator('[role="menu"][data-state="open"]').count()).toBeGreaterThan(0);

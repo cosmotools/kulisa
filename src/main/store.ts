@@ -35,12 +35,12 @@ import path from 'path';
 import { removeTree } from './remove.ts';
 import { randomInt, randomUUID } from 'crypto';
 import { log, summary } from './log.ts';
-import { splitLayout } from '../shared/stage-layout.ts';
-import type { TaskLayout } from '../shared/stage-layout.ts';
+import { splitLayout } from '../task-view/main/index.ts';
+import type { TaskLayout } from '../task-view/main/index.ts';
 import { z } from 'zod';
 
 // Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
-// lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).
+// lightness and chroma, replaces it in the window: appearance/renderer/project-color.ts).
 const PROJECT_COLORS = ['#4a7bd0', '#3f9a7a', '#b4823a', '#9a5fc0', '#c0584f', '#3c9fb0', '#b0607f', '#7d9a3f'];
 // An id of a project, a task, an agent's account or a profile: six lowercase letters and digits, about two billion
 // of them, drawn again while taken.

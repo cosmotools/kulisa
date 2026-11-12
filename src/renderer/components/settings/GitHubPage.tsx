@@ -5,10 +5,10 @@ import { useEffect, useRef, useState } from 'react';
 import { PlusIcon, CircleAlertIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle, Avatar, AvatarFallback, Badge, Button, Spinner } from '@ui';
-import { ButtonMenu } from '../Menus';
+import { ButtonMenu } from '../../../menus/renderer';
 import { useRead } from './read';
 import { AddInPlace, Things, SettingsHeading, SettingsGroup, SettingsDivider, SettingsLoading } from './kit';
-import type { MenuItem } from '../../lib/menu';
+import type { MenuItem } from '../../../menus/renderer';
 import { refused } from '../../../shared/result';
 import { NEW_TOKEN, type GitHubAccount, type GitHubInfo } from '../../../github/ipc';
 

@@ -1,9 +1,9 @@
 // Selected-task labels/counts for shell menus; no task controllers or content (docs/window.md).
 import { store } from './store';
-import { actionsFor } from './actions';
+import { actionsFor } from '../../window-client/renderer';
 import { openSettings } from './settings';
 import { plural } from './common';
-import type { MenuItem } from './menu';
+import type { MenuItem } from '../../menus/renderer';
 export function environmentItems(): MenuItem[] {
   const task = store.getState().summary;
   if (!task) return [];

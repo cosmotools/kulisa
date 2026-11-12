@@ -1,6 +1,6 @@
-// The theme shown (lib/theme.ts): Dark, Light or System as shadcn's `dark` class and the root's color-scheme. A classic
+// The theme shown (appearance/renderer/theme.ts): Dark, Light or System as shadcn's `dark` class and the root's color-scheme. A classic
 // script read before the first paint, so a light window never flashes dark: the page's URL's theme (window.ts, load;
-// main/master.ts) at once, then each one lib/theme.ts gives showTheme; System follows the OS's.
+// main/master.ts) at once, then each one appearance/renderer/theme.ts gives showTheme; System follows the OS's.
 {
   const root = document.documentElement, osDark = matchMedia('(prefers-color-scheme: dark)');
   let shown = new URLSearchParams(location.search).get('theme') || 'dark';

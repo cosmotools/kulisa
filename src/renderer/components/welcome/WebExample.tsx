@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, ChevronDownIcon, GlobeIcon, HeartIcon, LockKeyholeIcon,
   RotateCwIcon, SearchIcon, ShoppingBagIcon, StarIcon, TruckIcon, UserRoundIcon, LayoutDashboardIcon, PackageIcon, SettingsIcon } from 'lucide-react';
-import { avatarSrc } from '../../lib/common';
+import { avatarSrc } from '../../../appearance/renderer';
 import { DemoAgent } from './DemoAgent';
 import tote from './assets/tote.jpg';
 import headphones from './assets/headphones.jpg';

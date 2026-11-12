@@ -7,17 +7,17 @@ import { useShallow } from 'zustand/react/shallow';
 import { Badge, Collapsible, CollapsibleContent, CollapsibleTrigger, Kbd, Sheet, SheetContent, SheetDescription, SheetTitle, Sidebar as Bar,
   SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu,
   SidebarMenuAction, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from '@ui';
-import { ProjectIcon } from './ProjectIcon';
-import { AgentState } from './AgentState';
-import { RightClickMenu } from './Menus';
+import { ProjectIcon } from '../../appearance/renderer';
+import { AgentState } from '../../agent-presentation/renderer';
+import { RightClickMenu } from '../../menus/renderer';
 import { Tip } from './Tip';
 import { useWindow } from '../lib/store';
 import { sidebarDocked, sidebarOverlay } from '../lib/sidebar';
 import { dialog } from '../lib/dialogs';
 import { lastWorked, projectMenu } from '../lib/project-menu';
-import { keyText } from '../lib/common';
+import { keyText } from '../../window-client/renderer';
 import { slugOf } from '../../shared/names';
-import type { MenuItem } from '../lib/menu';
+import type { MenuItem } from '../../menus/renderer';
 import type { ProjectEntry, ProjectTask } from '../../shared/types';
 
 // What a choice in it does; over the grid it closes then.
@@ -116,7 +116,7 @@ function Projects({ done }: { done: () => void }) {
   </SidebarProvider>;
 }
 
-// Over the grid, while a task is shown: a Sheet, covering the pages as a dialog does (lib/cover.ts).
+// Over the grid, while a task is shown: a Sheet, covering the pages as a dialog does (layers/renderer/cover.ts).
 export function Sidebar() {
   const [open, setOpen] = useState(false);
   useEffect(() => { sidebarOverlay({ open, setOpen }); return () => sidebarOverlay(null); }, [open]);

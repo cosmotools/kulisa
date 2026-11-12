@@ -6,7 +6,7 @@ import { CircleAlertIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, FieldDescription, FieldLegend, FieldSet, Kbd, Table, TableBody, TableCell,
   TableRow, Alert, AlertDescription } from '@ui';
 import { registerDialog } from '../lib/dialogs';
-import { useShortcuts } from '../lib/common';
+import { useShortcuts } from '../../window-client/renderer';
 import { refused } from '../../shared/result';
 import { Tip } from './Tip';
 

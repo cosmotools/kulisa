@@ -1,6 +1,6 @@
 // Browser capability entry; see ../README.md.
 export { Profile, stepZoom, wipeSession, clearCaches, toUrl, ensureTarget } from './profiles.ts';
-export type { Tab, ProfileConfig, Bounds } from './profiles.ts';
+export type { Tab, ProfileConfig } from './profiles.ts';
 export { focusWindow, guardFocus, registerWindowUi, allowFocus } from './page-focus.ts';
 export { SessionCookies } from './session-cookies.ts';
 export { CookieSync } from './cookie-sync.ts';

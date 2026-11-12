@@ -3,7 +3,7 @@
 // grid and its terminals, its agents in some of them. Its project's window shows one task at a time; the others keep
 // running, those of the other open projects too. A task loads (profiles, terminals) the first time it is shown, so a
 // restart does not start every one at once.
-import type { TaskView } from './task-view.ts';
+import type { TaskView } from '../task-view/main/index.ts';
 import { session } from 'electron';
 import fs from 'fs';
 import path from 'path';
@@ -138,7 +138,7 @@ class Task {
   shown() { return this.window?.task === this; }
   // Into another window (app.ts, Move to New Window), running: its profiles' pages go there, hidden until that window
   // lays them out; its agents' output goes there (window: send).
-  moveTo(w: AppWindow) { this.view?.moveTo(w); for (const p of this.profiles.values()) p.moveTo(w.win, this.view?.group, () => this.window?.focusUi ?? w.ui); }
+  moveTo(w: AppWindow) { this.view?.moveTo(w.win, w.workspace); for (const p of this.profiles.values()) p.moveTo(w.win, this.view?.group, () => this.window?.focusUi ?? w.ui); }
   get name() { return this.entry.name; }
   // The name shown in the bar: the one it was given (task_rename / Rename…), or, until then, its first agent
   // conversation's name (the agent's own auto-title, noteAutoTitle), falling back to its stored name ("New Task").

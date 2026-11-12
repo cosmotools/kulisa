@@ -2,29 +2,29 @@
 // the Kulisa zoom when not 100%, Settings, ☰; its room beside the OS window buttons (env(titlebar-area-*):
 // titleBarOverlay in window.ts, 44 px there). No logo on macOS: its apps show their icon in the Dock; Exit only where
 // the OS has no menu bar with Quit (macOS: Cmd+Q).
+import { usePreferences, keyText, withKeys } from '../../window-client/renderer';
 import type { ComponentType } from 'react';
 import { BookOpenIcon, BugIcon, GitBranchIcon, InfoIcon, KeyboardIcon, LanguagesIcon, LogOutIcon, MenuIcon,
   MinusIcon, PlusIcon, SettingsIcon, SunMoonIcon, ZoomInIcon } from 'lucide-react';
 import { Button, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuShortcut, DropdownMenuSub,
   DropdownMenuSubTrigger, Toggle, Item, ItemContent, ItemDescription, ItemTitle } from '@ui';
-import { ButtonMenu, SubmenuContent } from './Menus';
+import { ButtonMenu, SubmenuContent } from '../../menus/renderer';
 import { Tip } from './Tip';
-import { AppLogo, Logo } from './ProjectIcon';
+import { AppLogo, Logo } from '../../appearance/renderer';
 import { useWindow } from '../lib/store';
-import { keyText, withKeys } from '../lib/common';
 import { StageMenu } from './StageMenu';
 import { ask } from '../lib/shell-ask';
 import { dialog } from '../lib/dialogs';
 import { leaveSettings, openSettings, useSettings } from '../lib/settings';
 import { refused } from '../../shared/result';
-import type { MenuItem } from '../lib/menu';
+import type { MenuItem } from '../../menus/renderer';
 import type { Theme } from '../../shared/ipc';
 
 const mac = kulisa.platform === 'darwin';
 
 // ☰'s zoom row, as Chrome's: Zoom  −  100%  +; − and + leave the menu open.
 function ZoomRow() {
-  const zoom = useWindow((s) => s.zoom);
+  const zoom = usePreferences((s) => s.zoom);
   const step = (by: number) => (e: Event) => { e.preventDefault(); void kulisa.invoke('zoom:ui', by); };
   return <div role="group" aria-label="Zoom" data-testid="zoom-row" className="flex items-center gap-0.5">
     <span className="flex flex-1 items-center gap-1.5 px-1.5 text-sm [&_svg]:size-4 [&_svg]:text-muted-foreground"><ZoomInIcon />Zoom</span>
@@ -55,14 +55,14 @@ function ChoiceRow({ name, icon: Icon, label, title, choices, chosen, choose }: 
 }
 
 const THEMES = [{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }, { value: 'system', label: 'System', title: 'As the operating system' }];
-const ThemeRow = () => <ChoiceRow name="theme" icon={SunMoonIcon} label="Theme" choices={THEMES} chosen={useWindow((s) => s.theme)}
+const ThemeRow = () => <ChoiceRow name="theme" icon={SunMoonIcon} label="Theme" choices={THEMES} chosen={usePreferences((s) => s.theme)}
   choose={(t) => kulisa.invoke('theme:set', t as Theme)} />;
 
 // Language (docs/window.md, Language): the system's first, then by name in each language itself; its tooltip says what
 // it changes, and for which agents (agents/, language).
 const languageName = (code: string, inLanguage = code) => new Intl.DisplayNames([inLanguage], { type: 'language' }).of(code)!;
 function LanguageRow() {
-  const info = useWindow((s) => s.language);
+  const info = usePreferences((s) => s.language);
   if (!info?.languages.length) return null;
   const system = navigator.language.split('-')[0];
   const order = info.languages.toSorted((a, b) => Number(b === system) - Number(a === system) || languageName(a).localeCompare(languageName(b)));
@@ -94,7 +94,7 @@ const windowMenu = (): MenuItem[] => [
 
 export function TopBar() {
   const current = useWindow((s) => s.current);
-  const zoom = useWindow((s) => s.zoom), settings = useWindow((s) => s.projects.settings), shown = !!useSettings();
+  const zoom = usePreferences((s) => s.zoom), settings = useWindow((s) => s.projects.settings), shown = !!useSettings();
   const toggle = <Toggle id="settingsButton" aria-label="Settings" pressed={shown} onPressedChange={() => (shown ? void leaveSettings() : openSettings())}>
     <SettingsIcon /></Toggle>;
   return <header className="h-11 bg-background">

@@ -8,7 +8,7 @@ const at = createStore<SettingsAt | null>()(() => null);
 kulisa.on('settings:show', (a) => at.setState({ ...a }, true));
 export const useSettings = () => useStore(at);
 
-export { openSettings } from './open-settings';
+export { openSettings } from '../../window-client/renderer';
 
 // Closed (its ×, Esc, the gear): Settings saves what is typed first, and may stay (an agent installing).
 let leave: (() => Promise<void>) | null = null;

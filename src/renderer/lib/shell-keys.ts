@@ -1,9 +1,9 @@
 // Window commands stay in the healthy shell, independent of task JavaScript (docs/window.md).
-import './key-zone';
+import '../../layers/renderer';
 import { store } from './store';
 import { dialog } from './dialogs';
 import { toggleSidebar } from './sidebar';
-import { closeLayers } from './cover';
+import { closeLayers } from '../../layers/renderer';
 kulisa.on('command:run', ({ id }) => {
   if (id === 'task.menu') toggleSidebar();
   if (id === 'shortcuts') void dialog('shortcuts').then((d) => d.showShortcuts());

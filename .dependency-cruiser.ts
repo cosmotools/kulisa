@@ -17,7 +17,7 @@ const only = (name: string, from: string, allowed: string[], comment: string) =>
 // Kulisa packages (docs/packages.md): all of one in src/<package>/, reached from outside only
 // through its entries (other packages' too); its main process half uses of src/main only what its line names, its window
 // half nothing of the window. A new Kulisa package is a line here.
-const packages: Record<string, { main: string[] }> = {
+const packages: Record<string, { main: string[]; assets?: string[] }> = {
   'kulisa-plugin': { main: ['log', 'store', 'files', 'remove'] },
   browser: { main: ['log', 'files', 'local'] },
   terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown
@@ -31,24 +31,33 @@ const packages: Record<string, { main: string[] }> = {
   github: { main: ['ipc', 'log', 'store', 'files'] },
   'activity-monitor': { main: [] }, // what Kulisa takes on the computer; told of the tasks by the caller
   dictation: { main: ['ipc', 'log'] }, // dictation: what each task's microphone shows, and recording
+  menus: { main: [] },
+  'tab-strip': { main: [] },
+  appearance: { main: [], assets: ['renderer/page.css'] },
+  'agent-presentation': { main: [] },
+  layers: { main: [] },
+  'window-client': { main: [] },
+  'task-view': { main: ['ipc', 'log'] },
 };
-const packageRules = (name: string, { main: uses }: { main: string[] }) => {
+const packageRules = (name: string, { main: uses, assets = [] }: { main: string[]; assets?: string[] }) => {
   const dir = `^src/${name}/`;
   return [
     { name: `${name}-entries`, severity: 'error' as const, comment: `${name}/ is reached through main/index.ts, renderer/index.ts and ipc.ts only.`,
-      from: { pathNot: dir }, to: { path: dir, pathNot: `${dir}(main/index|renderer/index|ipc)\\.ts$` } },
+      from: { pathNot: dir }, to: { path: dir, pathNot: `${dir}((main/index|renderer/index|ipc)\\.ts${assets.map((asset) => `|${asset.replaceAll('.', '\\.')}`).join('')})$` } },
     { name: `${name}-main`, severity: 'error' as const, comment: `${name}/main uses nothing of src/main but ${uses.join(', ')}.`,
       from: { path: `${dir}main/` }, to: { path: '^src/(main|renderer|preload)/', pathNot: `^src/main/(${uses.join('|')})\\.ts$` } },
     { name: `${name}-contracts`, severity: 'error' as const, comment: `${name}/ipc.ts declares contracts without core domain dependencies.`,
       from: { path: `${dir}ipc\\.ts$` }, to: { path: '^src/(main|renderer|preload)/' } },
     { name: `${name}-renderer`, severity: 'error' as const, comment: `${name}/renderer uses nothing of the window, nor of the main process.`,
       from: { path: `${dir}renderer/` }, to: { path: '^src/(renderer|main|preload)/' } },
+    { name: `${name}-shared`, severity: 'error' as const, comment: `${name}'s pure shared implementation imports no core or process-specific code.`,
+      from: { path: `${dir}shared/` }, to: { path: '^src/(main|renderer|preload)/|^src/[^/]+/(main|renderer)/' } },
     { name: `${name}-sides`, severity: 'error' as const, comment: `${name}'s two halves run in two processes: only types between them.`,
       from: { path: `${dir}(main|renderer)/` }, to: { preCompilationOnly: false, path: `${dir}(main|renderer)/`, pathNot: `${dir}$1/` } },
     { name: `${name}-window-side`, severity: 'error' as const, comment: `The window takes ${name}/renderer, the main process ${name}/main.`,
-      from: { path: '^src/renderer/' }, to: { preCompilationOnly: false, path: `${dir}main/` } },
+      from: { path: '^src/(renderer|[^/]+/renderer)/' }, to: { preCompilationOnly: false, path: `${dir}main/` } },
     { name: `${name}-main-side`, severity: 'error' as const, comment: `The window takes ${name}/renderer, the main process ${name}/main.`,
-      from: { path: '^src/main/' }, to: { preCompilationOnly: false, path: `${dir}renderer/` } },
+      from: { path: '^src/(main|[^/]+/main)/' }, to: { preCompilationOnly: false, path: `${dir}renderer/` } },
   ];
 };
 
@@ -77,16 +86,9 @@ const config: IConfiguration = {
     // logic never comes to depend on a look.
     { name: 'logic-not-look', severity: 'error', comment: 'Shared renderer logic and the project draft import no component, UI library or icons.',
       from: { path: '^src/renderer/(lib/|components/new-project/draft\\.ts$)' },
-      to: { path: ['^src/renderer/components/', '^src/renderer/task-view/.*\\.tsx$', '^src/ui/', 'node_modules/(lucide-react|radix-ui|@radix-ui)/'] } },
-    { name: 'task-view-entry', severity: 'error', comment: 'TaskView exposes its UI through index.ts; commands, state, grids and panels stay private.',
-      from: { pathNot: '^src/renderer/task-view/' },
-      to: { path: '^src/renderer/task-view/', pathNot: '^src/renderer/task-view/index\\.ts$' } },
-    { name: 'shell-not-task-screen', severity: 'error', comment: 'Shell controls use read-only summaries and IPC, never task controllers or grids.',
-      from: { path: '^src/renderer/(main\\.tsx|components/(App|TopBar|TaskBar|StageMenu|Sidebar|HandOver|StageTerminalSettings)\\.tsx|lib/(shell-[^/]+|task-summary)\\.ts)$' },
-      to: { path: '^src/renderer/task-view/', preCompilationOnly: false } },
-    { name: 'task-not-shell-state', severity: 'error', comment: 'A task process requests global dialogs and Settings through IPC; shell stores and listeners stay in the shell.',
-      from: { path: '^src/renderer/task-view/' },
-      to: { path: '^src/renderer/lib/(shell-[^/]+|dialogs|settings|sidebar)\\.ts$' } },
+      to: { path: ['^src/renderer/components/', '^src/task-view/renderer/', '^src/ui/', 'node_modules/(lucide-react|radix-ui|@radix-ui)/'] } },
+    { name: 'shell-not-task-screen', severity: 'error', comment: 'Shell controls use summaries and IPC; only task.html loads the task renderer.',
+      from: { path: '^src/renderer/' }, to: { path: '^src/task-view/renderer/', preCompilationOnly: false } },
     { name: 'welcome-entry', severity: 'error', comment: 'The welcome owns its examples, animations and assets; outside callers use Welcome.tsx.',
       from: { pathNot: '^src/renderer/components/welcome/' },
       to: { path: '^src/renderer/components/welcome/', pathNot: '^src/renderer/components/welcome/Welcome\\.tsx$' } },

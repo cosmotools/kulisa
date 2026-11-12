@@ -1,19 +1,18 @@
 // A project's page in Settings (docs/tasks.md, Projects): its name, its local addresses, its Folders, Agents and Profiles;
 // saved as they change. Add Agent → New Account signs in to one there (SignIn.tsx), added to the project.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { avatarSrc } from '../../lib/common';
+import { avatarSrc, ProjectIcon } from '../../../appearance/renderer';
 import { BotIcon, FolderIcon, PlusIcon, UsersIcon, XIcon, CircleAlertIcon } from 'lucide-react';
 import { Alert, AlertAction, AlertDescription, Badge, Button, Input, Select, SelectContent, SelectItem, SelectTrigger,
   SelectValue, SelectGroup, Avatar, AvatarImage, AvatarFallback,
   Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, Spinner } from '@ui';
-import { ButtonMenu } from '../Menus';
-import { agentMark } from '../AgentMark';
+import { ButtonMenu } from '../../../menus/renderer';
+import { agentMark } from '../../../agent-presentation/renderer';
 import { SignIn } from '../SignIn';
-import { ProjectIcon } from '../ProjectIcon';
 import { AddInPlace, Things, SettingsHeading, SettingsGroup, SettingsFields, SettingsField, SettingsLoading, SettingsError } from './kit';
 import { useChanged } from './changed';
 import { useRead } from './read';
-import type { MenuItem } from '../../lib/menu';
+import type { MenuItem } from '../../../menus/renderer';
 import { refused, type Result } from '../../../shared/result';
 import type { ProjectAgent, ProjectEntry, ProjectFolder, ProjectGitHub, ProjectProfile, ProjectSettings } from '../../../shared/types';
 

@@ -118,7 +118,7 @@ test("projects: Delete Project… (in Settings alone) asks, closes the project w
   const goneData = path.join(files.userData, 'projects', files.pid('gone'));
   await removeRow('gone');
   await expect.poll(async () => (await projects()).includes('gone')).toBe(false);
-  // Settings stays over the window as its grid changes underneath (lib/cover.ts, 'page').
+  // Settings stays over the window as its grid changes underneath (layers/renderer/cover.ts, 'page').
   await expect(ui.locator('#settings')).toHaveCount(1);
   if (await ui.locator('#settings').count()) await closeSettings(core, ui, sui);
   await expect.poll(() => core((k, f) => k.shell.current?.folder === f && !!k.shell.task?.loaded, files.project)).toBe(true);
