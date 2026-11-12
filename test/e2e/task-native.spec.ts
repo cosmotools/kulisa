@@ -183,5 +183,3 @@ test('task UI actions reject another task identity and unregistered native pages
   expect(await core((k) => k.shell.task.key)).toBe(second);
   await invoke(ui, 'task:close', second);
 });
-
-

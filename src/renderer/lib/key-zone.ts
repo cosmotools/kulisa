@@ -17,4 +17,3 @@ const report = () => {
 document.addEventListener('focusin', report);
 document.addEventListener('focusout', () => setTimeout(report)); // where it went is known after the event
 onDialogs(report); // a dialog opened or closed
-
