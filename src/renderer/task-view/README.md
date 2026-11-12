@@ -6,7 +6,8 @@ Names: [UI terminology](../../../docs/ui.md#workbench-terminology). Grid lifecyc
 
 ## Boundary
 
-The task page boots through `main.tsx`; dependency-cruiser prevents outside access to its implementation.
+The public UI entry is `index.ts`; dependency-cruiser prevents outside access to the implementation.
+`task.html` loads the page bootstrap `main.tsx`, which uses that entry.
 Keep the task's commands, controllers, stores, pane layout and native-view measurements inside; shared window
 coordination remains in `renderer/lib/`. Other Kulisa packages are reached through their public entries.
 

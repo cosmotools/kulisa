@@ -2,7 +2,7 @@
 import '../window.css';
 import { createRoot } from 'react-dom/client';
 import { TooltipProvider } from '@ui';
-import { TaskScreen } from './TaskView';
+import { TaskScreen } from './index';
 import { PointMenu } from '../components/Menus';
 import { Thumbnail, thumbnailMenu } from '../../screenshots/renderer';
 import { menuAtPoint } from '../lib/menu';
