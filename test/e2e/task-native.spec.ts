@@ -24,19 +24,28 @@ process.stdout.write('BURST-END\\r\\n');},10);`);
     ...keys.map((key) => k.shell.taskByKey(key).view.ui.getOSProcessId())], [first, second]);
   expect(new Set(pids).size, 'shell and task UIs have independent processes').toBe(3);
   await invoke(ui, 'task:show', first); await notLoading(ui);
-  await core((k) => { k.stash.burstStarted = 0; k.electron.ipcMain.once('test:burst:stall', () => { k.stash.burstStarted = Date.now(); }); });
   await screen.evaluate((terminal) => {
     (window as any).__burst = '';
     (window as any).kulisa.on('pty:out', ({ task, data }: { task: string; data: string }) => {
       if (task === terminal) (window as any).__burst += data;
     });
-    setTimeout(() => { (window as any).kulisa.send('test:burst:stall', null); const until = Date.now() + 2000; while (Date.now() < until) {} }, 10);
+    (window as any).kulisa.on('test:burst:start', () => {
+      (window as any).kulisa.send('test:burst:stall', null);
+      const until = Date.now() + 2000; while (Date.now() < until) {}
+    });
   }, terminal);
-  // This one-off test observation runs in main while the task's JavaScript is blocked.
-  await expect.poll(() => core((k) => k.stash.burstStarted > 0)).toBe(true);
+  // Finish evaluate (including Playwright's trace snapshot) before starting the stall (#434).
+  // The start acknowledgement uses main's socket, so it never waits for the blocked task renderer.
+  await core((k, first) => new Promise<void>((resolve) => {
+    k.electron.ipcMain.once('test:burst:stall', () => { k.stash.burstStarted = Date.now(); resolve(); });
+    k.shell.taskByKey(first).view.ui.send('test:burst:start');
+  }), first);
   fs.writeFileSync(gate, 'go');
   await taskTab(ui, second).click();
-  expect(await core((k) => Date.now() - k.stash.burstStarted)).toBeLessThan(2000);
+  const switched = await core((k) => ({ task: k.shell.task.key, settled: k.settled(), elapsed: Date.now() - k.stash.burstStarted }));
+  expect(switched.task).toBe(second);
+  expect(switched.settled).toBe(true);
+  expect(switched.elapsed).toBeLessThan(2000);
   await expect.poll(() => screen.evaluate(() => (window as any).__burst.includes('BURST-END'))).toBe(true);
   const output = await screen.evaluate(() => ((window as any).__burst as string).replace(/\r+$/gm, ''));
   expect(output.split('BURST-BEGIN\n')[1]?.split('BURST-END')[0])
