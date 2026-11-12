@@ -1,4 +1,4 @@
-import { taskPage, menuPage, inputPage } from './pages.ts';
+import { taskPage, inputPage } from './pages.ts';
 // A project of several repositories (docs/tasks.md, Several repositories): a task's worktree made on demand, another
 // repository added to a task and removed from it, by the human and by the agent, and the project's folders.
 import fs from 'fs';
@@ -40,8 +40,8 @@ test('projects: several repositories: a task works in the main tree until it mak
       const row = tree.getByRole('treeitem', { name: label, exact: true });
       await expect(row).toBeVisible();
       await rightClick(ui, row);
-      await expect((await menuPage(ui)).getByRole('menuitem', { name: 'Open Folder', exact: true })).toBeVisible();
-      await expect((await menuPage(ui)).getByRole('menuitem', { name: 'Remove Repository', exact: true })).toHaveCount(removable ? 1 : 0);
+      await expect((await menu(ui)).getByRole('menuitem', { name: 'Open Folder', exact: true })).toBeVisible();
+      await expect((await menu(ui)).getByRole('menuitem', { name: 'Remove Repository', exact: true })).toHaveCount(removable ? 1 : 0);
       await (await inputPage(ui)).keyboard.press('Escape');
     }
   };

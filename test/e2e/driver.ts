@@ -140,7 +140,9 @@ export function driver(shell: Shell, openedExternally: string[]) {
     // On macOS a click also brings the app to the front, and only the front app's windows take the keyboard.
     focus(w: electron.BaseWindow = shell.win) {
       if (process.platform === 'darwin') electron.app.focus({ steal: true });
-      w.focus(); shell.windows.find((owner) => owner.win === w)?.focusUi.focus();
+      w.focus();
+      if (w instanceof electron.BrowserWindow) w.webContents.focus();
+      else shell.windows.find((owner) => owner.win === w)?.focusUi.focus();
     },
     // A sandboxed page: its preload's world (999, contextIsolation's) has no Node's process (Electron's tutorial/sandbox.md).
     noNode: async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined',

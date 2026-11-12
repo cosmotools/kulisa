@@ -98,22 +98,23 @@ test('a task becoming responsive clears its fallback and restores native layout 
   const key = await newTask(core, ui);
   await call('profile_create', { name: 'Responsive.browser' });
   const screen = await taskPage(ui);
+  const fallback = screen.getByRole('alert').filter({ hasText: 'This task’s screen could not be displayed' });
   const identity = () => core((k) => ({ wc: k.shell.task.view.ui.id, pid: k.shell.task.view.ui.getOSProcessId(), pty: k.shell.task.pty.pid }));
   const before = await identity();
-  const placed = () => core((k) => !k.shell.task.window.viewsHidden && [...k.shell.task.profiles.values()].every((p) => p.view.getVisible()));
+  const placed = () => core((k) => k.shell.task.profiles.size > 0 && !k.shell.task.window.viewsHidden && [...k.shell.task.profiles.values()].every((p) => p.view.getVisible()));
   await expect.poll(placed).toBe(true);
   try {
     // Chromium's hang signal is conditional; exercise its handler deterministically, including a committed fallback.
     await core((k) => { k.shell.task.view.ui.emit('unresponsive'); });
     await expect(ui.getByRole('button', { name: 'Reload task screen', exact: true })).toBeVisible();
-    await expect(screen.getByRole('alert')).toContainText('This task’s screen could not be displayed');
+    await expect(fallback).toBeVisible();
     await core((k) => { k.shell.task.view.ui.emit('responsive'); });
-    await expect(screen.getByRole('alert')).toHaveCount(0);
+    await expect(fallback).toHaveCount(0);
     await expect(screen.locator('[data-task-screen]')).toBeVisible();
     await expect.poll(placed).toBe(true);
     // Recovery can also arrive before React commits the failure; native placement must still resume.
     await core((k) => { const wc = k.shell.task.view.ui; wc.emit('unresponsive'); wc.emit('responsive'); });
-    await expect(screen.getByRole('alert')).toHaveCount(0);
+    await expect(fallback).toHaveCount(0);
     await expect.poll(placed).toBe(true);
     await expect(ui.getByRole('button', { name: 'Reload task screen', exact: true })).toHaveCount(0);
     expect(await identity()).toEqual(before);
