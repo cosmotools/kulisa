@@ -1,5 +1,6 @@
 // The built-in environments a human can open in the testing stage.
-import { store, actionsFor } from './state';
+import { store } from './state';
+import { actionsFor } from '../../window-client/renderer';
 import { profileLaunchers } from './profiles';
 import type { StageTerminal } from '../../shared/stage-terminal';
 import { refused, type Result } from '../../shared/result';
@@ -10,16 +11,16 @@ document.addEventListener('pointerdown', cancelFocus, true);
 document.addEventListener('keydown', cancelFocus, true);
 window.addEventListener('blur', cancelFocus);
 export async function focusStageTerminal(task: string, launch: () => Promise<Result<StageTerminal>>) {
-  const owner = store, request = { key: null };
-  owner.setState({ stageTerminalFocus: request });
+  const request = { key: null };
+  store.setState({ stageTerminalFocus: request });
   try {
     const result = await launch();
-    if (owner.getState().stageTerminalFocus === request) {
-      owner.setState({ stageTerminalFocus: refused(result) || store.getState().current !== task ? null : { key: result.key } });
+    if (store.getState().stageTerminalFocus === request) {
+      store.setState({ stageTerminalFocus: refused(result) || store.getState().current !== task ? null : { key: result.key } });
     }
     return result;
   } catch (error) {
-    if (owner.getState().stageTerminalFocus === request) owner.setState({ stageTerminalFocus: null });
+    if (store.getState().stageTerminalFocus === request) store.setState({ stageTerminalFocus: null });
     throw error;
   }
 }

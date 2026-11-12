@@ -23,9 +23,9 @@ const fullUrl = (u = '') => (u === 'about:blank' ? '' : u);
 const blank = (u?: string) => !fullUrl(u);
 
 export function ProfilePane({ api }: IDockviewPanelProps) {
-  const owner = store, grid = useTaskGrid();
+  const grid = useTaskGrid();
   // Its active tab as the store has it now, for what acts (a handler, not a render).
-  const activeTab = useCallback((id: string) => { const p = owner.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); }, [owner]);
+  const activeTab = useCallback((id: string) => { const p = store.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); }, []);
 
   const id = profileOf(api.id), profile = useProfile(id);
   const picking = useTask((s) => !!s.picking[id]), picture = useTask((s) => s.pictures[id]);
@@ -42,12 +42,12 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   const [editing, setEditing] = useState<{ tab: string; value: string } | null>(null);
   const taskActive = useTaskActive(!!editing);
   const editAddress = useCallback((target = activeTab(id)?.id) => {
-    const p = owner.getState().profiles.find((x) => x.id === id), t = p?.tabs.find((x) => x.id === target);
+    const p = store.getState().profiles.find((x) => x.id === id), t = p?.tabs.find((x) => x.id === target);
     if (!t) return;
     if (p?.active !== t.id) { typeInto.current = t.id; void act('tab:activate', { profile: id, tab: t.id }); return; }
     selectAll.current = true;
     setEditing({ tab: t.id, value: fullUrl(t.url) });
-  }, [id, owner, activeTab]);
+  }, [id, activeTab]);
   useEffect(() => {
     if (typeInto.current && typeInto.current === active?.id) { typeInto.current = null; editAddress(); }
     else setEditing((draft) => draft?.tab === activeTab(id)?.id ? draft : null);
@@ -77,7 +77,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       },
       // As a click on Pick: off on an empty tab; again cancels.
       pick() {
-        if (owner.getState().picking[id] || !blank(activeTab(id)?.url)) void togglePick(id, owner);
+        if (store.getState().picking[id] || !blank(activeTab(id)?.url)) void togglePick(id);
       },
     };
     grid.panes.set(id, handle);
@@ -85,14 +85,14 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     observer.observe(content);
     grid.reportPages();
     return () => { observer.disconnect(); if (grid.panes.get(id) === handle) grid.panes.delete(id); };
-  }, [id, content, editAddress, activeTab, owner, grid]);
+  }, [id, content, editAddress, activeTab, grid]);
 
   // The tab strip: a tab is chosen on the press, as in Chrome (not on its ×), or by Enter or Space. A tab opened grows
   // in, and the active tab is kept in sight (tab-strip/renderer/strip.ts). Tabs are kept by id: an element stays as its tab does.
   const activate = (t: string) => { if (t !== tab()) void act('tab:activate', { profile: id, tab: t }); };
   // A tab's right-click menu (the strip's: for the tab it was on).
   function tabMenu(e: globalThis.MouseEvent): MenuItem[] | null {
-    const t = (e.target as Element).closest<HTMLElement>('[data-tab]')?.dataset.tab, p = owner.getState().profiles.find((x) => x.id === id);
+    const t = (e.target as Element).closest<HTMLElement>('[data-tab]')?.dataset.tab, p = store.getState().profiles.find((x) => x.id === id);
     if (!t || !p) return null;
     const url = p.tabs.find((x) => x.id === t)?.url;
     return [
@@ -131,9 +131,9 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     ];
     return [...given, ...given.length ? ['-' as const] : [],
       { heading: 'Screenshot' },
-      { label: 'Element', keys: keyText('screenshot'), enabled: !off, run: () => screenshot(id, 'element', owner) },
-      { label: 'Visible Part', enabled: !off, run: () => screenshot(id, 'visible', owner) },
-      { label: 'Full Page', enabled: !off, run: () => screenshot(id, 'full', owner) },
+      { label: 'Element', keys: keyText('screenshot'), enabled: !off, run: () => screenshot(id, 'element') },
+      { label: 'Visible Part', enabled: !off, run: () => screenshot(id, 'visible') },
+      { label: 'Full Page', enabled: !off, run: () => screenshot(id, 'full') },
       '-',
       { label: 'DevTools', keys: keyText('devtools.tab'), run: () => act('tab:devtools', { profile: id, tab: tab() }) }];
   };
@@ -180,7 +180,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
         onClick={() => void act('tab:zoom', { profile: id, tab: tab(), dir: 0 })}>{Math.round(active.zoom * 100)}%</Button>}
       {/* Pick needs a page to point at: off on an empty tab, unless picking already. */}
       <Toggle size="sm" pressed={picking} aria-label="Pick an element" title={withKeys('Pick an element on the page to mention it to the agent (again or Esc: cancel)', 'pick')}
-        disabled={!picking && blank(active?.url)} onPressedChange={() => void togglePick(id, owner)}><SquareMousePointerIcon /></Toggle>
+        disabled={!picking && blank(active?.url)} onPressedChange={() => void togglePick(id)}><SquareMousePointerIcon /></Toggle>
       <ButtonMenu items={more} end>
         <Button variant="ghost" size="icon-sm" title="More: Screenshot, DevTools" aria-label="More"><EllipsisVerticalIcon /></Button>
       </ButtonMenu>

@@ -1,6 +1,6 @@
 // The shown task's profiles as a menu (docs/profiles.md). An open one brings its pane to the front: it may be stacked
 // behind another.
-import { actionsFor } from './state';
+import { actionsFor } from '../../window-client/renderer';
 import type { ClosedProfile } from '../../shared/types';
 import { openSettings } from '../../window-client/renderer';
 

@@ -2,7 +2,7 @@
 
 Shared theme, native drawing colors and identity presentation. Core supplies preferences/project facts.
 The first-paint script `src/renderer/public/theme.js` owns initial/System theme application; shade subscriptions
-must run after its media listener. Native drawings need CSS colors converted to RGBA, as explained in `theme.ts`.
+must run after its media listener.
 
 ## The code
 

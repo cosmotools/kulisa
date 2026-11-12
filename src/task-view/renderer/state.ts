@@ -8,6 +8,7 @@ import type { Artifact, ClosedProfile, Profile, DevelopmentTerminalsState, Proje
 import type { StageLayout, StagePosition } from '../../shared/ipc';
 import { refused } from '../../shared/result';
 import { projectColor, onColors } from '../../appearance/renderer';
+import { actionsFor } from '../../window-client/renderer';
 import type { TaskGrid } from './grid';
 import type { ActivityItem } from './development';
 
@@ -59,13 +60,11 @@ export function useTaskActive(enabled = true) {
 }
 const get = store.getState;
 
-const setIn = <K extends 'captions' | 'picking'>(owner: TaskStore, key: K, profile: string, value: TaskState[K][string]) => owner.setState({ [key]: { ...owner.getState()[key], [profile]: value } });
-const setCaption = (profile: string, caption: string, owner = store) => setIn(owner, 'captions', profile, caption);
+const setIn = <K extends 'captions' | 'picking'>(key: K, profile: string, value: TaskState[K][string]) => store.setState({ [key]: { ...get()[key], [profile]: value } });
+const setCaption = (profile: string, caption: string) => setIn('captions', profile, caption);
 
 // The window's actions on the shown task's profiles and tabs name it, as the grid's layout does: one sent just as the
 // human switches tasks is refused, not done in the other one (main/ipc/panes.ts, onScreen).
-export { actionsFor } from '../../window-client/renderer';
-import { actionsFor } from '../../window-client/renderer';
 export const act = actionsFor(taskIdentity);
 
 // IPC copies objects; retaining equal parts keeps unchanged panels out of React's update path.
@@ -85,12 +84,11 @@ kulisa.on('development-terminal:state', (state) => receive(state.task ?? '', 'de
 kulisa.on('stage-terminal:state', ({ task, list }) => receive(task, 'stageTerminals', list));
 kulisa.on('task:artifact:state', (a) => receive(a.task, 'artifacts', a));
 
-// A caption that goes after 4 s, unless sticky: it stays until the next one.
 const captionTimers = new Map<string, number>();
-function brief(profile: string, caption: string, sticky?: boolean, owner = store) {
-  setCaption(profile, caption, owner);
+function brief(profile: string, caption: string, sticky?: boolean) {
+  setCaption(profile, caption);
   clearTimeout(captionTimers.get(profile)); captionTimers.delete(profile);
-  if (!sticky) captionTimers.set(profile, window.setTimeout(() => { captionTimers.delete(profile); setCaption(profile, '', owner); }, 4000));
+  if (!sticky) captionTimers.set(profile, window.setTimeout(() => { captionTimers.delete(profile); setCaption(profile, ''); }, 4000));
 }
 
 // The agent's activity: a caption over the pane (the cursor itself is drawn inside the page, ghost.ts), sticky for what
@@ -102,28 +100,23 @@ kulisa.on('agent:caption', (a) => {
   brief(a.profile, a.caption ? `↖ agent: ${a.caption}` : '', a.sticky);
 });
 
-// Pick, then click an element: a reference to it lands in the agent's prompt (not sent), and the terminal gets the
-// focus, so the human writes what is wrong around it. Picks in several panes go into one message. Pick again or Esc in
-// the page cancels.
-export async function togglePick(profile: string, owner = store) {
-  if (owner.getState().key !== get().current) return;
-  if (owner.getState().picking[profile]) return kulisa.invoke('pick:cancel', { profile });
-  setCaption(profile, 'Click an element on the page · Esc to cancel', owner);
-  setIn(owner, 'picking', profile, true);
+export async function togglePick(profile: string) {
+  if (!get().active) return;
+  if (get().picking[profile]) return kulisa.invoke('pick:cancel', { profile });
+  setCaption(profile, 'Click an element on the page · Esc to cancel');
+  setIn('picking', profile, true);
   const res = await kulisa.invoke('pick:start', { profile });
-  setIn(owner, 'picking', profile, false);
-  setCaption(profile, res && res.error ? `Pick failed: ${res.error}` : '', owner);
+  setIn('picking', profile, false);
+  setCaption(profile, res && res.error ? `Pick failed: ${res.error}` : '');
 }
 
-// Screenshot (⋮ → Screenshot; its key: Element): the picture goes to the clipboard and the task's artifacts in Resources
-// (src/screenshots/README.md). Element: chosen as Pick chooses; Esc, Pick or the key again cancels.
-export async function screenshot(profile: string, kind: 'element' | 'visible' | 'full', owner = store) {
-  if (owner.getState().key !== get().current) return;
-  if (owner.getState().picking[profile]) return kulisa.invoke('pick:cancel', { profile });
-  if (kind === 'element') { setCaption(profile, 'Click an element for its screenshot · Esc to cancel', owner); setIn(owner, 'picking', profile, true); }
-  const res = await actionsFor(owner.getState().key)('tab:screenshot', { profile, kind });
-  setIn(owner, 'picking', profile, false);
-  brief(profile, refused(res) ? `Screenshot failed: ${res.error}` : res.file ? 'Screenshot copied and saved' : '', undefined, owner);
+export async function screenshot(profile: string, kind: 'element' | 'visible' | 'full') {
+  if (!get().active) return;
+  if (get().picking[profile]) return kulisa.invoke('pick:cancel', { profile });
+  if (kind === 'element') { setCaption(profile, 'Click an element for its screenshot · Esc to cancel'); setIn('picking', profile, true); }
+  const res = await act('tab:screenshot', { profile, kind });
+  setIn('picking', profile, false);
+  brief(profile, refused(res) ? `Screenshot failed: ${res.error}` : res.file ? 'Screenshot copied and saved' : '');
 }
 
 export const shownTask = (s = get(), task: string | null = s.current) => s.projects.tabs.find((t) => t.key === task);

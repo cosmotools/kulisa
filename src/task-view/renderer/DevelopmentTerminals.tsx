@@ -17,7 +17,6 @@ import { termFocus } from '../../terminal/renderer';
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
 export function DevelopmentTerminals({ visible }: { visible: boolean }) {
   const host = useRef<HTMLDivElement>(null), launch = useRef<HTMLDivElement>(null);
-  const owner = store;
   const active = useTaskActive();
   const task = useTask((s) => s.key), front = useTask((s) => s.developmentTerminals.front);
   const empty = useTask((s) => !s.developmentTerminals.list.length);
@@ -46,14 +45,14 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
     let cancelled = false;
     const key = `${task}#${front}`;
     void termFocus(key, () => {
-      const state = owner.getState();
+      const state = store.getState();
       return !cancelled && store.getState().current === task && state.developmentTerminals.front === front && state.workbenchItem === 'terminals'
         && state.developmentTerminalFocus === focus && !store.getState().covered && !dialogsShown() && !panelView.el.contains(document.activeElement);
     }).then(() => {
-      if (!cancelled && focus && owner.getState().developmentTerminalFocus === focus) owner.setState({ developmentTerminalFocus: null });
+      if (!cancelled && focus && store.getState().developmentTerminalFocus === focus) store.setState({ developmentTerminalFocus: null });
     });
     return () => { cancelled = true; };
-  }, [task, owner, focus, front, visible, active]);
+  }, [task, focus, front, visible, active]);
 
   // The big buttons, each a Tab stop (Tab to the next, Enter opens it): the first, the project's default agent, gets the
   // keyboard when the keyboard was in the terminal just closed or nowhere (not taken from a field or a dialog). No keys
@@ -74,7 +73,7 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
   }, [big, active, task]);
 
   const menu = (e: MouseEvent) => {
-    const { developmentTerminals } = owner.getState(), t = developmentTerminals.list.find((x) => x.id === developmentTerminals.front);
+    const { developmentTerminals } = store.getState(), t = developmentTerminals.list.find((x) => x.id === developmentTerminals.front);
     return t && (e.target as Element).closest('[data-testid="terminal"]') ? terminalMenu(`${task}#${t.id}`, terminalItems(task, t)) : null;
   };
 

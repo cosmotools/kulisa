@@ -2,15 +2,15 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@ui';
 import { forgetFrozen } from './views';
-import type { TaskStore } from './state';
+import { store } from './state';
 
-export class TaskBoundary extends Component<{ task: TaskStore; failed: boolean; children: ReactNode }, { failed: boolean }> {
+export class TaskBoundary extends Component<{ failed: boolean; children: ReactNode }, { failed: boolean }> {
   override state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   override componentDidCatch(error: unknown, info: ErrorInfo) {
-    const task = this.props.task, key = task.getState().key;
-    if (task.getState().current === key) forgetFrozen();
-    task.setState({ loading: false, pictures: {} });
+    const { key, active } = store.getState();
+    if (active) forgetFrozen();
+    store.setState({ loading: false, pictures: {} });
     // Error properties can contain private content or throw themselves; only inspect the value's JavaScript type.
     void kulisa.invoke('task:view-failed', { task: key, kind: error === null ? 'null' : typeof error,
       frames: (info.componentStack ?? '').split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 8) });

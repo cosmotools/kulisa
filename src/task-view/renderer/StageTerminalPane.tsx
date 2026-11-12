@@ -4,7 +4,8 @@ import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-re
 import { ArrowDownIcon, ArrowUpIcon, CircleAlertIcon, EllipsisIcon, PlayIcon, RotateCwIcon, TerminalSquareIcon, XIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Input } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../../menus/renderer';
-import { store, actionsFor, useTask, act, useTaskActive } from './state';
+import { store, useTask, act, useTaskActive } from './state';
+import { actionsFor } from '../../window-client/renderer';
 import { dialogsShown } from '../../layers/renderer';
 import { focusStageTerminal } from './environments';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
@@ -32,7 +33,6 @@ const actions = (terminal: StageTerminal, task: string): MenuItem[] => [
   { label: 'Close Stage terminal', run: () => actionsFor(task)('stage-terminal:close', { id: terminal.id }) },
 ];
 export function StageTerminalPane({ api }: IDockviewPanelProps) {
-  const owner = store;
   const taskKey = useTask((s) => s.key);
   const id = idOf(api.id), terminal = useStageTerminal(id), shade = useShade(), host = useRef<HTMLDivElement>(null);
   const view = useRef<View | null>(null);
@@ -61,15 +61,15 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
   useEffect(() => { view.current?.setSize(terminal?.size ?? null); }, [terminal?.size]);
   useEffect(() => { view.current?.restyle(termStyle()); }, [shade]);
   useEffect(() => {
-    if (!focus?.key || focus.key !== terminal?.key || owner.getState().stageTerminalFocus !== focus || store.getState().current !== taskKey) return;
+    if (!focus?.key || focus.key !== terminal?.key || store.getState().stageTerminalFocus !== focus || store.getState().current !== taskKey) return;
     let cancelled = false;
     api.setActive();
-    void termFocus(focus.key, () => !cancelled && owner.getState().stageTerminalFocus === focus
+    void termFocus(focus.key, () => !cancelled && store.getState().stageTerminalFocus === focus
       && store.getState().current === taskKey && !store.getState().covered && api.isVisible && document.hasFocus() && !dialogsShown()).then(() => {
-      if (!cancelled && owner.getState().stageTerminalFocus === focus && view.current?.el.contains(document.activeElement)) owner.setState({ stageTerminalFocus: null });
+      if (!cancelled && store.getState().stageTerminalFocus === focus && view.current?.el.contains(document.activeElement)) store.setState({ stageTerminalFocus: null });
     });
     return () => { cancelled = true; };
-  }, [focus, terminal?.key, api, owner, taskKey]);
+  }, [focus, terminal?.key, api, taskKey]);
   if (!terminal) return null;
   const menu = (): MenuItem[] => {
     const selection = view.current?.term.getSelection() ?? '';

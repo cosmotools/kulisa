@@ -14,12 +14,11 @@ let frozen: Promise<void> | null = null;
 let prepared = false;
 export function freeze() {
   if (frozen) return frozen;
-  const owner = store;
   const current = () => frozen === pending;
   const pending = kulisa.invoke('views:pictures').then(async (pics) => {
     if (!current()) return;
     // A second menu can arrive while the first one's native views are still covered.
-    const pictures = { ...owner.getState().pictures, ...pics };
+    const pictures = { ...store.getState().pictures, ...pics };
     const sources = Object.values(pictures);
     if (sources.length) {
       await Promise.all(sources.map(async (src) => {
@@ -27,13 +26,13 @@ export function freeze() {
         await image.decode().catch(() => {});
       }));
       if (!current()) return;
-      flushSync(() => owner.setState({ pictures }));
+      flushSync(() => store.setState({ pictures }));
       // The first frame paints React's committed images; only the following frame may uncover that surface.
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     }
     if (current()) {
       prepared = true;
-      await kulisa.invoke('views:hidden', true, { focus: false, task: owner.getState().key });
+      await kulisa.invoke('views:hidden', true, { focus: false, task: store.getState().key });
     }
   });
   frozen = pending;
@@ -41,12 +40,12 @@ export function freeze() {
 }
 export async function unfreeze() {
   if (!frozen) return;
-  const owner = store, pending = frozen;
+  const pending = frozen;
   frozen = null; prepared = false;
   await pending;
   if (frozen) return;
   await showViews();
-  if (!frozen) owner.setState({ pictures: {} });
+  if (!frozen) store.setState({ pictures: {} });
 }
 // A task switch forgets a capture still in progress (controller.ts).
 export const forgetFrozen = () => { frozen = null; prepared = false; };

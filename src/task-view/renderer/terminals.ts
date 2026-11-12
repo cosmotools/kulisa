@@ -1,7 +1,8 @@
 // A tasks' window's terminals (docs/window.md, The terminal): the terminals themselves are src/terminal's, keyed
 // "<task>#<id>" as in the main process; here the terminals' side: the shown task's terminal in front (task-view/DevelopmentTerminals.tsx),
 // links into its profiles and terminal menus. The task UI itself moves between windows.
-import { store, shownTask, actionsFor } from './state';
+import { store, shownTask } from './state';
+import { actionsFor } from '../../window-client/renderer';
 import { termStyle } from '../../appearance/renderer';
 import { keyText } from '../../window-client/renderer';
 import { menuAt, type MenuItem } from '../../menus/renderer';

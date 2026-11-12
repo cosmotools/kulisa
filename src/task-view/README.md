@@ -69,4 +69,4 @@ exit before its new ready handshake.
   `ipc.ts`: UI contracts; `shared/layout.ts`: pure saved-grid compatibility.
 - `renderer/controller.ts`, `grid.ts`, `stage.ts`, `development.ts`: activation, composition and Editor/Diff sessions;
   `state.ts`: core projection; pane components: content bounds; `Artifacts.tsx`: File Viewer host.
-- Core adapter: `src/main/window.ts`; authorization: `src/main/app.ts`. Entries/dependencies/tests: [AGENTS.md](AGENTS.md).
+- Core adapter: `src/main/window.ts`; authorization: `src/main/app.ts`.

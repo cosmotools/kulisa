@@ -17,7 +17,7 @@ import { developmentTheme, dockTheme } from './dock-theme';
 import { registerTaskGrid } from './controller';
 import { TaskGrid } from './grid';
 import { TaskBoundary } from './TaskBoundary';
-import { useTask, TaskContext, store, useTaskActive, useTaskGrid, type TaskStore } from './state';
+import { useTask, TaskContext, store, useTaskActive, useTaskGrid } from './state';
 import { profileLaunchers } from './profiles';
 import { useStrip } from '../../tab-strip/renderer';
 import { avatarSrc, termStyle, uiTextSize, useShade } from '../../appearance/renderer';
@@ -94,8 +94,8 @@ const Screen = memo(function Screen() {
     </div>
   </section>;
 });
-const TaskView = memo(function TaskView({ state, active }: { state: TaskStore; active: boolean }) {
-  const [grid] = useState(() => new TaskGrid(state));
+const TaskView = memo(function TaskView({ active }: { active: boolean }) {
+  const [grid] = useState(() => new TaskGrid(store));
   const [loaded, setLoaded] = useState(false);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
   const host = useRef<HTMLDivElement>(null);
@@ -118,12 +118,12 @@ const TaskView = memo(function TaskView({ state, active }: { state: TaskStore; a
   </div>;
 });
 export function TaskScreen() {
-  const state = store, active = useTask((s) => s.active), shade = useShade();
+  const active = useTask((s) => s.active), shade = useShade();
   const failed = useTask((s) => !!s.projects.tabs[0]?.viewFailed);
   useEffect(() => panelView.restyle(termStyle()), [shade]);
   return <main id="dock" className="relative isolate h-screen min-h-0 min-w-0 bg-background text-sm text-foreground">
-    <section data-task-view={state.getState().key} data-active={active || undefined} className="absolute inset-0">
-      <TaskBoundary task={state} failed={failed}><TaskView state={state} active={active} /></TaskBoundary>
+    <section data-task-view={store.getState().key} data-active={active || undefined} className="absolute inset-0">
+      <TaskBoundary failed={failed}><TaskView active={active} /></TaskBoundary>
     </section>
   </main>;
 }
