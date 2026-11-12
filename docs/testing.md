@@ -135,7 +135,12 @@ its list. Kulisa package boundaries include type imports; cycle checks concern r
 
 ## Upgrading Electron
 
-Two Electron workarounds have platform-specific reproductions:
+Electron workarounds have platform-specific reproductions:
+
+- Linux client-side decoration rounds only Electron's primary web view
+  ([electron#51459](https://github.com/electron/electron/pull/51459)). The explicit shell WCV matches the frame's
+  Chromium radius (8 DIP, zero when maximized/fullscreen) in `window.ts`; Windows/macOS retain native clipping.
+  Recheck the radius and view-tree clipping on upgrades, including both tasks' bar positions and global overlays.
 
 - A view page's drag regions outlive the page in a frameless window and take clicks over the panes
   ([electron#54743](https://github.com/electron/electron/issues/54743); [window.md](window.md), The title bar).

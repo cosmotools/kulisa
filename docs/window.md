@@ -34,6 +34,7 @@ One 44 px row (`TITLE_BAR_HEIGHT`, `TopBar.tsx`): colored project logo, optional
 OS buttons. `titleBarStyle: hidden`/`titleBarOverlay` keeps native controls with a transparent strip so dialog backdrops
 dim it; symbols retain theme colors. Empty space drags; non-100% zoom shows a reset button.
 The shell's opaque title background extends under the native controls; only its workspace is transparent.
+On Linux the shell view also matches Electron's frame rounding; Windows and macOS keep the window's native clipping.
 
 macOS has left traffic lights and no logo. Zoom repositions buttons with `setWindowButtonPosition`, bounded by the
 original native strip's height because buttons below it receive no clicks; high zoom can leave them above center.

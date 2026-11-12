@@ -108,6 +108,13 @@ class AppWindow {
     this.shellView = new WebContentsView({ webPreferences: { preload: PRELOAD, sandbox: true, devTools: appDevTools, zoomFactor: shell.uiZoom } });
     this.shellView.setBackgroundColor('#00000000');
     win.contentView.addChildView(this.shellView);
+    if (process.platform === 'linux') {
+      // Electron rounds only a primary web view on Linux; match its Chromium frame radius (docs/testing.md).
+      const updateCorners = () => this.shellView.setBorderRadius(win.isMaximized() || win.isFullScreen() ? 0 : 8);
+      win.on('maximize', updateCorners); win.on('unmaximize', updateCorners);
+      win.on('enter-full-screen', updateCorners); win.on('leave-full-screen', updateCorners);
+      updateCorners();
+    }
     registerWindowUi(this.ui, () => this.win);
     const resize = () => {
       const [width = 0, height = 0] = win.getContentSize();
