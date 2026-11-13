@@ -3,14 +3,15 @@ import { PlusIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage, Button, Item, ItemContent, ItemMedia, ItemTitle } from '@ui';
 import { ProfilePane, ProfileHeader } from './ProfilePane';
 import { profileLaunchers } from './launchers';
-import { BrowserPanes, BrowserPaneContext, useBrowserPane, useFacts, panelId } from './state';
+import { BrowserPanes, panelId } from './state';
+import { useStore } from 'zustand';
 import type { BrowserPaneHost } from './state';
 import { pageRects } from './pages';
 import { avatarSrc } from '../../appearance/renderer';
 import type { LauncherMode, StagePaneKind } from '../../shared/stage-pane';
 
-function BrowserLaunchers({ mode }: { mode: LauncherMode }) {
-  const act = useBrowserPane().host.act, closed = useFacts((s) => s.closedProfiles);
+function BrowserLaunchers({ mode, browser }: { mode: LauncherMode; browser: BrowserPanes }) {
+  const act = browser.host.act, closed = useStore(browser.host.facts, (s) => s.closedProfiles);
   return profileLaunchers(act, closed).map((p) => mode === 'tile'
     ? <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.name} title={p.title}
       className="h-auto w-60 justify-start" onClick={() => void p.run()}>
@@ -27,11 +28,11 @@ export function createBrowserPane(host: BrowserPaneHost) {
   const browser = new BrowserPanes(host);
   const definition: StagePaneKind = {
     kind: 'browser', component: 'profile',
-    pane: (props) => <BrowserPaneContext.Provider value={browser}><ProfilePane {...props} /></BrowserPaneContext.Provider>,
-    header: (props) => <BrowserPaneContext.Provider value={browser}><ProfileHeader {...props} /></BrowserPaneContext.Provider>,
+    pane: (props) => <ProfilePane browser={browser} {...props} />,
+    header: (props) => <ProfileHeader browser={browser} {...props} />,
     panes: () => browser.getState().profiles.map((p) => ({ id: panelId(p.id), title: p.name })),
     launcherOrder: 1,
-    Launchers: (props) => <BrowserPaneContext.Provider value={browser}><BrowserLaunchers {...props} /></BrowserPaneContext.Provider>,
+    Launchers: (props) => <BrowserLaunchers browser={browser} {...props} />,
     bind: browser.bind,
     command: (event) => {
       if (event.command !== 'profile:show' || !event.profile) return false;

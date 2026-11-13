@@ -9,27 +9,27 @@ import { ArrowLeftIcon, ArrowRightIcon, CircleDotIcon, CircleIcon, EllipsisIcon,
 import { Avatar, AvatarImage, Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Toggle } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../../menus/renderer';
 import { BrowserTab, TabStrip, grow, useStrip } from '../../tab-strip/renderer';
-import { useBrowserPane, useFacts, useUi, usePaneActive } from './state';
+import { useStore } from 'zustand';
+import type { BrowserPanes } from './state';
 import { avatarSrc } from '../../appearance/renderer';
 import { keyText, withKeys, openSettings } from '../../window-client/renderer';
 import type { MenuItem } from '../../menus/renderer';
 import './ProfilePane.css';
 
 const profileOf = (panel: string) => panel.slice('profile:'.length);
-const useProfile = (id: string) => useFacts((s) => s.profiles.find((p) => p.id === id));
+const useProfile = (browser: BrowserPanes, id: string) => useStore(browser.host.facts, (s) => s.profiles.find((p) => p.id === id));
 const fullUrl = (u = '') => (u === 'about:blank' ? '' : u);
 // Nothing to pick or take on an empty tab.
 const blank = (u?: string) => !fullUrl(u);
 
-export function ProfilePane({ api }: IDockviewPanelProps) {
-  const browser = useBrowserPane();
+export function ProfilePane({ api, browser }: IDockviewPanelProps & { browser: BrowserPanes }) {
   const { act } = browser.host;
   const { screenshot, togglePick } = browser;
   // Its active tab as the store has it now, for what acts (a handler, not a render).
   const activeTab = useCallback((id: string) => { const p = browser.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); }, [browser]);
 
-  const id = profileOf(api.id), profile = useProfile(id);
-  const picking = useUi((s) => !!s.picking[id]), picture = useFacts((s) => s.pictures[id]);
+  const id = profileOf(api.id), profile = useProfile(browser, id);
+  const picking = useStore(browser.ui, (s) => !!s.picking[id]), picture = useStore(browser.host.facts, (s) => s.pictures[id]);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
   const addr = useRef<HTMLInputElement>(null), strip = useRef<HTMLDivElement>(null);
   const nav = useRef<HTMLSpanElement>(null), reload = useRef<HTMLSpanElement>(null);
@@ -41,7 +41,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   // Bind the draft to its tab so switching tabs cannot navigate another tab with it. Requests for an inactive tab
   // wait for its activation, including a human's new tab whose state can arrive before or after the IPC reply.
   const [editing, setEditing] = useState<{ tab: string; value: string } | null>(null);
-  const taskActive = usePaneActive(!!editing);
+  const taskActive = useStore(browser.host.facts, (s) => !!editing && s.active && !s.covered);
   const editAddress = useCallback((target = activeTab(id)?.id) => {
     const p = browser.getState().profiles.find((x) => x.id === id), t = p?.tabs.find((x) => x.id === target);
     if (!t) return;
@@ -219,12 +219,11 @@ function PageDialog({ from, message, confirm, answer }: { from: string; message:
   </div>;
 }
 
-export function ProfileHeader({ api, containerApi }: IDockviewPanelHeaderProps) {
-  const browser = useBrowserPane();
+export function ProfileHeader({ api, containerApi, browser }: IDockviewPanelHeaderProps & { browser: BrowserPanes }) {
   const { act, controls: { Focus: PaneFocus, focusItem: paneFocusItem } } = browser.host;
-  const activity = useFacts((s) => s.stageActivity === api.id);
-  const id = profileOf(api.id), profile = useProfile(id);
-  const caption = useUi((s) => s.captions[id] || '');
+  const activity = useStore(browser.host.facts, (s) => s.stageActivity === api.id);
+  const id = profileOf(api.id), profile = useProfile(browser, id);
+  const caption = useStore(browser.ui, (s) => s.captions[id] || '');
   const status = profile?.signinMode ? 'Sign-in page · agent paused' : caption || (activity ? 'Agent active' : 'Idle');
   const StatusIcon = profile?.signinMode ? LockIcon : activity || caption ? CircleDotIcon : CircleIcon;
   const menu = (): MenuItem[] => [

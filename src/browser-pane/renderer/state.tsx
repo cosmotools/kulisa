@@ -1,13 +1,12 @@
 // Browser pane state and handles; core facts/actions arrive through the public host (../README.md).
-import { createContext, useContext } from 'react';
-import { createStore, useStore } from 'zustand';
+import { createStore } from 'zustand';
 import type { Profile, ClosedProfile } from '../../shared/types';
 import type { PaneControls, PaneFacts, PaneHost } from '../../shared/stage-pane';
 import type { actionsFor } from '../../window-client/renderer';
 import { refused } from '../../shared/result';
 import type { PaneHandle } from './pages';
 
-export interface BrowserPaneFacts {
+interface BrowserPaneFacts {
   active: boolean;
   covered: boolean;
   profiles: Profile[];
@@ -32,7 +31,6 @@ export class BrowserPanes {
   private stage: PaneHost | null = null;
   constructor(readonly host: BrowserPaneHost) {}
   getState = () => this.host.facts.getState();
-  currentTask = () => this.getState().active ? this.host.task : null;
   show = (profile: string) => this.stage?.show(panelId(profile));
   reportPages = () => this.stage?.reportLayout();
   pane = (id: string) => this.getState().active ? this.panes.get(id) : undefined;
@@ -55,9 +53,9 @@ export class BrowserPanes {
   bind = (stage: PaneHost) => {
     this.stage = stage;
     // Native presses must cancel address drafts without depending on the common grid's implementation.
-    kulisa.on('page:press', ({ task }) => { if (task === this.currentTask()) this.dismiss(); });
+    kulisa.on('page:press', ({ task }) => { if (task === this.host.task && this.getState().active) this.dismiss(); });
     kulisa.on('agent:caption', (event) => {
-      if (event.task !== this.currentTask()) return;
+      if (event.task !== this.host.task || !this.getState().active) return;
       if (event.caption) stage.activity(event.task, panelId(event.profile));
       const profile = this.getState().profiles.find((p) => p.id === event.profile);
       if (profile && !profile.signinMode) this.brief(event.profile, event.caption ? `↖ agent: ${event.caption}` : '', event.sticky);
@@ -84,12 +82,3 @@ export class BrowserPanes {
   };
 }
 export const panelId = (id: string) => `profile:${id}`;
-export const BrowserPaneContext = createContext<BrowserPanes | null>(null);
-export function useBrowserPane() {
-  const pane = useContext(BrowserPaneContext);
-  if (!pane) throw new Error('Browser pane host missing');
-  return pane;
-}
-export function useFacts<T>(selector: (state: BrowserPaneFacts) => T) { return useStore(useBrowserPane().host.facts, selector); }
-export function useUi<T>(selector: (state: BrowserUi) => T) { return useStore(useBrowserPane().ui, selector); }
-export const usePaneActive = (enabled = true) => useFacts((s) => enabled && s.active && !s.covered);
