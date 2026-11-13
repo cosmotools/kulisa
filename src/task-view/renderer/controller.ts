@@ -5,7 +5,7 @@ import { closeLayers } from '../../layers/renderer';
 import { forgetFrozen } from './views';
 import { forgetTerminals } from '../../terminal/renderer';
 import { stagePaneKinds } from './stage-panes';
-import type { PaneHost } from './pane-contract';
+import type { PaneHost } from '../../shared/stage-pane';
 let attached: TaskGrid | null = null;
 export function registerTaskGrid(grid: TaskGrid) {
   grid.connect();
@@ -16,22 +16,19 @@ export const taskGrid = (task: string | null) => attached?.key === task ? attach
 const current = () => taskGrid(currentTask());
 const paneHost: PaneHost = {
   show: (panel) => current()?.stage.api?.getPanel(panel)?.api.setActive(),
+  reportLayout: () => current()?.reportPages(),
   activity: (task, panel) => { if (task === currentTask()) taskGrid(task)?.stage.paneActivity(panel); },
 };
 for (const definition of stagePaneKinds) definition.bind?.(paneHost);
 kulisa.on('task:command', (event) => {
-  for (const definition of stagePaneKinds) if (definition.command?.(event, store.getState(), paneHost)) break;
+  for (const definition of stagePaneKinds) if (definition.command?.(event)) break;
 });
 kulisa.on('task:dismiss', () => {
   void closeLayers('menus');
-  for (const pane of current()?.panes.values() ?? []) pane.cancelAddress();
+  if (current()) for (const definition of stagePaneKinds) definition.dismiss?.();
 });
-export const pane = (id: string) => current()?.panes.get(id);
 export const dockApi = () => current()?.development.api ?? null;
 export const stageApi = () => current()?.stage.api ?? null;
-kulisa.on('page:press', ({ task }) => {
-  if (task === currentTask()) for (const profile of store.getState().profiles) pane(profile.id)?.cancelAddress();
-});
 kulisa.on('stage:arrange', (event) => { void taskGrid(event.task)?.arrange(event); });
 store.subscribe((next, previous) => {
   if (previous.active && !next.active) {
@@ -55,6 +52,7 @@ document.addEventListener('drop', () => setTimeout(() => current()?.finishDrag()
 store.subscribe((next, previous) => {
   if (next.covered && !previous.covered) {
     void closeLayers('menus'); forgetFrozen();
-    store.setState({ developmentTerminalFocus: null, stageTerminalFocus: null, pictures: {}, picking: {}, captions: {} });
+    for (const definition of stagePaneKinds) definition.reset?.();
+    store.setState({ developmentTerminalFocus: null, pictures: {} });
   }
 });

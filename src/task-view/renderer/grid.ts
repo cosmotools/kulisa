@@ -6,8 +6,7 @@ import { splitLayout, type TaskLayout } from '../shared/layout';
 import type { Events, PageLayout, StagePosition } from '../../shared/ipc';
 import { DevelopmentGrid, resourcesMinimumHeight } from './development';
 import { StageGrid } from './stage';
-import type { PaneHandle } from './pages';
-import { stagePaneKinds, stagePanesChanged } from './stage-panes';
+import { stagePaneKinds, stagePanes, stagePanesChanged } from './stage-panes';
 import { freeze, unfreeze, showViews } from './views';
 
 let viewportRevision = 0;
@@ -16,7 +15,6 @@ let taskViewportChanged = () => {};
 export class TaskGrid {
   readonly development: DevelopmentGrid;
   readonly stage: StageGrid;
-  readonly panes = new Map<string, PaneHandle>();
   private workspace: GridviewApi | null = null;
   private element: HTMLElement | null = null;
   private disposed = false;
@@ -36,9 +34,12 @@ export class TaskGrid {
   // Construction happens in render, which React can abandon without an unmount cleanup.
   connect() {
     taskViewportChanged = this.resize;
-    this.stop = this.state.subscribe((next, previous) => {
+    let panes = stagePanes();
+    this.stop = this.state.subscribe(() => {
       if (!this.workspace || this.disposed) return;
-      if (stagePanesChanged(next, previous)) {
+      const next = stagePanes(), changed = stagePanesChanged(next, panes);
+      panes = next;
+      if (changed) {
         this.sync(); this.scheduleSave();
       }
     });
@@ -119,7 +120,8 @@ export class TaskGrid {
   deactivate() {
     this.flush();
     this.stage.reset(); this.finishDrag();
-    this.state.setState({ developmentTerminalFocus: null, stageTerminalFocus: null, pictures: {}, picking: {}, captions: {} });
+    for (const definition of stagePaneKinds) definition.reset?.();
+    this.state.setState({ developmentTerminalFocus: null, pictures: {} });
   }
   dispose() {
     if (this.disposed) return;
@@ -131,7 +133,7 @@ export class TaskGrid {
     cancelAnimationFrame(this.frame);
     for (const subscriptions of this.subscriptions.values()) subscriptions.dispose();
     this.subscriptions.clear(); this.stage.detach(); this.development.dispose();
-    this.panes.clear(); this.workspace = null; this.element = null;
+    this.workspace = null; this.element = null;
   }
   async arrange(event: Events['stage:arrange']) {
     if (!this.workspace) await this.load();
@@ -194,7 +196,7 @@ export class TaskGrid {
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
       if (this.disposed) return;
-      const context = { state: this.state.getState(), api: this.stage.api, viewport: this.stage.viewport, panes: this.panes };
+      const context = { api: this.stage.api, viewport: this.stage.viewport };
       const rects: Record<string, PageLayout> = {};
       for (const definition of stagePaneKinds) Object.assign(rects, definition.layout?.(context));
       kulisa.send('layout:apply', { task: this.key, revision: viewportRevision, viewport: { width: innerWidth, height: innerHeight }, rects });

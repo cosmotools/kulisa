@@ -5,12 +5,12 @@ import { Maximize2Icon, Minimize2Icon } from 'lucide-react';
 import { Button } from '@ui';
 import type { MenuRow } from '../../menus/renderer';
 
-export function paneFocusItem(api: IDockviewPanelHeaderProps['api']): MenuRow {
+export function paneFocusItem(api: IDockviewPanelHeaderProps['api']) {
   const maximized = api.isMaximized();
   return {
     label: maximized ? 'Restore pane' : 'Maximize pane',
     run: () => { if (api.isMaximized()) api.exitMaximized(); else { api.setActive(); api.maximize(); } },
-  };
+  } satisfies MenuRow;
 }
 
 export function PaneFocus({ api, containerApi }: Pick<IDockviewPanelHeaderProps, 'api' | 'containerApi'>) {

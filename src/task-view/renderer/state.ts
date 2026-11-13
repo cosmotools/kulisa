@@ -6,7 +6,6 @@ import type { StageTerminal } from '../../shared/stage-terminal';
 import type { DiffSelection } from '../../diff/ipc';
 import type { Artifact, ClosedProfile, Profile, DevelopmentTerminalsState, ProjectsInfo } from '../../shared/types';
 import type { StageLayout, StagePosition } from '../../shared/ipc';
-import { refused } from '../../shared/result';
 import { projectColor, onColors } from '../../appearance/renderer';
 import { actionsFor } from '../../window-client/renderer';
 import type { TaskGrid } from './grid';
@@ -26,7 +25,6 @@ export interface TaskState {
   artifactNavigation: number;
   developmentTerminalFocus: object | null;
   stageTerminals: StageTerminal[];
-  stageTerminalFocus: { key: string | null } | null;
   stageLayout: StageLayout | null;
   stageOverflow: boolean;
   stageFollowPaused: boolean;
@@ -34,8 +32,6 @@ export interface TaskState {
   stagePosition: StagePosition;
   artifacts: { task: string; list: Artifact[]; bytes: number };
   loading: boolean;
-  captions: Record<string, string>;
-  picking: Record<string, boolean>;
   pictures: Record<string, string>;
 }
 export type TaskStore = StoreApi<TaskState>;
@@ -44,9 +40,9 @@ export const store = createStore<TaskState>()(() => ({
   active: true, covered: false,
   projects: JSON.parse(query.get('projects') || 'null') ?? { current: null, project: null, projects: [], tabs: [], open: [], settings: false },
   key, profiles: [], closedProfiles: [], developmentTerminals: { task: key, front: null, list: [] },
-  workbenchItem: 'terminals', developmentDiff: null, selectedArtifact: null, artifactNavigation: 0, developmentTerminalFocus: null, stageTerminals: [], stageTerminalFocus: null, stageLayout: null, stageOverflow: false,
+  workbenchItem: 'terminals', developmentDiff: null, selectedArtifact: null, artifactNavigation: 0, developmentTerminalFocus: null, stageTerminals: [], stageLayout: null, stageOverflow: false,
   stageFollowPaused: false, stageActivity: null, stagePosition: 'above', artifacts: { task: key, list: [], bytes: 0 },
-  loading: true, captions: {}, picking: {}, pictures: {},
+  loading: true, pictures: {},
 }));
 export const TaskContext = createContext<TaskGrid | null>(null);
 export function useTaskGrid() {
@@ -60,9 +56,6 @@ export function useTaskActive(enabled = true) {
 }
 const get = store.getState;
 export const currentTask = (state = get()): string | null => state.active ? state.key : null;
-
-const setIn = <K extends 'captions' | 'picking'>(key: K, profile: string, value: TaskState[K][string]) => store.setState({ [key]: { ...get()[key], [profile]: value } });
-const setCaption = (profile: string, caption: string) => setIn('captions', profile, caption);
 
 // The window's actions on the shown task's profiles and tabs name it, as the grid's layout does: one sent just as the
 // human switches tasks is refused, not done in the other one (main/ipc/panes.ts, onScreen).
@@ -84,41 +77,6 @@ kulisa.on('profile:closed', ({ task, list }) => receive(task, 'closedProfiles', 
 kulisa.on('development-terminal:state', (state) => receive(state.task ?? '', 'developmentTerminals', state));
 kulisa.on('stage-terminal:state', ({ task, list }) => receive(task, 'stageTerminals', list));
 kulisa.on('task:artifact:state', (a) => receive(a.task, 'artifacts', a));
-
-const captionTimers = new Map<string, number>();
-function brief(profile: string, caption: string, sticky?: boolean) {
-  setCaption(profile, caption);
-  clearTimeout(captionTimers.get(profile)); captionTimers.delete(profile);
-  if (!sticky) captionTimers.set(profile, window.setTimeout(() => { captionTimers.delete(profile); setCaption(profile, ''); }, 4000));
-}
-
-// The agent's activity: a caption over the pane (the cursor itself is drawn inside the page, ghost.ts), sticky for what
-// highlighted elements are. Not over a sign-in page, which says the agent is paused.
-kulisa.on('agent:caption', (a) => {
-  if (a.task !== currentTask()) return; // a task in the background
-  const p = store.getState().profiles.find((x) => x.id === a.profile);
-  if (!p || p.signinMode) return;
-  brief(a.profile, a.caption ? `↖ agent: ${a.caption}` : '', a.sticky);
-});
-
-export async function togglePick(profile: string) {
-  if (!get().active) return;
-  if (get().picking[profile]) return kulisa.invoke('pick:cancel', { profile });
-  setCaption(profile, 'Click an element on the page · Esc to cancel');
-  setIn('picking', profile, true);
-  const res = await kulisa.invoke('pick:start', { profile });
-  setIn('picking', profile, false);
-  setCaption(profile, res && res.error ? `Pick failed: ${res.error}` : '');
-}
-
-export async function screenshot(profile: string, kind: 'element' | 'visible' | 'full') {
-  if (!get().active) return;
-  if (get().picking[profile]) return kulisa.invoke('pick:cancel', { profile });
-  if (kind === 'element') { setCaption(profile, 'Click an element for its screenshot · Esc to cancel'); setIn('picking', profile, true); }
-  const res = await act('tab:screenshot', { profile, kind });
-  setIn('picking', profile, false);
-  brief(profile, refused(res) ? `Screenshot failed: ${res.error}` : res.file ? 'Screenshot copied and saved' : '');
-}
 
 export const shownTask = (s = get(), task: string | null = currentTask(s)) => s.projects.tabs.find((t) => t.key === task);
 const reflect = () => {

@@ -55,7 +55,7 @@ export function registerPanes(ipc: Ipc) {
   on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));
   on('layout:apply', (e, { task, rects, revision, viewport }) => at(e)?.layout(task, rects, revision, viewport));
 
-  // A tab the human opens (+): the window keeps the keys for its address (task-view/ProfilePane.tsx); its page taking
+  // A tab the human opens (+): the window keeps the keys for its address (browser-pane/renderer/ProfilePane.tsx); its page taking
   // them as it loads gives them back (page-focus.ts).
   handle('tab:new', onProfile((p, { url }) => { focusWindow(ipc.shell.taskByKey(p.task)?.window?.focusUi ?? ipc.shell.front()!.ui); return p.newTab(url || 'about:blank').id; }));
   // focus: the keyboard was in the tab's page (a key closed or switched it): it goes to the page shown next, as in Chrome.

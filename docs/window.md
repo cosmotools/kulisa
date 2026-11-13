@@ -63,7 +63,7 @@ state, the window owns layout/menu/focus.
   Close removes setup/buffers. Task close stops processes but preserves setup.
 - Keep launch failures selectable in transient `launchError`; clear on retry, never persist them.
 - Human Open/launch requests focus after success, View and font readiness. New input, blur or task switch cancels
-  `task-view/renderer/stage-terminal-focus.ts`'s pending request; delayed selection also rechecks intent, window focus and dialogs.
+  `terminal-pane/renderer/state.tsx`'s pending request; delayed selection also rechecks intent, window focus and dialogs.
   Agent launch/Follow never steals focus.
 - `terminal_read` flushes parsing and reads normal/alternate screen, with scrollback limited to 500 lines. Over
   40,000 characters spills to the caller’s temporary folder with a bounded preview. Fixed sizes: 2–500 columns, 2–200 rows, independent

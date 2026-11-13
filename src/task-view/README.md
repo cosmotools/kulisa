@@ -47,45 +47,28 @@ not unfocused automation. Window `overflow: clip` keeps offscreen panels' `scrol
 
 ## Pane registration
 
-Terminology belongs to [UI](../../docs/ui.md#stage-and-panes). `renderer/stage-panes.tsx` registers built-in pane
-kinds through `StagePaneKind` in `renderer/pane-contract.ts`; it supplies membership, components and launchers to the grid.
+Terminology belongs to [UI](../../docs/ui.md#stage-and-panes). `renderer/stage-panes.tsx` composes the public
+[browser-pane](../browser-pane/README.md) and [terminal-pane](../terminal-pane/README.md) factories. Their narrow hosts
+receive read-only facts and task-scoped core actions; local state and handles belong to the pane packages.
+Workbench agent/working terminals remain in `DevelopmentTerminals.tsx`/`terminals.ts` and share the Terminal runtime.
 
-| Owner | Responsibility |
-|---|---|
-| `browser-pane.tsx`, `ProfilePane.tsx`, `profiles.ts`, `pages.ts` | Browser pane/header, launchers, caption/command adapters and native placement |
-| `terminal-pane.tsx`, `StageTerminalPane.tsx`, `stage-terminal-focus.ts` | Application terminal pane/header, launchers and cancellable human launch focus |
-| `DevelopmentTerminals.tsx`, `terminals.ts` | Workbench agent/working-terminal surface and its shared visible View |
-| `stage-panes.tsx`, `stage.ts`, `grid.ts`, `controller.ts` | Registration, membership, grids, overflow and activity/Follow routing |
+`StagePaneKind` in `src/shared/stage-pane.ts` describes membership, components, launchers and optional
+command, placement, dismissal and transient-reset capabilities. To add a built-in kind, register its definition in
+`stage-panes.tsx` and supply its host facts/actions. Common grid/Follow code uses the definition without knowing its
+content. Preserve stored pane/component IDs: `profile:<id>`/`profile`, `stage-terminal:<id>`/`stage-terminal`.
 
-Browser/Terminal own the shared runtimes, also used by sign-in windows. Core `Task`, `ProjectProfiles`,
-`StageTerminals` and `AppWindow` retain resource ownership, persistence, checks, native attachment and cleanup.
-These pane adapters consume Task view's state/actions; extracting `browser-pane`/`terminal-pane` packages requires
-narrow host contracts, with the shared runtimes remaining independent. Agent CLI code stays in the Kulisa plugin.
+Task view supplies maximize controls and resolves the current grid for show/activity/placement callbacks. It owns
+snapshot handoff for all native content, including PDF. The shell's launch menu still needs its own adapter in
+`renderer/lib/task-summary.ts`; main native integration still uses the core-supplied `TaskViewHost`.
 
-To register another pane kind:
-
-1. Supply a unique kind/component, pane/header components and `panes(state)` returning stable IDs and current titles.
-   Preserve `profile:<id>`/`stage-terminal:<id>` IDs and `profile`/`stage-terminal` component names: Dockview stores them.
-2. Supply tile/strip launchers and their order. Add the descriptor to `stage-panes.tsx`; task UI composition and
-   empty-Stage checks then include its panes. Shell launchers still need an adapter in `renderer/lib/task-summary.ts`.
-3. Report `stage:activity` with the pane ID, or use `bind(host)` to adapt runtime events once per task page. The host
-   resolves the current grid and ignores other tasks/closed panes. Do not retain a grid/native window in listeners.
-4. Add `command` and `layout` only when needed. Commands call task-scoped core actions. Native placement uses
-   core-owned surface IDs; core validates/scales/clips it. Main native integration still needs a `TaskViewHost` adapter.
-   Browser address/Pick handles stay browser-specific. Capability-specific agent tools stay in the Kulisa plugin.
-
-Removing/hiding a pane's UI must not stop its processes. Explicit Close and task/project teardown call core cleanup
-independently of renderer disposal. Browser and terminal rules remain in [Profiles](../../docs/profiles.md) and
-[Window](../../docs/window.md#stage-terminals); renderer-loss limits remain in #399. A Telegram pane (#442) can use
-this registration without moving its privacy, credentials, input/capture or bot-process lifecycle into the grid.
-Its pane close and bot-process stop remain separate actions.
+Pane reset/disposal changes UI only. Explicit Close and task/project teardown retain core cleanup paths. Telegram's
+privacy, credentials, capture/input and bot-process lifecycle remain #442; terminal renderer-loss limits remain #399.
 
 ## Layout and drawing constraints
 
 Keep overlays below Dockview separators and menus above them. Side bar lists scroll through `SidebarContent`;
-Project/Diff own virtualized scrolling without duplicate region wrappers. The profile notch in `ProfilePane.css`
-needs custom concave geometry outside shadcn shapes. Narrow panes move Back, Forward, Reload into the menu in that
-order; Pick and the menu stay reachable. Other controls follow [UI rules](../../docs/ui.md).
+Project/Diff own virtualized scrolling without duplicate region wrappers. Browser-specific drawing constraints belong
+to [Browser pane](../browser-pane/README.md). Other controls follow [UI rules](../../docs/ui.md).
 Activity bar selection remains highlighted independently of Dockview group focus.
 
 ## Task rendering failures
@@ -107,6 +90,5 @@ exit before its new ready handshake.
   `ipc.ts`: UI contracts; `shared/layout.ts`: saved-grid types, format checks and pruning.
 - `renderer/controller.ts`, `grid.ts`, `stage.ts`, `development.ts`: activation, composition and Editor/Diff sessions;
   `state.ts`: core projection; pane components: content bounds; `Artifacts.tsx`: File Viewer host.
-- `renderer/stage-panes.tsx`, `pane-contract.ts`, `browser-pane.tsx`, `terminal-pane.tsx`: built-in pane registration,
-  membership and adapters.
+- `renderer/stage-panes.tsx`: pane package composition, registration and membership.
 - Core adapter: `src/main/window.ts`; authorization: `src/main/app.ts`.

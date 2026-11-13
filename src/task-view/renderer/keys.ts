@@ -1,13 +1,14 @@
 // Keyboard shortcuts in one task UI (main/keys.ts has the table and takes the keys; docs/window.md, Keys). The main
 // process has to know where the keyboard is in this page to know whose a key is; it sends the commands back here, with
 // the profile and tab they act on.
-import { currentTask, store, act, screenshot } from './state';
-import { pane } from './controller';
+import { currentTask, store, act } from './state';
+import { browserPanes } from './stage-panes';
 import { focusDevelopmentTerminal } from './terminals';
 import type { Profile } from '../../shared/types';
 import { refused } from '../../shared/result';
 
 import { zone, lastPane } from '../../layers/renderer';
+const { pane, screenshot } = browserPanes;
 let focusedPane: string | null = null;
 // The folded terminals' panel: the task's agent; a task with none (its project had no default) leaves the choice to the
 // human, the keyboard on the panel's big buttons (task-view/DevelopmentTerminals.tsx), or its + opened.

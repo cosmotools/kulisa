@@ -1,43 +1,42 @@
 // A Stage terminal for CLI testing (docs/window.md, Stage terminals).
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from 'dockview-react';
 import { ArrowDownIcon, ArrowUpIcon, CircleAlertIcon, EllipsisIcon, PlayIcon, RotateCwIcon, TerminalSquareIcon, XIcon } from 'lucide-react';
 import { Alert, AlertDescription, Button, Input } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../../menus/renderer';
-import { currentTask, store, useTask, act, useTaskActive } from './state';
-import { actionsFor } from '../../window-client/renderer';
+import { useTerminalPane, useFacts, useFocus, usePaneActive } from './state';
+import type { TerminalPanes } from './state';
 import { dialogsShown } from '../../layers/renderer';
-import { focusStageTerminal } from './stage-terminal-focus';
-import { PaneFocus, paneFocusItem } from './PaneFocus';
 import { termStyle, useShade } from '../../appearance/renderer';
 import { View, termCopy, termPaste, termFocus } from '../../terminal/renderer';
 import type { MenuItem } from '../../menus/renderer';
 import type { StageTerminal } from '../../shared/stage-terminal';
 
 const idOf = (id: string) => Number(id.slice('stage-terminal:'.length));
-const useStageTerminal = (id: number) => useTask((s) => s.stageTerminals.find((a) => a.id === id));
+const useStageTerminal = (id: number) => useFacts((s) => s.stageTerminals.find((a) => a.id === id));
 const status = (terminal: StageTerminal) => terminal.status === 'exited' ? `Exited (${terminal.exitCode})` : terminal.status === 'stopped' ? 'Stopped' : terminal.status === 'starting' ? 'Starting…' : terminal.session === 'shell' ? 'Shell' : 'Running';
-const runAction = (terminal: StageTerminal, task: string) => ({
+const runAction = (terminal: StageTerminal, pane: TerminalPanes) => ({
   label: terminal.status === 'exited' ? 'Run again'
     : terminal.status === 'stopped' ? 'Start'
       : terminal.session === 'shell' ? terminal.command.trim() ? 'Run app' : 'Restart shell' : 'Restart app',
   enabled: terminal.status !== 'starting',
-  run: () => focusStageTerminal(task, () => actionsFor(task)('stage-terminal:run', { id: terminal.id })),
+  run: () => pane.focus(() => pane.host.act('stage-terminal:run', { id: terminal.id })),
 });
-const actions = (terminal: StageTerminal, task: string): MenuItem[] => [
-  runAction(terminal, task),
-  { label: 'Stop', enabled: terminal.status === 'running' || terminal.status === 'starting', run: () => actionsFor(task)('stage-terminal:stop', { id: terminal.id }) },
+const actions = (terminal: StageTerminal, pane: TerminalPanes): MenuItem[] => [
+  runAction(terminal, pane),
+  { label: 'Stop', enabled: terminal.status === 'running' || terminal.status === 'starting', run: () => pane.host.act('stage-terminal:stop', { id: terminal.id }) },
   '-',
-  { label: 'Settings…', run: () => kulisa.invoke('shell:dialog', { kind: 'stageTerminalSettings', task, terminal }) },
-  { label: 'Fit to pane', run: () => actionsFor(task)('stage-terminal:configure', { id: terminal.id, size: null }) },
-  { label: 'Close Stage terminal', run: () => actionsFor(task)('stage-terminal:close', { id: terminal.id }) },
+  { label: 'Settings…', run: () => kulisa.invoke('shell:dialog', { kind: 'stageTerminalSettings', task: pane.host.task, terminal }) },
+  { label: 'Fit to pane', run: () => pane.host.act('stage-terminal:configure', { id: terminal.id, size: null }) },
+  { label: 'Close Stage terminal', run: () => pane.host.act('stage-terminal:close', { id: terminal.id }) },
 ];
 export function StageTerminalPane({ api }: IDockviewPanelProps) {
-  const taskKey = useTask((s) => s.key);
+  const pane = useTerminalPane();
+  const { task: taskKey, controls: { focusItem: paneFocusItem } } = pane.host;
   const id = idOf(api.id), terminal = useStageTerminal(id), shade = useShade(), host = useRef<HTMLDivElement>(null);
   const view = useRef<View | null>(null);
   const [searching, setSearching] = useState(false), [query, setQuery] = useState(''), [found, setFound] = useState(true);
-  const active = useTaskActive(searching);
+  const active = usePaneActive(searching);
   const searchInput = useRef<HTMLInputElement>(null);
   const find = (previous = false) => setFound(view.current?.find(query, previous) ?? false);
   const closeSearch = () => { setSearching(false); view.current?.clearSearch(); view.current?.term.focus(); };
@@ -46,8 +45,8 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
     searchInput.current?.focus();
     searchInput.current?.select();
   }, [searching, active]);
-  const focus = useTask((s) => s.stageTerminalFocus);
-  const hasAgent = useTask((s) => s.developmentTerminals.list.some((t) => !!t.agent && !t.starting));
+  const focus = useFocus();
+  const hasAgent = useSyncExternalStore(pane.host.facts.subscribe, pane.host.hasAgent);
   useEffect(() => {
     const v = view.current = new View(termStyle());
     v.onSearchResult = setFound;
@@ -61,15 +60,15 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
   useEffect(() => { view.current?.setSize(terminal?.size ?? null); }, [terminal?.size]);
   useEffect(() => { view.current?.restyle(termStyle()); }, [shade]);
   useEffect(() => {
-    if (!focus?.key || focus.key !== terminal?.key || store.getState().stageTerminalFocus !== focus || currentTask() !== taskKey) return;
+    if (!focus?.key || focus.key !== terminal?.key || pane.ui.getState().focus !== focus || pane.currentTask() !== taskKey) return;
     let cancelled = false;
     api.setActive();
-    void termFocus(focus.key, () => !cancelled && store.getState().stageTerminalFocus === focus
-      && currentTask() === taskKey && !store.getState().covered && api.isVisible && document.hasFocus() && !dialogsShown()).then(() => {
-      if (!cancelled && store.getState().stageTerminalFocus === focus && view.current?.el.contains(document.activeElement)) store.setState({ stageTerminalFocus: null });
+    void termFocus(focus.key, () => !cancelled && pane.ui.getState().focus === focus
+      && pane.currentTask() === taskKey && !pane.getState().covered && api.isVisible && document.hasFocus() && !dialogsShown()).then(() => {
+      if (!cancelled && pane.ui.getState().focus === focus && view.current?.el.contains(document.activeElement)) pane.reset();
     });
     return () => { cancelled = true; };
-  }, [focus, terminal?.key, api, taskKey]);
+  }, [focus, terminal?.key, api, taskKey, pane]);
   if (!terminal) return null;
   const menu = (): MenuItem[] => {
     const selection = view.current?.term.getSelection() ?? '';
@@ -78,7 +77,7 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
       { label: 'Copy', enabled: view.current?.term.hasSelection() ?? false, run: () => { if (view.current) termCopy(view.current.term); } },
       { label: 'Paste', enabled: terminal.status === 'running', run: () => { if (view.current) termPaste(view.current.term); } },
       { label: 'Select all', run: () => view.current?.term.selectAll() },
-      { label: 'Find…', run: () => setSearching(true) }, '-', paneFocusItem(api), ...actions(terminal, taskKey),
+      { label: 'Find…', run: () => setSearching(true) }, '-', paneFocusItem(api), ...actions(terminal, pane),
     ];
   };
   return <section role="region" aria-label={terminal.name} data-stage-terminal={id} data-state={terminal.status} className="flex h-full flex-col bg-card" onKeyDownCapture={(e) => {
@@ -104,11 +103,12 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
   </section>;
 }
 export function StageTerminalHeader({ api, containerApi }: IDockviewPanelHeaderProps) {
-  const taskKey = useTask((s) => s.key);
-  const activity = useTask((s) => s.stageActivity === api.id);
+  const pane = useTerminalPane();
+  const { act, controls: { Focus: PaneFocus, focusItem: paneFocusItem } } = pane.host;
+  const activity = useFacts((s) => s.stageActivity === api.id);
   const id = idOf(api.id), terminal = useStageTerminal(id);
-  const launch = terminal && runAction(terminal, taskKey);
-  return <RightClickMenu items={() => terminal ? [paneFocusItem(api), ...actions(terminal, taskKey)] : null} className="h-full min-w-0">
+  const launch = terminal && runAction(terminal, pane);
+  return <RightClickMenu items={() => terminal ? [paneFocusItem(api), ...actions(terminal, pane)] : null} className="h-full min-w-0">
     <div data-panel={api.id} data-agent-active={activity || undefined} className="flex h-full min-w-0 items-center gap-1 px-2 data-[agent-active=true]:bg-accent">
       <TerminalSquareIcon className="size-4" /><span className="min-w-0 flex-1 truncate text-sm font-medium">{terminal?.name}</span>
       {terminal && <span role="status" className="truncate text-xs text-muted-foreground" title={status(terminal)}>{status(terminal)}</span>}
@@ -116,7 +116,7 @@ export function StageTerminalHeader({ api, containerApi }: IDockviewPanelHeaderP
         {launch.label.startsWith('Restart') ? <RotateCwIcon /> : <PlayIcon />}
       </Button>}
       <PaneFocus api={api} containerApi={containerApi} />
-      <ButtonMenu items={() => terminal ? [paneFocusItem(api), ...actions(terminal, taskKey)] : []} end>
+      <ButtonMenu items={() => terminal ? [paneFocusItem(api), ...actions(terminal, pane)] : []} end>
         <Button variant="ghost" size="icon-xs" aria-label="Terminal menu" title="Terminal menu"><EllipsisIcon /></Button>
       </ButtonMenu>
       <Button variant="ghost" size="icon-xs" aria-label="Close Stage terminal" title="Close Stage terminal" onClick={() => void act('stage-terminal:close', { id })}><XIcon /></Button>
