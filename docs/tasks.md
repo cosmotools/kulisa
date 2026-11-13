@@ -105,9 +105,10 @@ Example: `~/IdeaProjects/myshop@task-k3x9q2/` can remain on disk while its branc
 
 Names for Workbench, Activity bar, Side bar, Main pane and their items: [UI terminology](ui.md#workbench-terminology).
 The Activity bar and Side bar share a Dockview edge group fixed left of Main pane. Clicking the selected Activity
-bar item collapses the Side bar; another reopens it at saved width. Task layout saves the selected item, collapse
-state and shared expanded width. `workspace.presentation` in `task.json` saves only the selected item and artifact;
-main coalesces these writes, while Editor checkpoints remain immediate. Dockview owns layout serialization
+bar item collapses the Side bar; another reopens it at saved width. `workspace` in `task.json` saves one selected
+item, an optional artifact path relative to the task's artifacts folder, and Side bar width/collapse/visibility.
+Workbench's fixed panels are rebuilt with Dockview APIs rather than serialized. Main coalesces selection writes,
+while Editor checkpoints remain immediate. Dockview serializes the freely arranged Stage and the outer split
 ([grid lifecycle](window.md#the-grid)); focus, loading, pictures and mirrored core facts are transient.
 
 - Expanded minimum width is 300 CSS px; collapsed width is 40 px. Development minimum height is 204 px to keep
@@ -563,11 +564,12 @@ conversation links and Stage setup. Validation retains unknown metadata; each se
 document, preserves its peers and writes atomically. Dockview owns serialized layout formats.
 A new task retains uninitialized development terminals separately from a deliberately empty collection: only
 the former starts its initial agent. Missing profile entries stay closed. Task profile entries store only ID,
-site zoom and closed state; shared identity and sign-in details belong to the profile store. Layout
+nonempty site zoom and closed state; closed profiles without zoom overrides have no entry. Shared identity and
+sign-in details belong to the profile store. Default view settings and absent layouts are omitted. Layout
 lifecycle belongs to [Task view](../src/task-view/README.md#the-grid). Only the current task document and layout
 formats are supported; the application does not import or upgrade earlier configurations. A missing `task.json`
 initializes an empty document; an invalid document is rejected without overwriting it. Browser storage, profile tabs,
 transcripts and artifacts keep their own formats and owners.
 
 Task indexes use `closedAt` as the closed-state marker; absence means open, and zero means a closed task whose
-closing time is unknown. Task documents use format version 3 and flat Stage items.
+closing time is unknown. Task documents use format version 4 and flat Stage items.

@@ -1,6 +1,6 @@
 // A task's retained grids and their visible work (../README.md, The grid).
 import { Orientation, DockviewCompositeDisposable } from 'dockview-react';
-import type { DockviewApi, DockviewIDisposable, GridviewApi, GridviewPanelApi, SerializedDockview } from 'dockview-react';
+import type { DockviewApi, DockviewIDisposable, GridviewApi, GridviewPanelApi } from 'dockview-react';
 import type { TaskStore } from './state';
 import { splitLayout, type TaskLayout } from '../shared/layout';
 import type { Events, StagePosition } from '../../shared/ipc';
@@ -29,7 +29,7 @@ export class TaskGrid {
   private subscriptions = new Map<object, DockviewIDisposable>();
   private dragging = false;
   private restoration: Promise<boolean> | null = null;
-  private savedDevelopment: SerializedDockview | null = null;
+  private savedDevelopment: TaskLayout['workspace'] = null;
   private stop = () => {};
   constructor(readonly state: TaskStore) {
     this.development = new DevelopmentGrid(state, this.scheduleSave);
@@ -187,7 +187,7 @@ export class TaskGrid {
     if (!this.dirty || !this.development.api) return;
     this.dirty = false;
     const state = this.state.getState();
-    kulisa.send('layout:save', { task: this.key, layout: { version: 3, workspace: this.development.api.toJSON(),
+    kulisa.send('layout:save', { task: this.key, layout: { version: 4, workspace: this.development.layout(),
       stage: this.stage.api?.toJSON() ?? this.stage.saved, split: this.workspace!.toJSON(), stageLayout: state.stageLayout, stageOverflow: state.stageOverflow,
       stagePosition: state.stagePosition } satisfies TaskLayout });
   }

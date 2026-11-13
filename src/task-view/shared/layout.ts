@@ -2,7 +2,8 @@
 import type { StageLayout, StagePosition } from '../ipc.ts';
 import type { SerializedDockview, SerializedGridviewComponent } from 'dockview-react';
 export const environmentMinimum = { width: 600, height: 300 } as const;
-export interface TaskLayout { version: 3; workspace: SerializedDockview; stage: SerializedDockview | null; split?: SerializedGridviewComponent | null; stageLayout?: StageLayout | null; stageOverflow?: boolean; stagePosition?: StagePosition }
+export interface WorkbenchLayout { width: number; collapsed?: boolean; visible?: boolean }
+export interface TaskLayout { version: 4; workspace: WorkbenchLayout | null; stage: SerializedDockview | null; split?: SerializedGridviewComponent | null; stageLayout?: StageLayout | null; stageOverflow?: boolean; stagePosition?: StagePosition }
 type Node = SerializedDockview['grid']['root'];
 type Group = { id: string; views: string[]; activeView?: string };
 export function filterLayout(layout: SerializedDockview, keep: (id: string) => boolean): SerializedDockview {
@@ -23,5 +24,5 @@ export function filterLayout(layout: SerializedDockview, keep: (id: string) => b
 export function splitLayout(saved: unknown): TaskLayout | null {
   if (!saved || typeof saved !== 'object') return null;
   const value = saved as TaskLayout;
-  return value.version === 3 ? value : null;
+  return value.version === 4 ? value : null;
 }

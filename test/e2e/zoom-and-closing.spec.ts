@@ -209,7 +209,7 @@ test('close a profile (its × or the agent) and open it again (👥 or the agent
   await expect.poll(cacheSize).toBe(0); // a closed profile keeps no cache
   await expect.poll(() => cacheStorageFiles(cleoDir)).toBe(0);
   await expect(header).toHaveCount(0);
-  expect(saved().find((p) => p.id === cleo).closed).toBe(true);
+  expect(saved().some((p) => p.id === cleo)).toBe(false);
   await expect.poll(() => files.savedTabs(cleo).length).toBe(2);
   const listed = JSON.parse((await call('profile_list', {})).text).find((p: { name: string }) => p.name === 'Cleo');
   expect(listed).toEqual({ name: 'Cleo', description: null, avatar, closed: true, tabs: 2 });

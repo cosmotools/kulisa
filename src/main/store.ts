@@ -195,20 +195,20 @@ class Store {
 // One task's data: its profiles (each a folder, named by its id), grid and agent session.
 const stageTerminalSchema = z.object({ id: z.int(), name: z.string(), command: z.string(), size: z.custom<StageTerminalConfig['size']>() });
 const taskDocumentSchema = z.object({
-  version: z.literal(3),
+  version: z.literal(4),
   agents: agentFileSchema.extend({ conversations: z.array(conversationSchema.omit({ terminal: true }).extend({ id: z.string().min(1) })) }),
   development: terminalsFileSchema.extend({ list: z.array(savedTerminalSchema.extend({ conversation: z.string().optional() })) }).nullable(),
   stage: z.object({
     nextTerminalId: z.int().positive(),
     items: z.array(z.discriminatedUnion('type', [taskProfileSchema.extend({ type: z.literal('profile') }),
       stageTerminalSchema.extend({ type: z.literal('terminal') })])),
-    view: z.enum(['vertical', 'tabs', 'horizontal']).nullish(), overflow: z.boolean(),
+    view: z.enum(['vertical', 'tabs', 'horizontal']).optional(), overflow: z.boolean().optional(),
     // Dockview owns layout serialization; terminal sizes use the shared bounds in validateTask.
-    layout: z.custom<TaskLayout['stage']>(),
+    layout: z.custom<NonNullable<TaskLayout['stage']>>().optional(),
   }),
   workspace: z.object({ stagePosition: z.enum(['left', 'right', 'above']).optional(), splitLayout: z.custom<TaskLayout['split']>().optional(),
-    developmentLayout: z.custom<TaskLayout['workspace'] | null>(),
-    presentation: z.object({ workbenchItem: z.enum(['terminals', 'project', 'diff', 'artifacts']), selectedArtifact: z.string().nullable() }).optional() }),
+    sidebar: z.object({ width: z.number().finite().positive(), collapsed: z.boolean().optional(), visible: z.boolean().optional() }).optional(),
+    workbenchItem: z.enum(['terminals', 'project', 'diff', 'artifacts']).optional(), selectedArtifact: z.string().optional() }),
 });
 type TaskDocument = z.infer<typeof taskDocumentSchema>;
 function strictJSON(file: string): unknown {
@@ -249,7 +249,10 @@ class TaskStore {
   // profile-store.ts). Missing profiles stay closed, including before the task first loads.
   profiles(): TaskProfile[] { return this.document().stage.items.filter((i) => i.type === 'profile').map(({ type: _type, ...config }) => config); }
   saveProfiles(list: TaskProfile[]) {
-    this.update((d) => { d.stage.items = [...d.stage.items.filter((i) => i.type !== 'profile'), ...list.map((config) => ({ ...config, type: 'profile' as const }))]; });
+    this.update((d) => { d.stage.items = [...d.stage.items.filter((i) => i.type !== 'profile'), ...list.flatMap(({ id, zoom, closed }) => {
+      const sites = zoom && Object.keys(zoom).length ? zoom : undefined;
+      return closed && !sites ? [] : [{ id, ...(sites && { zoom: sites }), ...(closed && { closed: true }), type: 'profile' as const }];
+    })]; });
   }
   // A profile's tabs, in its own folder.
   tabs(id: string): SavedTabs { return readTabs(this.profileDir(id)); }
@@ -273,9 +276,8 @@ class TaskStore {
     const current = strictJSON(this.file('task.json'));
     if (current !== undefined) { validateTask(current); return current; }
     const d: TaskDocument = {
-      version: 3, agents: { conversations: [] }, development: null,
-      stage: { nextTerminalId: 1, items: [], view: null, overflow: false, layout: null },
-      workspace: { stagePosition: 'above', splitLayout: null, developmentLayout: null },
+      version: 4, agents: { conversations: [] }, development: null,
+      stage: { nextTerminalId: 1, items: [] }, workspace: {},
     };
     this.writeDocument(d);
     log.info('[store] task data initialized');
@@ -295,22 +297,27 @@ class TaskStore {
   }
   presentation(): TaskPresentation {
     const d = this.document();
-    return { workbenchItem: d.workspace.presentation?.workbenchItem ?? 'terminals', selectedArtifact: d.workspace.presentation?.selectedArtifact ?? null,
-      stagePosition: d.workspace.stagePosition ?? 'above', stageLayout: d.stage.view ?? null, stageOverflow: d.stage.overflow, stageFollowPaused: false };
+    return { workbenchItem: d.workspace.workbenchItem ?? 'terminals', selectedArtifact: d.workspace.selectedArtifact ? path.resolve(this.artifacts, d.workspace.selectedArtifact) : null,
+      stagePosition: d.workspace.stagePosition ?? 'above', stageLayout: d.stage.view ?? null, stageOverflow: d.stage.overflow ?? false, stageFollowPaused: false };
   }
   savePresentation(value: TaskPresentation) {
-    const presentation = taskDocumentSchema.shape.workspace.shape.presentation.parse(value);
-    this.update((d) => { d.workspace.presentation = presentation; });
+    const selected = value.selectedArtifact ? path.relative(this.artifacts, value.selectedArtifact) : undefined;
+    if (selected && (selected === '..' || selected.startsWith(`..${path.sep}`) || path.isAbsolute(selected))) throw new Error('Selected artifact must belong to the task');
+    this.update((d) => {
+      d.workspace.workbenchItem = value.workbenchItem === 'terminals' ? undefined : value.workbenchItem;
+      d.workspace.selectedArtifact = selected || undefined;
+    });
   }
   layout(): unknown {
     const d = this.document();
-    return d.workspace.developmentLayout ? splitLayout({ version: 3, workspace: d.workspace.developmentLayout, stage: d.stage.layout,
-      split: d.workspace.splitLayout, stageLayout: d.stage.view, stageOverflow: d.stage.overflow, stagePosition: d.workspace.stagePosition }) : null;
+    return { version: 4, workspace: d.workspace.sidebar ?? null, stage: d.stage.layout ?? null,
+      split: d.workspace.splitLayout, stageLayout: d.stage.view, stageOverflow: d.stage.overflow, stagePosition: d.workspace.stagePosition } satisfies TaskLayout;
   }
   saveLayout(layout: unknown) {
     const l = splitLayout(layout);
-    this.update((d) => { d.workspace = { ...d.workspace, developmentLayout: l?.workspace ?? null, stagePosition: l?.stagePosition ?? 'above', splitLayout: l?.split ?? null };
-      d.stage.layout = l?.stage ?? null; d.stage.view = l?.stageLayout ?? null; d.stage.overflow = l?.stageOverflow ?? false; });
+    this.update((d) => { d.workspace = { ...d.workspace, sidebar: l?.workspace ?? undefined,
+      stagePosition: l?.stagePosition === 'above' ? undefined : l?.stagePosition, splitLayout: l?.split ?? undefined };
+      d.stage.layout = l?.stage ?? undefined; d.stage.view = l?.stageLayout ?? undefined; d.stage.overflow = l?.stageOverflow || undefined; });
   }
   agent(): AgentFile {
     const d = this.document();
