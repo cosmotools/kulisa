@@ -1,3 +1,3 @@
 # browser-pane
 
-Entry: `renderer/index.ts`. E2E: profiles, agent-panes, grid, stage, task-native.
+Entries: `renderer/index.ts`, `renderer/launchers.ts`. E2E: profiles, agent-panes, grid, stage, task-native.

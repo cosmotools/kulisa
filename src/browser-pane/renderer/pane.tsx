@@ -13,15 +13,15 @@ import type { LauncherMode, StagePaneKind } from '../../shared/stage-pane';
 function BrowserLaunchers({ mode, browser }: { mode: LauncherMode; browser: BrowserPanes }) {
   const act = browser.host.act, closed = useStore(browser.host.facts, (s) => s.closedProfiles);
   return profileLaunchers(act, closed).map((p) => mode === 'tile'
-    ? <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.name} title={p.title}
+    ? <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.label} title={p.title}
       className="h-auto w-60 justify-start" onClick={() => void p.run()}>
       <Item size="sm"><ItemMedia>{p.avatar ? <Avatar size="lg" aria-hidden><AvatarImage src={avatarSrc(p.avatar)} alt="" /><AvatarFallback><PlusIcon /></AvatarFallback></Avatar> : <PlusIcon className="size-8" />}</ItemMedia>
-        <ItemContent className="min-w-0"><ItemTitle>{p.name}</ItemTitle></ItemContent></Item>
+        <ItemContent className="min-w-0"><ItemTitle>{p.label}</ItemTitle></ItemContent></Item>
     </Button>
-    : <Button key={p.id} variant="ghost" size="sm" data-profile={p.id} aria-label={p.name} title={p.title}
+    : <Button key={p.id} variant="ghost" size="sm" data-profile={p.id} aria-label={p.label} title={p.title}
       className="max-w-72 flex-none" onClick={() => void p.run()}>
       {p.avatar && <Avatar className="size-5"><AvatarImage src={avatarSrc(p.avatar)} alt="" /><AvatarFallback><PlusIcon /></AvatarFallback></Avatar>}
-      <span className="min-w-0 truncate">{p.name}</span><PlusIcon />
+      <span className="min-w-0 truncate">{p.label}</span><PlusIcon />
     </Button>);
 }
 export function createBrowserPane(host: BrowserPaneHost) {

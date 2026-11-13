@@ -12,4 +12,4 @@ in that order, keeping Pick and the menu reachable.
 
 - `renderer/pane.tsx`, `state.tsx`: public factory, registration and local state/lifetime.
 - `renderer/ProfilePane.tsx`, `ProfilePane.css`, `pages.ts`: pane/header, drafts/dialogs and native geometry.
-- `renderer/launchers.ts`: closed-profile opening actions.
+- `renderer/launchers.ts`: lightweight public actions shared by Stage and shell menus; no pane UI/runtime import.

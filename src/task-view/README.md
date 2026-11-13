@@ -54,7 +54,7 @@ page-scoped listeners bind once. Workbench terminals remain in `DevelopmentTermi
 
 A built-in kind implements `StagePaneKind` (`src/shared/stage-pane.ts`) and registers in `stage-panes.tsx`.
 Keep stored pane/component IDs stable. Reset/disposal changes UI only; core owns explicit Close and task cleanup.
-Shell launchers and main native integration still need adapters in `renderer/lib/task-summary.ts` and `TaskViewHost`.
+Stage and shell menus share Browser pane's profile launchers; native pages use `TaskViewHost`.
 
 ## Layout and drawing constraints
 

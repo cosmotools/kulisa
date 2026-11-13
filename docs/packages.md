@@ -45,7 +45,8 @@ entries by directory.
 
 ## Its rules, and what checks them
 
-- Public entries are `main/index.ts`, `renderer/index.ts`, `ipc.ts` and declared assets. Halves share only types;
+- Default entries are `main/index.ts`, `renderer/index.ts` and `ipc.ts`; additional APIs/assets are declared in
+  the package's `entries` list in `.dependency-cruiser.ts`. Halves share only types;
   both may use pure `shared/` code, exposed externally through entries. No core domain types or renderer imports
   of window/main code; `npm run deps` enforces the `packages` table.
 - Main code and allowed infrastructure must load in plain Node tests: obtain Electron objects from its default
@@ -53,7 +54,7 @@ entries by directory.
 - Root `tsconfig.json` includes `src/*/main`, `src/*/ipc.ts`, `src/*/*.test.ts`; the renderer config includes
   `src/*/renderer`. Unit runners share the package test glob.
 - Forge ships `main/` and `ipc.ts`; Vite bundles `renderer/` into `dist/renderer`; package docs/tests stay out.
-- Register packages and public `assets` in that table. Fix skipped checks generically, without one-off globs.
+- Register packages and additional public `entries` in that table. Fix skipped checks generically, without one-off globs.
 
 ## Its docs
 

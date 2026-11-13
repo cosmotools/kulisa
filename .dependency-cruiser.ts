@@ -17,7 +17,7 @@ const only = (name: string, from: string, allowed: string[], comment: string) =>
 // Kulisa packages (docs/packages.md): all of one in src/<package>/, reached from outside only
 // through its entries (other packages' too); its main process half uses of src/main only what its line names, its window
 // half nothing of the window. A new Kulisa package is a line here.
-const packages: Record<string, { main: string[]; assets?: string[] }> = {
+const packages: Record<string, { main: string[]; entries?: string[] }> = {
   'kulisa-plugin': { main: ['log', 'store', 'files', 'remove'] },
   browser: { main: ['log', 'files', 'local'] },
   terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown
@@ -33,19 +33,19 @@ const packages: Record<string, { main: string[]; assets?: string[] }> = {
   dictation: { main: ['ipc', 'log'] }, // dictation: what each task's microphone shows, and recording
   menus: { main: [] },
   'tab-strip': { main: [] },
-  appearance: { main: [], assets: ['renderer/page.css'] },
+  appearance: { main: [], entries: ['renderer/page.css'] },
   'agent-presentation': { main: [] },
   layers: { main: [] },
   'window-client': { main: [] },
   'task-view': { main: ['ipc', 'log'] },
-  'browser-pane': { main: [] },
+  'browser-pane': { main: [], entries: ['renderer/launchers.ts'] },
   'terminal-pane': { main: [] },
 };
-const packageRules = (name: string, { main: uses, assets = [] }: { main: string[]; assets?: string[] }) => {
+const packageRules = (name: string, { main: uses, entries = [] }: { main: string[]; entries?: string[] }) => {
   const dir = `^src/${name}/`;
   return [
-    { name: `${name}-entries`, severity: 'error' as const, comment: `${name}/ is reached through main/index.ts, renderer/index.ts and ipc.ts only.`,
-      from: { pathNot: dir }, to: { path: dir, pathNot: `${dir}((main/index|renderer/index|ipc)\\.ts${assets.map((asset) => `|${asset.replaceAll('.', '\\.')}`).join('')})$` } },
+    { name: `${name}-entries`, severity: 'error' as const, comment: `${name}/ is reached through main/index.ts, renderer/index.ts, ipc.ts and declared entries only.`,
+      from: { pathNot: dir }, to: { path: dir, pathNot: `${dir}((main/index|renderer/index|ipc)\\.ts${entries.map((entry) => `|${entry.replaceAll('.', '\\.')}`).join('')})$` } },
     { name: `${name}-main`, severity: 'error' as const, comment: `${name}/main uses nothing of src/main but ${uses.join(', ')}.`,
       from: { path: `${dir}main/` }, to: { path: '^src/(main|renderer|preload)/', pathNot: `^src/main/(${uses.join('|')})\\.ts$` } },
     { name: `${name}-contracts`, severity: 'error' as const, comment: `${name}/ipc.ts declares contracts without core domain dependencies.`,

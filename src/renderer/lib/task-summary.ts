@@ -3,13 +3,13 @@ import { store } from './store';
 import { actionsFor } from '../../window-client/renderer';
 import { openSettings } from './settings';
 import { plural } from './common';
+import { profileLaunchers } from '../../browser-pane/renderer/launchers';
 import type { MenuItem } from '../../menus/renderer';
 export function stagePaneItems(): MenuItem[] {
   const task = store.getState().summary;
   if (!task) return [];
-  return [{ label: 'Stage Terminal', run: () => kulisa.invoke('task:command', { task: task.key, command: 'terminal:open' }) }, '-',
-    ...task.closedProfiles.map((p) => ({ label: p.name, avatar: p.avatar, run: () => actionsFor(task.key)('profile:open', { profile: p.id }) })),
-    ...task.closedProfiles.length ? [] : [{ label: 'Add Profile…', run: () => openSettings() }]];
+  const act = actionsFor(task.key);
+  return [{ label: 'Stage Terminal', run: () => act('task:command', { command: 'terminal:open' }) }, '-', ...profileLaunchers(act, task.closedProfiles)];
 }
 export function profilesMenu(): MenuItem[] {
   const task = store.getState().summary;
