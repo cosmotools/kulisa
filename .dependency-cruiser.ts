@@ -39,7 +39,7 @@ const packages: Record<string, { main: string[]; entries?: string[] }> = {
   'window-client': { main: [] },
   'task-view': { main: ['ipc', 'log'] },
   'browser-pane': { main: [], entries: ['renderer/launchers.ts'] },
-  'terminal-pane': { main: [], entries: ['renderer/launchers.ts'] },
+  'terminal-pane': { main: [] },
 };
 const packageRules = (name: string, { main: uses, entries = [] }: { main: string[]; entries?: string[] }) => {
   const dir = `^src/${name}/`;

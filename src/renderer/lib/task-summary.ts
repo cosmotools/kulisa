@@ -4,13 +4,12 @@ import { actionsFor } from '../../window-client/renderer';
 import { openSettings } from './settings';
 import { plural } from './common';
 import { profileLaunchers } from '../../browser-pane/renderer/launchers';
-import { terminalLauncher } from '../../terminal-pane/renderer/launchers';
 import type { MenuItem } from '../../menus/renderer';
 export function stagePaneItems(): MenuItem[] {
   const task = store.getState().summary;
   if (!task) return [];
   const act = actionsFor(task.key);
-  return [terminalLauncher(() => act('task:command', { command: 'terminal:open' })), '-', ...profileLaunchers(act, task.closedProfiles)];
+  return [{ label: 'Stage Terminal', run: () => act('task:command', { command: 'terminal:open' }) }, '-', ...profileLaunchers(act, task.closedProfiles)];
 }
 export function profilesMenu(): MenuItem[] {
   const task = store.getState().summary;
