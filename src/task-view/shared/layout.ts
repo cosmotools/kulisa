@@ -1,7 +1,7 @@
 // Saved grids and pruning without resetting peers (../README.md).
 import type { StageLayout, StagePosition } from '../ipc.ts';
 import type { SerializedDockview, SerializedGridviewComponent } from 'dockview-react';
-export const environmentMinimum = { width: 600, height: 300 } as const;
+export const stagePaneMinimum = { width: 600, height: 300 } as const;
 export interface WorkbenchLayout { width: number; collapsed?: boolean; visible?: boolean }
 export interface TaskLayout { version: 4; workspace: WorkbenchLayout | null; stage: SerializedDockview | null; split?: SerializedGridviewComponent | null; stageLayout?: StageLayout | null; stageOverflow?: boolean; stagePosition?: StagePosition }
 type Node = SerializedDockview['grid']['root'];

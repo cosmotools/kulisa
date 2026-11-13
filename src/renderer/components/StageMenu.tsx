@@ -5,7 +5,7 @@ import { Button, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuR
 import { ButtonMenu } from '../../menus/renderer';
 import { useWindow } from '../lib/store';
 import { store } from '../lib/store';
-import { environmentItems } from '../lib/task-summary';
+import { stagePaneItems } from '../lib/task-summary';
 const act: ReturnType<typeof actionsFor> = (channel, ...args) => actionsFor(store.getState().current)(channel, ...args);
 const useTask = <T,>(select: (s: import('../../shared/ipc').TaskPresentation) => T) => useWindow((s) => select(s.summary?.presentation ?? { workbenchItem: 'terminals', selectedArtifact: null, stagePosition: 'above', stageLayout: null, stageOverflow: false, stageFollowPaused: false }));
 const setStageFollowing = (follow: boolean) => kulisa.invoke('stage:follow:set', follow);
@@ -46,8 +46,8 @@ function Follow() {
 }
 const items = (): MenuItem[] => [
   { heading: 'Position' }, { component: Position }, '-', { heading: 'View' }, { component: View }, { component: Overflow },
-  '-', { component: Follow }, '-', { submenu: 'Open an environment', items: environmentItems() },
+  '-', { component: Follow }, '-', { submenu: 'Open a pane', items: stagePaneItems() },
 ];
 export function StageMenu() {
-  return <ButtonMenu items={items} end><Button variant="ghost" size="icon" aria-label="Stage" title="Stage: position, view and environments"><LayoutDashboardIcon /></Button></ButtonMenu>;
+  return <ButtonMenu items={items} end><Button variant="ghost" size="icon" aria-label="Stage" title="Stage: position, view and panes"><LayoutDashboardIcon /></Button></ButtonMenu>;
 }

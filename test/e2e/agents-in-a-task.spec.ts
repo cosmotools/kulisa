@@ -202,7 +202,7 @@ test("+ opens any of the project's accounts, a new conversation in a tab of its 
     await expect(launchers.nth(i)).toHaveAttribute('title', title);
   }
   // Under them the project's profiles, a button each.
-  await expect((await taskPage(ui)).locator('#dock').getByRole('navigation', { name: 'Open an environment' }).getByRole('button')).toHaveText(['Stage Terminal', 'Sam.admin', 'Elon.buyer', 'Dora']);
+  await expect((await taskPage(ui)).locator('#dock').getByRole('navigation', { name: 'Open a pane' }).getByRole('button')).toHaveText(['Stage Terminal', 'Sam.admin', 'Elon.buyer', 'Dora']);
   await expect(launchers.first()).toBeFocused();
   await focusWindow(core, ui);
   await (await inputPage(ui)).keyboard.press('Tab');

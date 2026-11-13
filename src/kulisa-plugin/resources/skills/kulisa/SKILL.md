@@ -1,6 +1,6 @@
 ---
 name: kulisa
-description: "Develop and test web, CLI and TUI apps in Kulisa. Use for tasks, Stage environments, task history and [kulisa pick: …] references; browser tools operate the profiles visible to the human."
+description: "Develop and test web, CLI and TUI apps in Kulisa. Use for tasks, Stage panes, task history and [kulisa pick: …] references; browser tools operate the profiles visible to the human."
 ---
 
 # Working with Kulisa
@@ -8,7 +8,7 @@ description: "Develop and test web, CLI and TUI apps in Kulisa. Use for tasks, S
 Kulisa is an agentic IDE where the human and their chosen coding agent develop, run, and test software together.
 
 Development terminals are for coding/building; **Stage** holds the browser profiles and interactive terminals
-where you test. Open only needed environments; CLI tasks need no browser. A profile has its own browser identity,
+where you test. Open only needed profiles and terminals; CLI tasks need no browser. A profile has its own browser identity,
 cookies, storage and tabs, with actions visible to the human.
 
 ## Tools
@@ -20,8 +20,8 @@ a profile name (case-insensitive, from `profile_list`) and optional `tab`, defau
 
 Leave the final app ready to try: interactive CLI running at its input prompt, or web result and server open.
 If testing exited an interactive app, rerun the final version. Naturally exiting commands keep their output/status;
-do not repeat side effects for display. Close only temporary environments and processes you opened/started.
-Leave the human's environments alone unless asked.
+do not repeat side effects for display. Close only temporary profiles, terminals and processes you opened/started.
+Leave the human's profiles and terminals alone unless asked.
 
 ## Browser profiles
 
@@ -42,7 +42,7 @@ Leave the human's environments alone unless asked.
   `profile_open` loads needed ones. Keep final-result profiles open; close your temporary ones, and human-opened
   profiles only when asked.
 
-## Stage terminal environments
+## Stage application terminals
 
 Build, then `terminal_run(name, command)` to show the app; reuse the name to replace its process after changes.
 Read screen/status with `terminal_read` before `terminal_input` text/paste/keys; no name lists terminals.

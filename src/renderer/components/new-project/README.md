@@ -32,7 +32,7 @@ fit the minimum window size and move focus to the new step heading after navigat
   Core returns current path refusals, and core creation repeats its checks rather than trusting the draft.
 - **Start** derives a readable title-case display name from the selected folder/repository until the human edits
   it. Name edits must never rename the physical destination. Web app / CLI app / Not sure changes starter guidance
-  only: do not persist a category, restrict environments, start profiles/terminals or submit an agent request.
+  only: do not persist a category, restrict which Stage panes can be opened, start profiles/terminals or submit an agent request.
 
 Source-card selection headers use `Label` rather than FieldLabel's checked background (the author's choice).
 Keep only radio/heading content in the label, with editable fields as sibling card content, so typing does not

@@ -2,7 +2,7 @@
 
 Kulisa is an agentic IDE where you and your chosen coding agent develop, run, and test software together.
 The Electron app runs unchanged agent CLIs in development terminals; Kulisa's MCP server gives them browser
-profiles and Stage terminals to test web and command-line apps. The human can operate the same environments,
+profiles and Stage terminals to test web and command-line apps. The human can operate the same profiles and terminals,
 signs in to real accounts and points to page elements with Pick. Tasks let several agents work on one project.
 
 ## Working with the author
@@ -87,8 +87,8 @@ Workbench UI names and the bar + item convention: [UI terminology](docs/ui.md#wo
 
 | Term | Meaning |
 |---|---|
-| environment | Where the app under development runs: a browser profile or Stage terminal; no promise of machine or credential isolation. |
-| Stage | The nested testing grid; Workbench has a separate grid. |
+| Stage | The task's application testing area; pane terminology: [UI](docs/ui.md#stage-and-panes). |
+| pane | An individual UI container in Stage or Workbench; [UI](docs/ui.md#stage-and-panes). |
 | profile | An embedded browser identity with its own cookies, storage, tabs and pane; an account is what it signs in to. |
 | task | One line of work: agents, branch, profiles and grid, with its own git worktree beside the project. |
 | tab | An open task in a window; projects are loaded while their tasks are open, not opened or closed themselves. |
@@ -96,7 +96,7 @@ Workbench UI names and the bar + item convention: [UI terminology](docs/ui.md#wo
 | Settings | The title bar gear's view over the whole window; New Project is a separate sequence of steps. |
 | the empty window | A window with no open task: title bar and project sidebar, or the welcome if there are no projects. |
 | the welcome | The first-start introduction. |
-| Kulisa plugin | The layer between agents and environments; "plugin" always means an agent's plugin. |
+| Kulisa plugin | The layer giving agents access to browser profiles and application terminals; "plugin" always means an agent's plugin. |
 | Kulisa package | A self-contained part in `src/<package>/`, reached only through its entries; use both words to distinguish npm packages. |
 
 ## Implementation

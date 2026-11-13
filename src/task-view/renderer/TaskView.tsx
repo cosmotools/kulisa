@@ -2,26 +2,23 @@
 import { memo, Suspense, useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { DockviewReact, GridviewReact, Orientation, type IDockviewPanelProps, type IGridviewPanelProps } from 'dockview-react';
 import 'dockview-react/dist/styles/dockview.css';
-import { TerminalSquareIcon, PlusIcon, CheckIcon } from 'lucide-react';
-import { Avatar, AvatarImage, Button, Empty, EmptyHeader, EmptyTitle } from '@ui';
+import { CheckIcon } from 'lucide-react';
+import { Empty, EmptyHeader, EmptyTitle } from '@ui';
 import { Pill } from '../../dictation/renderer';
 import { activityItems } from './development';
 import { DevelopmentTerminals } from './DevelopmentTerminals';
 import { TaskDiff } from './Diff';
 import { Artifacts } from './Artifacts';
 import { CodeEditor } from '../../editor/renderer';
-import { StageTerminalPane, StageTerminalHeader } from './StageTerminalPane';
-import { ProfilePane, ProfileHeader } from './ProfilePane';
 import { Resources, ResourceIcon, ResourceActions } from './Resources';
 import { developmentTheme, dockTheme } from './dock-theme';
 import { registerTaskGrid } from './controller';
 import { TaskGrid } from './grid';
 import { TaskBoundary } from './TaskBoundary';
 import { useTask, TaskContext, store, useTaskActive, useTaskGrid } from './state';
-import { profileLaunchers } from './profiles';
 import { useStrip } from '../../tab-strip/renderer';
-import { avatarSrc, termStyle, uiTextSize, useShade } from '../../appearance/renderer';
-import { newStageTerminal } from './environments';
+import { termStyle, uiTextSize, useShade } from '../../appearance/renderer';
+import { StagePaneLaunchers, hasStagePanes, stageComponents, stageHeaders } from './stage-panes';
 import { panelView } from './terminals';
 import './Grid.css';
 
@@ -56,38 +53,32 @@ function Development({ api }: IGridviewPanelProps) {
       onReady={(e) => grid.mountDevelopment(e.api, api)} />
   </div>;
 }
-const stageComponents = { profile: ProfilePane, 'stage-terminal': StageTerminalPane };
-const stageTabComponents = { profile: ProfileHeader, 'stage-terminal': StageTerminalHeader };
 function Stage({ api }: IGridviewPanelProps) {
   const grid = useTaskGrid(), viewport = useRef<HTMLElement>(null);
   return <section ref={viewport} aria-label="Stage" data-testid="stage" data-stage-viewport className="h-full overflow-hidden"
     onPointerDownCapture={grid.stage.pauseStageFollowing} onKeyDownCapture={grid.stage.pauseStageFollowing} onScroll={grid.reportPages}>
     <div className="h-full">
-      <DockviewReact theme={dockTheme} disableAutoResizing disableFloatingGroups singleTabMode="fullwidth" components={stageComponents} tabComponents={stageTabComponents}
+      <DockviewReact theme={dockTheme} disableAutoResizing disableFloatingGroups singleTabMode="fullwidth" components={stageComponents} tabComponents={stageHeaders}
         onReady={(e) => grid.mountStage(e.api, api, viewport.current!)} />
     </div>
   </section>;
 }
 const areas = { development: Development, stage: Stage };
-function ClosedProfiles() {
-  const task = useTask((s) => s.key), closed = useTask((s) => s.closedProfiles), row = useRef<HTMLElement>(null);
+function PaneLaunchStrip() {
+  const row = useRef<HTMLElement>(null);
   useStrip(row, null);
-  return <nav ref={row} data-testid="closed-profiles" aria-label="Open an environment" className="flex flex-none gap-1 border-b bg-card px-2 py-1">
-    <Button variant="ghost" size="sm" onClick={() => void newStageTerminal(task)} aria-label="Stage Terminal"><TerminalSquareIcon />Stage Terminal</Button>
-    {profileLaunchers(task, closed).map((p) => <Button key={p.id} variant="ghost" size="sm" data-profile={p.id} aria-label={p.name} title={p.title}
-      className="max-w-72 flex-none" onClick={() => void p.run()}>
-      {p.avatar && <Avatar className="size-5"><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar>}<span className="min-w-0 truncate">{p.name}</span><PlusIcon />
-    </Button>)}
+  return <nav ref={row} data-testid="closed-profiles" aria-label="Open a pane" className="flex flex-none gap-1 border-b bg-card px-2 py-1">
+    <StagePaneLaunchers mode="strip" />
   </nav>;
 }
 const Screen = memo(function Screen() {
   const grid = useTaskGrid(), workspace = useRef<HTMLDivElement>(null);
   const loading = useTask((s) => s.loading);
-  const showClosedProfiles = useTask((s) => !s.profiles.length && !s.stageTerminals.length && s.developmentTerminals.list.length > 0);
-  useLayoutEffect(() => grid.resize(), [grid, showClosedProfiles]);
+  const showPaneLaunchStrip = useTask((s) => !hasStagePanes(s) && s.developmentTerminals.list.length > 0);
+  useLayoutEffect(() => grid.resize(), [grid, showPaneLaunchStrip]);
   return <section data-task-screen className="absolute inset-0 flex flex-col aria-busy:opacity-0"
     aria-busy={loading || undefined} inert={loading || undefined}>
-    {showClosedProfiles && <ClosedProfiles />}
+    {showPaneLaunchStrip && <PaneLaunchStrip />}
     <div ref={workspace} data-workspace className="min-h-0 flex-1">
       <GridviewReact components={areas} orientation={Orientation.VERTICAL} proportionalLayout
         onReady={(e) => grid.mount(e.api, workspace.current!)} />

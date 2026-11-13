@@ -30,7 +30,7 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with shell_run, not in your own ' +
   'shell or its background: the human sees it in a terminal next to yours, and you read its output with shell_read. ' +
   'Run interactive CLI and TUI apps with terminal_run in Stage: supply the command, read the rendered screen with terminal_read, and send keys or text with terminal_input. Run again in the same named terminal after code changes. Your own development terminal stays separate. ' +
-  'After testing, leave the final app ready for human review: keep interactive Stage terminals at their input prompt, and web result pages and their servers open. Preserve the final screen for commands that naturally exit; do not repeat operations with side effects just for display. Close only temporary testing environments you opened; leave the human’s environments alone unless asked. ' +
+  'After testing, leave the final app ready for human review: keep interactive Stage terminals at their input prompt, and web result pages and their servers open. Preserve the final screen for commands that naturally exit; do not repeat operations with side effects just for display. Close only temporary browser profiles and Stage terminals you opened; leave the human’s profiles and terminals alone unless asked. ' +
   'What was said and done in this task, by you or other agents (each conversation an agent had in it), is in ' +
   'task_history: read the one the human points you to ("go on with what Claude did") before anything else, and read ' +
   'yours when you need details your context lost. Name your conversation with conversation_rename once you know what ' +
@@ -42,11 +42,11 @@ function buildServer(task: Task, t: DevelopmentTerminal | null, context?: string
     if (!args || typeof args !== 'object') return;
     if (name.startsWith('browser_') && 'profile' in args && typeof args.profile === 'string') {
       const found = task.named(args.profile);
-      if (!('error' in found) && task.profiles.has(found.id)) task.environmentUsed(`profile:${found.id}`);
+      if (!('error' in found) && task.profiles.has(found.id)) task.stagePaneUsed(`profile:${found.id}`);
     } else if (name.startsWith('terminal_') && name !== 'terminal_close' && 'name' in args && typeof args.name === 'string') {
       const target = args.name.trim().toLowerCase();
       const terminal = task.stageTerminals.info().find((a) => a.name.toLowerCase() === target);
-      if (terminal) task.environmentUsed(`stage-terminal:${terminal.id}`);
+      if (terminal) task.stagePaneUsed(`stage-terminal:${terminal.id}`);
     }
   };
   // Every tool call is logged (its name, the task, a summary of its first argument), as the core's actions are.

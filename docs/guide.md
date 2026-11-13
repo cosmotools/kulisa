@@ -66,19 +66,20 @@ brings it back.
 ### Stage and Workbench
 
 Your coding terminals, **Activity bar** and **Side bar** occupy **Workbench**, the development area.
-Its **Main pane** shows the selected Activity bar item's content. Browser profiles and interactive terminals occupy **Stage**.
-Drag Stage headers to arrange/stack environments and thin dividers to resize panes.
+Its **Main pane** shows the selected Activity bar item's content. **Stage** is the application testing area.
+Each browser profile or application terminal appears in its own pane; several panes of either kind can be open together.
+Drag Stage headers to arrange/stack panes and thin dividers to resize panes.
 
 **Stage** in the title bar offers:
 
 - **Left**, **Right** or **Above** Workbench.
 - **Horizontal stack**, **Vertical stack** or **Tabs**.
 - **Allow overflow** to scroll a stack rather than shrink every pane to fit.
-- **Open an environment** to add a profile or Stage terminal. An empty Stage stays hidden.
-- **Follow agent** to reveal its active environment and highlight activity. Your Stage input pauses following;
+- **Open a pane** to add a profile or Stage terminal. An empty Stage stays hidden.
+- **Follow agent** to reveal its active pane and highlight activity. Your Stage input pauses following;
   choose **Follow agent (paused)** to resume.
 
-**Maximize environment** fills Stage with that group while Workbench remains visible. **Restore environment**
+**Maximize pane** fills Stage with that group while Workbench remains visible. **Restore pane**
 returns to the previous layout. The agent can arrange Stage too.
 
 ### Activity bar and Side bar
@@ -187,7 +188,7 @@ three steps. **Back** keeps your choices; on the first step of the welcome it re
 3. **Start**: the chosen folder or repository supplies a readable project name automatically: `my-shop` becomes
    `My Shop`. Use **Edit name** to change it; the folder's name and location stay as they are.
    **Web app / CLI app / Not sure yet** offers starting ideas for your first request. Every choice keeps access to
-   browser profiles and interactive terminals. No environment opens automatically and no request is sent for you.
+   browser profiles and interactive terminals. No profile or terminal opens automatically and no request is sent for you.
 
 **Create project** opens the first task with **Agents** selected in Workbench and your chosen agent's terminal
 ready for your request. Change the setup later in Settings.
@@ -373,8 +374,8 @@ to read the agent's activity when its text does not fit.
 - **You see what it does.** Each of its actions is marked in the page (where it clicks, the element outlined, its own
   pointer), and a caption over the pane says what it is doing.
 - **Share selected text.** Select text in a browser page or Stage terminal, then right-click **Send selection to agent**.
-  The selected text and its environment name go into your agent’s message draft. Add your question, review it and
-  send when ready. You need an open agent terminal.
+  The selected text and its source profile or terminal name go into your agent’s message draft. Add your question,
+  review it and send when ready. You need an open agent terminal.
 - **Point and tell.** Click **Pick** (the arrow icon at the end of the profile’s controls row, or Ctrl+Shift+C), then
   an element on the page. A reference to it goes into the agent's input; write the rest of the message around it ("this button
   does nothing") and send. Picks from several panes can go into one message. Esc cancels.
@@ -392,8 +393,8 @@ to read the agent's activity when its text does not fit.
 - **+** opens an agent, a new conversation or **Terminal**, a shell. **×** closes one: closing an agent asks first and keeps
   its conversation in the task's history; a shell closes at once, or with `exit`. Right-click an agent's row for
   **Change agent…**, **New Conversation**, and **Close**.
-- With no development terminal, use **+** to choose one or Ctrl+` to open the task's agent. With no testing
-  environment open either, launch buttons offer the project's agents, **Terminal** and profiles. Tab selects a launcher;
+- With no development terminal, use **+** to choose one or Ctrl+` to open the task's agent. With no Stage
+  pane open either, launch buttons offer the project's agents, **Terminal** and profiles. Tab selects a launcher;
   Enter opens it.
 - Terminals come back after a restart in the Agents list: an agent continues its conversation, a shell starts fresh.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
@@ -406,7 +407,7 @@ to read the agent's activity when its text does not fit.
 
 ## Testing a command-line application
 
-Choose **Stage → Open an environment → Stage Terminal**. It opens your shell in the task's working folder.
+Choose **Stage → Open a pane → Stage Terminal**. It opens your shell in the task's working folder.
 Run a command such as `python3 calculator.py`, or ask your coding agent to run it. You and the agent can both
 operate the app; browser profiles are optional.
 

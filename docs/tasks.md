@@ -79,7 +79,7 @@ creation returns to the introduction. Links/version remain in ☰.
 
 ## Tasks
 
-A task owns a branch/worktree when needed, browser copies, Stage environments, development terminals and conversations.
+A task owns a branch/worktree when needed, browser copies, Stage panes, development terminals and conversations.
 It starts in the project's main working tree with profiles closed; `task_worktree` creates the default repository's
 copy before code changes unless the human explicitly wants their folder. With no git/first commit, stay in the
 project folder and ask before opening a second competing task.
@@ -375,7 +375,7 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   settings, CLI launch setup, next terminal ID, view and Dockview layout), workspace
                                   (development layout, Stage position and native outer split). Terminal conversation references
                                   use stable IDs; history numbers follow conversation order. Live processes and screen
-                                  buffers stay in memory. File and owned environment data go with the task/project.
+                                  buffers stay in memory. File and owned profile and terminal data go with the task/project.
     artifacts/                    ordinary final files/folders, including numbered tool results
     tmp/                          temporary working material, outside artifacts
       agent-<conversation id>/    one working directory per stable Kulisa conversation

@@ -90,7 +90,7 @@ function taskAccess(task: Task): TaskAccess {
       task.shell.typingSecret.add(key);
       try { return { name: r.profile.name, result: await fill(r.value) }; } finally { task.shell.typingSecret.delete(key); }
     },
-    environmentUsed: (environment) => task.environmentUsed(environment),
+    stagePaneUsed: (pane) => task.stagePaneUsed(pane),
     caption: (profile, caption, sticky) => task.caption(profile, caption, sticky), toUrl,
     screenshot: (profile, tab, shot, temporary) => task.screenshot(profile, tab, shot, temporary),
     saveArtifact: (source, kind, content, temporary) => task.saveArtifact(source, kind, content, temporary),

@@ -1,4 +1,4 @@
-// Stage layout restoration and environment IDs (../README.md, The grid).
+// Stage layout restoration and pane IDs (../README.md, The grid).
 import type { DockviewApi, SerializedDockview } from 'dockview-react';
 import { filterLayout } from '../shared/layout';
 

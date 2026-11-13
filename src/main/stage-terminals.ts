@@ -1,4 +1,4 @@
-// The task's Stage terminal environments: saved launch setup, explicit processes, shared human/agent actions.
+// The task's Stage application terminals: saved launch setup, explicit processes, shared human/agent actions.
 import { startTerminal, stopTerminal, forgetTerminal, terminalScreen, setTerminalSize, pressTerminalKey, pasteTerminal } from '../terminal/main/index.ts';
 import type { Pty, TerminalConfig, TerminalOutput } from '../terminal/main/index.ts';
 import { TERMINAL_LINES } from '../terminal/ipc.ts';

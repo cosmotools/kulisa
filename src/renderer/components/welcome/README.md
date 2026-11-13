@@ -34,7 +34,7 @@ drawings and remount the examples and lower transcript when switching so their c
 
 Pause freezes the whole active cycle; reduced motion shows its final result. `CoffeeBreak` shares that clock:
 the person reclines and drinks coffee, with upper body/chair rotation at the hips and feet supported by the
-ottoman. Narrow/short windows omit the vignette. No JavaScript animation timer or hidden live environment is retained.
+ottoman. Narrow/short windows omit the vignette. No JavaScript animation timer or hidden live profile or terminal is retained.
 These coordinated timelines are the reason for custom keyframes rather than independent component animations.
 
 Photo attribution is in `assets/CREDITS.txt`; Vite imports photographs from this folder and emits the credits as

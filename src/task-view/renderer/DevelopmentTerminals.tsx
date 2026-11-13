@@ -2,16 +2,14 @@
 import { createElement, useEffect, useLayoutEffect, useRef, type Ref } from 'react';
 import { PlusIcon } from 'lucide-react';
 import { cn } from 'cn';
-import { Avatar, AvatarImage, Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
+import { Button, Item, ItemContent, ItemDescription, ItemMedia, ItemTitle, Spinner } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../../menus/renderer';
 import { agentMark } from '../../agent-presentation/renderer';
 import { currentTask, store, useTask, useTaskActive } from './state';
-import { profileLaunchers } from './profiles';
 import { panelView, launchers, newTerminalItems, terminalItems, terminalMenu } from './terminals';
-import { avatarSrc } from '../../appearance/renderer';
 import { withKeys } from '../../window-client/renderer';
 import { dialogsShown, onDialogs } from '../../layers/renderer';
-import { newStageTerminal } from './environments';
+import { StagePaneLaunchers, hasStagePanes } from './stage-panes';
 import { termFocus } from '../../terminal/renderer';
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
@@ -20,7 +18,7 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
   const active = useTaskActive();
   const task = useTask((s) => s.key), front = useTask((s) => s.developmentTerminals.front);
   const empty = useTask((s) => !s.developmentTerminals.list.length);
-  const alone = useTask((s) => !s.profiles.length && !s.stageTerminals.length);
+  const alone = useTask((s) => !hasStagePanes(s));
   const loading = useTask((s) => s.loading);
   const focus = useTask((s) => s.developmentTerminalFocus);
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
@@ -92,7 +90,7 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
 
 // One width for all, so the rows line up.
 function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
-  const task = useTask((s) => s.key), closed = useTask((s) => s.closedProfiles);
+  const task = useTask((s) => s.key);
   useTask((s) => s.projects.open); // the project's agents
   return <div ref={ref} data-testid="launchers" className="flex max-w-full flex-col gap-4 self-center justify-self-center p-3">
     <nav aria-label="New terminal" className="flex flex-wrap justify-center gap-3">
@@ -103,13 +101,8 @@ function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
           <ItemContent className="min-w-0"><ItemTitle>{l.name}</ItemTitle>{l.sub && <ItemDescription>{l.sub}</ItemDescription>}</ItemContent></Item>
       </Button>)}
     </nav>
-    <nav aria-label="Open an environment" className="flex flex-wrap justify-center gap-3">
-      <Button variant="outline" className="h-auto w-60 justify-start" onClick={() => void newStageTerminal(task)}><PlusIcon />Stage Terminal</Button>
-      {profileLaunchers(task, closed).map((p) => <Button key={p.id} data-launcher data-profile={p.id} variant="outline" aria-label={p.name} title={p.title}
-        className="h-auto w-60 justify-start" onClick={() => void p.run()}>
-        <Item size="sm"><ItemMedia>{p.avatar ? <Avatar size="lg" aria-hidden><AvatarImage src={avatarSrc(p.avatar)} alt="" /></Avatar> : <PlusIcon className="size-8" />}</ItemMedia>
-          <ItemContent className="min-w-0"><ItemTitle>{p.name}</ItemTitle></ItemContent></Item>
-      </Button>)}
+    <nav aria-label="Open a pane" className="flex flex-wrap justify-center gap-3">
+      <StagePaneLaunchers mode="tile" />
     </nav>
   </div>;
 }

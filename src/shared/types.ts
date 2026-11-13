@@ -27,8 +27,8 @@ export interface TaskResource {
   branch: string | null; // a worktree's branch; none for the main working tree
   removable: boolean; // an added repository's worktree (task_remove_repository); not the task's own or the main tree
 }
-// An environment in the task’s Stage, naming a browser tab when relevant.
-export type EnvironmentSource = { kind: 'profile'; id: string; tab: string } | { kind: 'stage-terminal'; id: number };
+// A source pane in the task's Stage, naming a browser tab when relevant.
+export type StagePaneSource = { kind: 'profile'; id: string; tab: string } | { kind: 'stage-terminal'; id: number };
 export type { Artifact } from '../task-files/ipc.ts';
 export interface TaskInfo {
   id: string; key: string; project: string; name: string; state: AgentState; folder: string; branch: string | null;

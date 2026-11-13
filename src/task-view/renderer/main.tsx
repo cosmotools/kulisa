@@ -24,10 +24,6 @@ kulisa.on('task:initial', () => {
     kulisa.send('task:presentation', { workbenchItem, selectedArtifact, stagePosition, stageLayout, stageOverflow, stageFollowPaused });
   });
 });
-kulisa.on('task:command', ({ command, profile }) => {
-  if (command === 'profile:show' && profile) taskGrid(taskIdentity)?.stage.api?.getPanel(`profile:${profile}`)?.api.setActive();
-  if (command === 'terminal:open') void import('./environments').then((m) => m.newStageTerminal(taskIdentity));
-});
 kulisa.on('task:drain', async (sequence) => {
   taskGrid(taskIdentity)?.flush();
   await taskGrid(taskIdentity)?.development.drainEditor();

@@ -34,6 +34,13 @@ Layout and lifecycle: [window.md](window.md#the-grid); item actions and saved st
 `Resources` in existing component names and `resources` layout identifiers refer to the Activity bar and Side bar;
 task resource folders are a separate domain concept.
 
+## Stage and panes
+
+**Stage** is the task's application testing area, containing browser and application-terminal panes.
+A **pane** is an individual UI container displaying a browser profile, an application terminal or Workbench content.
+A task can show several panes of each kind together; opening one kind does not limit which others can be opened.
+Coding-agent terminals belong to Workbench. Stage's grid and pane lifetime belong to [Task view](../src/task-view/README.md).
+
 ## shadcn in Kulisa
 
 These integration rules take precedence over generic skill instructions:
@@ -146,7 +153,7 @@ Prefer upstream components for their normal jobs. The remaining custom surfaces 
 | Diff loading indicator | Transform-only motion without layout work; [Diff](../src/diff/README.md) |
 | Dictation pill/wave | Live microphone data and recording lifecycle; [dictation](../src/dictation/README.md) |
 | Settings frame and log output | Window-wide navigation and plain-text logs; [Settings](../src/renderer/components/settings/README.md) |
-| Welcome examples and characters | Coordinated demonstration without live environments; [welcome](../src/renderer/components/welcome/README.md) |
+| Welcome examples and characters | Coordinated demonstration without live profiles or terminals; [welcome](../src/renderer/components/welcome/README.md) |
 
 ## Artifact tree
 

@@ -51,11 +51,11 @@ test('Stage maximizes a terminal and follows agent activity without taking the a
   const second = JSON.parse((await call('terminal_run', { name: 'Second', command: 'node -e "setInterval(()=>{},1000)"' })).text);
   await call('stage_arrange', { layout: 'horizontal', overflow: true });
   const header = (await taskPage(ui)).locator(`[data-task-view][data-active] [data-panel="stage-terminal:${first.id}"]`);
-  await header.getByRole('button', { name: 'Maximize environment', exact: true }).click();
+  await header.getByRole('button', { name: 'Maximize pane', exact: true }).click();
   await expect((await taskPage(ui)).locator(`[data-stage-terminal="${second.id}"]`)).toBeHidden();
   await expect((await taskPage(ui)).locator(`[data-stage-terminal="${first.id}"]`)).toBeVisible();
   await expect((await taskPage(ui)).locator('[data-task-view][data-active]').getByTestId('terminal')).toBeVisible();
-  await header.getByRole('button', { name: 'Restore environment', exact: true }).click();
+  await header.getByRole('button', { name: 'Restore pane', exact: true }).click();
   await expect((await taskPage(ui)).locator(`[data-stage-terminal="${second.id}"]`)).toBeVisible();
   await call('stage_arrange', { layout: 'tabs' });
   await (await taskPage(ui)).locator(`[data-task-view][data-active] [data-panel="stage-terminal:${second.id}"]`).getByText('Second', { exact: true }).click();
