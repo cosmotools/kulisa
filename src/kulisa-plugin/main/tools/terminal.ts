@@ -1,4 +1,4 @@
-// Agent handles on Stage terminal environments; actions and validation belong to the task's core.
+// Agent handles on Stage application terminals; actions and validation belong to the task's core.
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { terminalKeys, TERMINAL_LINES } from '../../../terminal/ipc.ts';
@@ -24,7 +24,7 @@ export function terminalTools(server: McpServer, { task, text, done, temporary }
     inputSchema: { name: nameArg },
   }, async ({ name }) => text(JSON.stringify(done(task.stageTerminals.close(name)))));
   server.registerTool('terminal_read', {
-    description: 'Inspect a Stage terminal: current rendered screen by default, including alternate-screen TUIs and cursor position; scrollback: true reads its last lines (default 50, max 500). Without name lists environments and process/exit status. Large output goes to your temporary folder; the answer gives its path and a preview. Output is bounded and reflects cursor redraws rather than raw stdout.',
+    description: 'Inspect a Stage terminal: current rendered screen by default, including alternate-screen TUIs and cursor position; scrollback: true reads its last lines (default 50, max 500). Without name lists Stage terminals and process/exit status. Large output goes to your temporary folder; the answer gives its path and a preview. Output is bounded and reflects cursor redraws rather than raw stdout.',
     inputSchema: { name: nameArg.optional(), scrollback: z.boolean().optional(), lines: z.number().int().min(1).max(TERMINAL_LINES).optional() },
   }, async ({ name, scrollback, lines }) => {
     if (!name) return text(JSON.stringify(task.stageTerminals.info()));

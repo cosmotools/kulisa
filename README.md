@@ -11,7 +11,7 @@ and show what needs to change.
 
 - **Your coding agent.** It runs in a real terminal with your project's environment. Kulisa gives it tools to use
   the browser profiles and interactive terminals you see.
-- **Shared testing environments.** Operate the same CLI or TUI app together, or check a web app as buyer, seller
+- **Shared application testing.** Operate the same CLI or TUI app together, or check a web app as buyer, seller
   and admin side by side. The agent's browser actions are marked on the page.
 - **Code and review.** Browse and edit project files, review changes, and open the task's reports and screenshots.
 - **Sign in once.** Each browser profile keeps its own sign-ins, cookies and tabs. You sign in to real accounts

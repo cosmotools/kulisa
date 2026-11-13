@@ -328,7 +328,7 @@ test("tasks: an agent's tab closes after a question, always (Cancel keeps it); t
     await expect(launchers).toMatchAriaSnapshot(`
       - navigation "New terminal":
         - button "Terminal"
-      - navigation "Open an environment":
+      - navigation "Open a pane":
         - button "Stage Terminal"
         - button "Sam.admin"
         - button "Elon.buyer"
@@ -407,7 +407,7 @@ test('closed profiles scroll within the window and the last button opens its own
     return ids;
   });
   try {
-    const tiles = (await taskPage(ui)).getByRole('navigation', { name: 'Open an environment', exact: true });
+    const tiles = (await taskPage(ui)).getByRole('navigation', { name: 'Open a pane', exact: true });
     const last = tiles.getByRole('button', { name: 'overflow-19-profile', exact: true });
     await expect(tiles).toHaveAttribute('data-past-end');
     // Playwright has no assertion for document overflow.

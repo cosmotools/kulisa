@@ -13,7 +13,7 @@ import { screenshot, togglePick, useTask, store, act, useTaskActive, useTaskGrid
 import { avatarSrc } from '../../appearance/renderer';
 import { keyText, withKeys, openSettings } from '../../window-client/renderer';
 import type { MenuItem } from '../../menus/renderer';
-import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
+import { PaneFocus, paneFocusItem } from './PaneFocus';
 import './ProfilePane.css';
 
 const profileOf = (panel: string) => panel.slice('profile:'.length);
@@ -227,7 +227,7 @@ export function ProfileHeader({ api, containerApi }: IDockviewPanelHeaderProps) 
   const StatusIcon = profile?.signinMode ? LockIcon : activity || caption ? CircleDotIcon : CircleIcon;
   const menu = (): MenuItem[] => [
     { label: 'New tab', keys: keyText('tab.new'), run: () => grid.panes.get(id)?.newTab() },
-    environmentFocusItem(api),
+    paneFocusItem(api),
     { label: 'About this profile…', run: () => openSettings('profiles', id) },
     { label: 'Sign In to Master…', run: () => act('profile:master', { profile: id }) },
     { label: 'Close profile', run: () => act('profile:close', { profile: id }) },
@@ -253,7 +253,7 @@ export function ProfileHeader({ api, containerApi }: IDockviewPanelHeaderProps) 
           </span>
         </div>
         <div className="flex justify-end">
-          <EnvironmentFocus api={api} containerApi={containerApi} />
+          <PaneFocus api={api} containerApi={containerApi} />
           <Button variant="ghost" size="icon-xs" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"
             onClick={() => void act('profile:close', { profile: id })}><XIcon /></Button>
         </div>

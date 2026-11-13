@@ -4,7 +4,7 @@ import { actionsFor } from '../../window-client/renderer';
 import { openSettings } from './settings';
 import { plural } from './common';
 import type { MenuItem } from '../../menus/renderer';
-export function environmentItems(): MenuItem[] {
+export function stagePaneItems(): MenuItem[] {
   const task = store.getState().summary;
   if (!task) return [];
   return [{ label: 'Stage Terminal', run: () => kulisa.invoke('task:command', { task: task.key, command: 'terminal:open' }) }, '-',

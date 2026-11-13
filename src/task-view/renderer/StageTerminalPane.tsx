@@ -8,7 +8,7 @@ import { currentTask, store, useTask, act, useTaskActive } from './state';
 import { actionsFor } from '../../window-client/renderer';
 import { dialogsShown } from '../../layers/renderer';
 import { focusStageTerminal } from './stage-terminal-focus';
-import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
+import { PaneFocus, paneFocusItem } from './PaneFocus';
 import { termStyle, useShade } from '../../appearance/renderer';
 import { View, termCopy, termPaste, termFocus } from '../../terminal/renderer';
 import type { MenuItem } from '../../menus/renderer';
@@ -78,7 +78,7 @@ export function StageTerminalPane({ api }: IDockviewPanelProps) {
       { label: 'Copy', enabled: view.current?.term.hasSelection() ?? false, run: () => { if (view.current) termCopy(view.current.term); } },
       { label: 'Paste', enabled: terminal.status === 'running', run: () => { if (view.current) termPaste(view.current.term); } },
       { label: 'Select all', run: () => view.current?.term.selectAll() },
-      { label: 'Find…', run: () => setSearching(true) }, '-', environmentFocusItem(api), ...actions(terminal, taskKey),
+      { label: 'Find…', run: () => setSearching(true) }, '-', paneFocusItem(api), ...actions(terminal, taskKey),
     ];
   };
   return <section role="region" aria-label={terminal.name} data-stage-terminal={id} data-state={terminal.status} className="flex h-full flex-col bg-card" onKeyDownCapture={(e) => {
@@ -108,15 +108,15 @@ export function StageTerminalHeader({ api, containerApi }: IDockviewPanelHeaderP
   const activity = useTask((s) => s.stageActivity === api.id);
   const id = idOf(api.id), terminal = useStageTerminal(id);
   const launch = terminal && runAction(terminal, taskKey);
-  return <RightClickMenu items={() => terminal ? [environmentFocusItem(api), ...actions(terminal, taskKey)] : null} className="h-full min-w-0">
+  return <RightClickMenu items={() => terminal ? [paneFocusItem(api), ...actions(terminal, taskKey)] : null} className="h-full min-w-0">
     <div data-panel={api.id} data-agent-active={activity || undefined} className="flex h-full min-w-0 items-center gap-1 px-2 data-[agent-active=true]:bg-accent">
       <TerminalSquareIcon className="size-4" /><span className="min-w-0 flex-1 truncate text-sm font-medium">{terminal?.name}</span>
       {terminal && <span role="status" className="truncate text-xs text-muted-foreground" title={status(terminal)}>{status(terminal)}</span>}
       {launch && <Button variant="ghost" size="icon-xs" aria-label={launch.label} title={launch.label} disabled={!launch.enabled} onClick={() => void launch.run()}>
         {launch.label.startsWith('Restart') ? <RotateCwIcon /> : <PlayIcon />}
       </Button>}
-      <EnvironmentFocus api={api} containerApi={containerApi} />
-      <ButtonMenu items={() => terminal ? [environmentFocusItem(api), ...actions(terminal, taskKey)] : []} end>
+      <PaneFocus api={api} containerApi={containerApi} />
+      <ButtonMenu items={() => terminal ? [paneFocusItem(api), ...actions(terminal, taskKey)] : []} end>
         <Button variant="ghost" size="icon-xs" aria-label="Terminal menu" title="Terminal menu"><EllipsisIcon /></Button>
       </ButtonMenu>
       <Button variant="ghost" size="icon-xs" aria-label="Close Stage terminal" title="Close Stage terminal" onClick={() => void act('stage-terminal:close', { id })}><XIcon /></Button>

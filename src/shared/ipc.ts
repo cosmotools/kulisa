@@ -15,7 +15,7 @@ import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screens
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
 import type {
-  AboutFolder, AboutInfo, Artifact, EnvironmentSource, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
+  AboutFolder, AboutInfo, Artifact, StagePaneSource, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, DevelopmentTerminalsState, ExistingAgentSetup, ListOptions,
 } from './types.ts';
 
@@ -135,7 +135,7 @@ export interface Invoke extends TaskViewInvoke, TerminalInvoke, ThumbnailInvoke,
   'profile:master': I<[OnProfile]>;
   'stage:arrange': I<[OnTask & { layout?: StageLayout; overflow?: boolean; position?: StagePosition }], Result>;
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
-  'selection:send': I<[OnTask & { source: EnvironmentSource; text: string }], Result>;
+  'selection:send': I<[OnTask & { source: StagePaneSource; text: string }], Result>;
   'stage-terminal:open': I<[OnTask & { name?: string }], Result<StageTerminal>>;
   'stage-terminal:configure': I<[OnTask & { id: number; name?: string; command?: string; size?: TerminalSize | null }], Result<StageTerminal>>;
   'stage-terminal:run': I<[OnTask & { id: number; command?: string }], Result<StageTerminal>>;
@@ -222,7 +222,7 @@ export interface Events extends TaskViewEvents, TerminalEvents, ThumbnailEvents,
   'ask:show': Question & { id: number };
   'command:run': { id: string; n?: number; profile: string | null; tab: string | null; task: string | null; page: boolean };
   'stage:follow:state': boolean;
-  'stage:activity': { task: string; environment: string };
+  'stage:activity': { task: string; pane: string };
   'page:press': { task: string };
   'agent:caption': { task: string; profile: string; caption: string | null; sticky?: boolean };
   'agent:choice:show': { task: string; selected: string | null };

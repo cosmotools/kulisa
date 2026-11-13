@@ -1,4 +1,4 @@
-// Browser scene adapters; sessions, sign-ins and native views remain in Browser/core (../README.md).
+// Browser pane adapters; sessions, sign-ins and native views remain in Browser/core (../README.md).
 import { PlusIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage, Button, Item, ItemContent, ItemMedia, ItemTitle } from '@ui';
 import { ProfilePane, ProfileHeader } from './ProfilePane';
@@ -7,7 +7,7 @@ import { useTask } from './state';
 import { panelId } from './layout';
 import { pageRects } from './pages';
 import { avatarSrc } from '../../appearance/renderer';
-import type { LauncherMode, StageScene } from './scene-contract';
+import type { LauncherMode, StagePaneKind } from './pane-contract';
 
 function BrowserLaunchers({ mode }: { mode: LauncherMode }) {
   const task = useTask((s) => s.key), closed = useTask((s) => s.closedProfiles);
@@ -23,9 +23,9 @@ function BrowserLaunchers({ mode }: { mode: LauncherMode }) {
       <span className="min-w-0 truncate">{p.name}</span><PlusIcon />
     </Button>);
 }
-export const browserScene: StageScene = {
+export const browserPane: StagePaneKind = {
   kind: 'browser', component: 'profile', pane: ProfilePane, header: ProfileHeader,
-  panels: (state) => state.profiles.map((p) => ({ id: panelId(p.id), title: p.name })),
+  panes: (state) => state.profiles.map((p) => ({ id: panelId(p.id), title: p.name })),
   launcherOrder: 1, Launchers: BrowserLaunchers,
   bind: (host) => kulisa.on('agent:caption', ({ task, profile, caption }) => {
     if (caption) host.activity(task, panelId(profile));

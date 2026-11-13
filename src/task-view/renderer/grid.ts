@@ -7,7 +7,7 @@ import type { Events, PageLayout, StagePosition } from '../../shared/ipc';
 import { DevelopmentGrid, resourcesMinimumHeight } from './development';
 import { StageGrid } from './stage';
 import type { PaneHandle } from './pages';
-import { scenes } from './scenes';
+import { stagePaneKinds, stagePanesChanged } from './stage-panes';
 import { freeze, unfreeze, showViews } from './views';
 
 let viewportRevision = 0;
@@ -38,7 +38,7 @@ export class TaskGrid {
     taskViewportChanged = this.resize;
     this.stop = this.state.subscribe((next, previous) => {
       if (!this.workspace || this.disposed) return;
-      if (scenes.changed(next, previous)) {
+      if (stagePanesChanged(next, previous)) {
         this.sync(); this.scheduleSave();
       }
     });
@@ -148,8 +148,8 @@ export class TaskGrid {
   private sync() {
     if (!this.workspace) return;
     const panel = this.workspace.getPanel('stage');
-    if (panel) panel.api.setVisible(this.stage.environmentIds().length > 0);
-    this.stage.syncStage();
+    if (panel) panel.api.setVisible(this.stage.paneIds().length > 0);
+    this.stage.syncPanes();
     this.finishInitialization();
   }
   resize = () => {
@@ -196,7 +196,7 @@ export class TaskGrid {
       if (this.disposed) return;
       const context = { state: this.state.getState(), api: this.stage.api, viewport: this.stage.viewport, panes: this.panes };
       const rects: Record<string, PageLayout> = {};
-      for (const scene of scenes.definitions) Object.assign(rects, scene.layout?.(context));
+      for (const definition of stagePaneKinds) Object.assign(rects, definition.layout?.(context));
       kulisa.send('layout:apply', { task: this.key, revision: viewportRevision, viewport: { width: innerWidth, height: innerHeight }, rects });
     });
   };

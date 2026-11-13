@@ -5,22 +5,22 @@ import { Maximize2Icon, Minimize2Icon } from 'lucide-react';
 import { Button } from '@ui';
 import type { MenuRow } from '../../menus/renderer';
 
-export function environmentFocusItem(api: IDockviewPanelHeaderProps['api']): MenuRow {
+export function paneFocusItem(api: IDockviewPanelHeaderProps['api']): MenuRow {
   const maximized = api.isMaximized();
   return {
-    label: maximized ? 'Restore environment' : 'Maximize environment',
+    label: maximized ? 'Restore pane' : 'Maximize pane',
     run: () => { if (api.isMaximized()) api.exitMaximized(); else { api.setActive(); api.maximize(); } },
   };
 }
 
-export function EnvironmentFocus({ api, containerApi }: Pick<IDockviewPanelHeaderProps, 'api' | 'containerApi'>) {
+export function PaneFocus({ api, containerApi }: Pick<IDockviewPanelHeaderProps, 'api' | 'containerApi'>) {
   const [maximized, setMaximized] = useState(() => api.isMaximized());
   useEffect(() => {
     const update = () => setMaximized(api.isMaximized());
     const changed = containerApi.onDidMaximizedGroupChange(update), moved = api.onDidGroupChange(update);
     return () => { changed.dispose(); moved.dispose(); };
   }, [api, containerApi]);
-  const item = environmentFocusItem(api);
+  const item = paneFocusItem(api);
   return <Button variant="ghost" size="icon-xs" aria-label={item.label} title={item.label} onClick={() => item.run?.()}>
     {maximized ? <Minimize2Icon /> : <Maximize2Icon />}
   </Button>;

@@ -1,5 +1,5 @@
 // First-start welcome (docs/tasks.md, The welcome): one introduction with web/CLI examples, then the shared project
-// flow. The examples are drawings, not running environments; no hidden browser or terminal processes are started.
+// flow. The examples are drawings, not live browser profiles or terminals; no hidden browser or terminal processes are started.
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRightIcon, GitBranchIcon, GlobeIcon, KeyboardIcon, MousePointer2Icon,
   PanelTopIcon, PauseIcon, PlayIcon, SquareTerminalIcon } from 'lucide-react';
@@ -27,7 +27,7 @@ function Example() {
         <TabsTrigger value="cli"><SquareTerminalIcon />CLI app</TabsTrigger>
       </TabsList>
     </div>
-    {/* Draw the shared work area with theme tokens. Real environments here would start processes before setup. */}
+    {/* Draw the shared work area with theme tokens. Real profiles or terminals here would start processes before setup. */}
     <div className="relative"><div className="overflow-hidden rounded-xl border bg-muted/40 shadow-sm">
       <div className="flex h-9 items-center gap-2 border-b bg-card px-4 text-xs"><PanelTopIcon className="size-3.5 text-muted-foreground" />{web ? 'Build an online store' : 'Build your own coding agent'}<span className="ms-auto flex items-center gap-1 text-muted-foreground"><GitBranchIcon className="size-3" />{web ? 'checkout' : 'agent-tools'}</span></div>
       <div className="grid">

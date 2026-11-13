@@ -187,7 +187,7 @@ test('Stop is repeatable and a stopped terminal keeps its screen until closed', 
   expect(JSON.parse((await call('terminal_read')).text)).toEqual([]);
 });
 
-test('browser and terminal environments share Stage positions and tabs without restarting the CLI', async ({ core, ui, files, call }) => {
+test('browser and terminal panes share Stage positions and tabs without restarting the CLI', async ({ core, ui, files, call }) => {
   fs.writeFileSync(path.join(files.project, 'terminal-stage.cjs'), tui);
   await call('terminal_run', { name: 'Alongside browser', command: 'node terminal-stage.cjs' });
   await call('profile_create', { name: 'Stage.browser' });
@@ -304,7 +304,7 @@ test('a background terminal answers device queries and keeps Unicode cursor widt
 });
 
 
-test('the agent arranges terminal-only environments as vertical stacks, tabs or scrolling horizontal stacks', async ({ core, ui, call }) => {
+test('the agent arranges terminal-only panes as vertical stacks, tabs or scrolling horizontal stacks', async ({ core, ui, call }) => {
   expect(await core((k) => k.shell.task.profiles.size)).toBe(0);
   await call('terminal_run', { name: 'Layout first', command: 'node --version' });
   await call('terminal_run', { name: 'Layout second', command: 'node --version' });

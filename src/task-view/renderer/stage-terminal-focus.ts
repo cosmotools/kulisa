@@ -1,4 +1,4 @@
-// Human launch intent for the terminal scene (../README.md, Scene registration).
+// Human launch intent for the terminal pane (../README.md, Pane registration).
 import { currentTask, store } from './state';
 import { actionsFor } from '../../window-client/renderer';
 import type { StageTerminal } from '../../shared/stage-terminal';

@@ -1,10 +1,10 @@
-// Stage environments, overflow sizing and following (../README.md, The grid).
+// Stage panes, overflow sizing and following (../README.md, The grid).
 import { preferences } from '../../window-client/renderer';
 import type { DockviewApi, SerializedDockview } from 'dockview-react';
 import { currentTask, type TaskStore } from './state';
-import { environmentMinimum } from '../shared/layout';
+import { stagePaneMinimum } from '../shared/layout';
 import { restoreDockview } from './layout';
-import { scenes } from './scenes';
+import { stagePanes } from './stage-panes';
 
 export class StageGrid {
   api: DockviewApi | null = null;
@@ -12,15 +12,15 @@ export class StageGrid {
   viewport: HTMLElement | null = null;
   private activityTimer = 0;
   private followFrame = 0;
-  private lastEnvironment: string | null = null;
+  private lastPane: string | null = null;
   constructor(private readonly store: TaskStore, private readonly reportPages: () => void) {}
-  environmentIds = () => scenes.panels(this.store.getState()).map((panel) => panel.id);
+  paneIds = () => stagePanes(this.store.getState()).map((panel) => panel.id);
   attach(api: DockviewApi, viewport: HTMLElement) {
     this.api = api; this.viewport = viewport;
     this.layout();
-    restoreDockview(api, this.saved, this.environmentIds()); this.saved = null;
+    restoreDockview(api, this.saved, this.paneIds()); this.saved = null;
     const empty = !api.panels.length;
-    this.syncStage();
+    this.syncPanes();
     if (empty && this.store.getState().stageLayout === 'tabs') api.panels[0]?.api.setActive();
     for (const panel of api.panels) panel.api.setRenderer('onlyWhenVisible');
     // Stage identities and pane controls need their headers, independently of saved visibility flags.
@@ -31,7 +31,7 @@ export class StageGrid {
     this.api = null; this.viewport = null;
   }
   reset() {
-    clearTimeout(this.activityTimer); cancelAnimationFrame(this.followFrame); this.lastEnvironment = null;
+    clearTimeout(this.activityTimer); cancelAnimationFrame(this.followFrame); this.lastPane = null;
     this.store.setState({ stageActivity: null, stageFollowPaused: false });
   }
   layout = () => {
@@ -39,8 +39,8 @@ export class StageGrid {
     if (!api || !viewport) return;
     const { stageLayout: mode, stageOverflow: overflow } = this.store.getState();
     const scrolling = overflow && mode !== 'tabs' && !api.hasMaximizedGroup();
-    const constraintsChanged = this.constrain(scrolling && mode !== 'vertical' ? environmentMinimum.width : 0,
-      scrolling && mode === 'vertical' ? environmentMinimum.height : 0);
+    const constraintsChanged = this.constrain(scrolling && mode !== 'vertical' ? stagePaneMinimum.width : 0,
+      scrolling && mode === 'vertical' ? stagePaneMinimum.height : 0);
     viewport.style.overflowX = scrolling && mode !== 'vertical' ? 'auto' : 'hidden';
     viewport.style.overflowY = scrolling && mode === 'vertical' ? 'auto' : 'hidden';
     const canvas = viewport.firstElementChild as HTMLElement;
@@ -50,9 +50,9 @@ export class StageGrid {
     // A group's explicit constraints settle after its constraint event; finish sizing with their final values.
     if (constraintsChanged || width !== api.width || height !== api.height) api.layout(width, height);
   };
-  follow() { if (this.lastEnvironment) this.followEnvironment(this.lastEnvironment); }
-  addEnvironment = (id: string, reference?: string, direction: 'right' | 'below' | 'within' = 'right', inactive = false) => {
-    const panel = scenes.panels(this.store.getState()).find((panel) => panel.id === id);
+  follow() { if (this.lastPane) this.followPane(this.lastPane); }
+  addPane = (id: string, reference?: string, direction: 'right' | 'below' | 'within' = 'right', inactive = false) => {
+    const panel = stagePanes(this.store.getState()).find((panel) => panel.id === id);
     if (!panel) return;
     this.api!.addPanel({ ...panel,
       minimumWidth: 0, minimumHeight: 0,
@@ -72,7 +72,7 @@ export class StageGrid {
     // Stack axes can change while panels move between groups.
     this.constrain(0, 0);
     this.api.exitMaximizedGroup();
-    const panels = this.environmentIds().map((id) => this.api!.getPanel(id)!), first = panels[0];
+    const panels = this.paneIds().map((id) => this.api!.getPanel(id)!), first = panels[0];
     if (!first) return;
     const mode = this.store.getState().stageLayout;
     if (mode === 'tabs') for (const panel of panels.slice(1)) panel.api.moveTo({ group: first.group, position: 'center', skipSetActive: true });
@@ -84,13 +84,13 @@ export class StageGrid {
     (mode === 'tabs' ? first : panels.at(-1)!).api.setActive();
   };
 
-  syncStage = () => {
+  syncPanes = () => {
     if (!this.api) return;
-    const panels = scenes.panels(this.store.getState()), ids = panels.map((panel) => panel.id);
+    const panels = stagePanes(this.store.getState()), ids = panels.map((panel) => panel.id);
     for (const p of this.api.panels) if (!ids.includes(p.id)) this.api.removePanel(p);
     for (const id of ids) if (!this.api.getPanel(id)) {
       const mode = this.store.getState().stageLayout;
-      this.addEnvironment(id, this.api.panels.at(-1)?.id, mode === 'tabs' ? 'within' : mode === 'vertical' ? 'below' : 'right');
+      this.addPane(id, this.api.panels.at(-1)?.id, mode === 'tabs' ? 'within' : mode === 'vertical' ? 'below' : 'right');
     }
     for (const panel of panels) {
       const existing = this.api.getPanel(panel.id)!;
@@ -98,13 +98,13 @@ export class StageGrid {
     }
   };
 
-  followEnvironment = (environment: string) => {
+  followPane = (paneId: string) => {
     cancelAnimationFrame(this.followFrame);
     const task = currentTask(this.store.getState());
     this.followFrame = requestAnimationFrame(() => {
       const state = this.store.getState();
       if (currentTask(state) !== task || !preferences.getState().stageFollow || state.stageFollowPaused || state.loading) return;
-      const panel = this.api?.getPanel(environment);
+      const panel = this.api?.getPanel(paneId);
       if (!panel || (this.api!.hasMaximizedGroup() && !panel.api.isMaximized())) return;
       const focused = document.activeElement;
       if (!panel.api.isVisible) panel.api.setActive();
@@ -114,13 +114,13 @@ export class StageGrid {
     });
   };
 
-  environmentActivity = (environment: string) => {
-    if (!this.environmentIds().includes(environment)) return;
-    this.lastEnvironment = environment;
+  paneActivity = (paneId: string) => {
+    if (!this.paneIds().includes(paneId)) return;
+    this.lastPane = paneId;
     clearTimeout(this.activityTimer);
-    this.store.setState({ stageActivity: environment });
+    this.store.setState({ stageActivity: paneId });
     this.activityTimer = window.setTimeout(() => this.store.setState({ stageActivity: null }), 2000);
-    this.followEnvironment(environment);
+    this.followPane(paneId);
   };
 
   pauseStageFollowing = () => {

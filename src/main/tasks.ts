@@ -806,7 +806,7 @@ class Task {
     await this.project.dropProfile(id);
     return { id };
   }
-  environmentUsed(environment: string) { this.send('stage:activity', { task: this.key, environment }); }
+  stagePaneUsed(pane: string) { this.send('stage:activity', { task: this.key, pane }); }
   // A caption over a profile's pane (ghost.ts, browser_highlight); sticky ones stay until the next caption.
   caption(profile: string, caption: string | null, sticky = false) { this.send('agent:caption', { task: this.key, profile, caption, sticky }); }
 
@@ -896,7 +896,7 @@ class Task {
     return { buf, file };
   }
   // Human and agent handles share storage rules; technical tool output belongs to the caller's temporary folder.
-  async saveArtifact(source: Sent.EnvironmentSource, kind: string, content: string | Buffer, temporary?: string) {
+  async saveArtifact(source: Sent.StagePaneSource, kind: string, content: string | Buffer, temporary?: string) {
     const context = this.fileContext(temporary);
     if (refused(context)) throw new Error(context.error);
     const from = source.kind === 'profile' ? `${source.id}-${source.tab}` : `terminal-${source.id}`;
@@ -949,7 +949,7 @@ class Task {
     if (after.artifact.revision !== artifact.revision) return { error: 'The artifact changed while reading.' };
     return { bytes, name: path.basename(artifact.file) };
   }
-  sendSelection(source: Sent.EnvironmentSource, text: string): Result {
+  sendSelection(source: Sent.StagePaneSource, text: string): Result {
     if (!this.shown()) return { error: 'that task is not on screen' };
     let label: string;
     if (source.kind === 'profile') {

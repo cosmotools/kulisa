@@ -1,10 +1,10 @@
-// Closed environments are pruned without disturbing surviving groups.
+// Closed panes are pruned without disturbing surviving groups.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SerializedDockview } from 'dockview-react';
 import { filterLayout } from '../../src/task-view/main/index.ts';
 
-test('pruning closed environments retains the active group when it survives', () => {
+test('pruning closed panes retains the active group when it survives', () => {
   const layout = {
     grid: { width: 800, height: 600, orientation: 'HORIZONTAL', root: { type: 'branch', data: [
       { type: 'leaf', data: { id: 'first', views: ['profile:a'], activeView: 'profile:a' } },

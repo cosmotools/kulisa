@@ -39,7 +39,7 @@ test("grid: a pane narrower than its profile's name: the name cut with …, its 
   }
 });
 
-test('grid: environment panes stay in the stage when dragged onto a development terminal', async ({ core, ui, files }) => {
+test('grid: Stage panes stay in the stage when dragged onto a development terminal', async ({ core, ui, files }) => {
   await begin(core, ui, files, { columns: true });
   await drag(ui, files.panel(SAM), '[data-testid="terminal"]', 'right');
   await expect.poll(() => viewOn(core, ui, files, SAM)).toBe(true);

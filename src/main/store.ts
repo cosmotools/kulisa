@@ -15,7 +15,7 @@
 //                            name "New Task" and named unset until the agent or the human names it;
 //                            resources what it has (TaskEntry), the first where it works
 //     <task id>/             a task (TaskStore): task.json owns conversation metadata, development tabs,
-//                            Stage environments and both layouts; a copy of each opened profile's master
+//                            Stage panes and both layouts; a copy of each opened profile's master
 //                            is named by the profile's id:
 //       <id>/                a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
 //                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.ts)
@@ -222,13 +222,13 @@ function validateTask(value: unknown): asserts value is TaskDocument {
   if (ids.size !== d.agents.conversations.length) throw new Error('Invalid task conversation');
   for (const t of d.development?.list ?? []) if (t.conversation !== undefined && !ids.has(t.conversation)) throw new Error('Invalid terminal conversation reference');
   if (new Set(d.development?.list.map((t) => t.id)).size !== (d.development?.list.length ?? 0)) throw new Error('Duplicate development terminal');
-  const environments = new Set<string>();
+  const panes = new Set<string>();
   for (const item of d.stage.items) {
     const key = `${item.type}:${item.id}`;
-    if (environments.has(key)) throw new Error('Invalid Stage environment');
+    if (panes.has(key)) throw new Error('Invalid Stage pane');
     if (item.type === 'terminal' && (item.id < 1 || labelError(item.name) || item.command.length > 8192 || item.size && !validTerminalSize(item.size))) throw new Error('Invalid Stage terminal setup');
     if (item.type === 'profile' && !item.id) throw new Error('Invalid Stage profile');
-    environments.add(key);
+    panes.add(key);
   }
 }
 

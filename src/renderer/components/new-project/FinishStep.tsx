@@ -1,4 +1,4 @@
-// Final project details and starter guidance (docs/tasks.md, Projects). The app choice never limits environments.
+// Final project details and starter guidance (docs/tasks.md, Projects). The app choice never limits which Stage panes can be opened.
 import { useId, useState } from 'react';
 import { GlobeIcon, PencilIcon, SparklesIcon, SquareTerminalIcon } from 'lucide-react';
 import { Button, Field, FieldContent, FieldDescription, FieldLabel, FieldTitle, Input, RadioGroup, RadioGroupItem } from '@ui';

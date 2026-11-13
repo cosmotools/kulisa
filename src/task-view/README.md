@@ -45,59 +45,40 @@ Adaptive deadlines keep missing frames from blocking menus. Core's `ArtifactView
 Preserve address drafts through unsolicited native focus; cancel for another field or a human press in a focused page,
 not unfocused automation. Window `overflow: clip` keeps offscreen panels' `scrollIntoView` from shifting the grid.
 
-## Scene registration
+## Pane registration
 
-Stage previews applications; Workbench development terminals run agents and working shells. A task can open several
-instances of each scene kind together. Neither surface owns the shared terminal emulator or PTY implementation.
+Terminology belongs to [UI](../../docs/ui.md#stage-and-panes). `renderer/stage-panes.tsx` registers built-in pane
+kinds through `StagePaneKind` in `renderer/pane-contract.ts`; it supplies membership, components and launchers to the grid.
 
 | Owner | Responsibility |
 |---|---|
-| `browser-scene.tsx`, `ProfilePane.tsx`, `profiles.ts`, `pages.ts` | Browser scene: pane/header, launchers, browser activity/commands and native placement adapter |
-| `terminal-scene.tsx`, `StageTerminalPane.tsx`, `stage-terminal-focus.ts` | Application terminal scene: pane/header, launchers and cancellable human launch focus |
-| `DevelopmentTerminals.tsx`, `terminals.ts` | Agent/working-terminal surface, its shared visible View, launchers and terminal menus |
-| `scenes.tsx`, `stage.ts`, `grid.ts`, `controller.ts` | Built-in registration, membership, grids, overflow, activity/Follow and task-page event routing |
-| `src/browser/`, `src/terminal/` | Shared runtimes, also used by master/account sign-in windows |
-| Core `Task`, `ProjectProfiles`, `StageTerminals`, `AppWindow` | Resource ownership, saved state, native attachment, actions/checks, explicit close and task/project teardown |
-| `src/main/plugin.ts`, `src/kulisa-plugin/` | Core contracts and capability-specific agent tools/adapters |
+| `browser-pane.tsx`, `ProfilePane.tsx`, `profiles.ts`, `pages.ts` | Browser pane/header, launchers, caption/command adapters and native placement |
+| `terminal-pane.tsx`, `StageTerminalPane.tsx`, `stage-terminal-focus.ts` | Application terminal pane/header, launchers and cancellable human launch focus |
+| `DevelopmentTerminals.tsx`, `terminals.ts` | Workbench agent/working-terminal surface and its shared visible View |
+| `stage-panes.tsx`, `stage.ts`, `grid.ts`, `controller.ts` | Registration, membership, grids, overflow and activity/Follow routing |
 
-These scene adapters remain inside Task view: they consume its store, pane handles and task-scoped actions.
-Extracting them into `browser-stage`/`terminal-stage` or the working surface into `agent-terminal` requires narrow
-host contracts for those dependencies, rather than packages forwarding back to Task view. The shared runtimes
-must remain independent of those scene packages. No common Stage runtime package is needed for the current grid host.
+Browser/Terminal own the shared runtimes, also used by sign-in windows. Core `Task`, `ProjectProfiles`,
+`StageTerminals` and `AppWindow` retain resource ownership, persistence, checks, native attachment and cleanup.
+These pane adapters consume Task view's state/actions; extracting `browser-pane`/`terminal-pane` packages requires
+narrow host contracts, with the shared runtimes remaining independent. Agent CLI code stays in the Kulisa plugin.
 
-`renderer/scenes.tsx` is the registration point. `StageScene` in `scene-contract.ts` declares the available renderer
-capabilities; `shared/scenes.ts` validates identity and projects open panels without a closed union of scene kinds.
-To add another built-in scene:
+To register another pane kind:
 
-1. Supply a unique kind and Dockview component name, pane and header. `panels(state)` supplies stable panel IDs and
-   current titles. Preserve existing `profile:<id>`/`stage-terminal:<id>` IDs and `profile`/`stage-terminal` component
-   names: Dockview stores them. No format changes or runtime migrations accompany scene naming.
-2. Supply launchers for the empty Workbench's tiles and empty Stage's strip, with their ordering. Add the descriptor
-   to `scenes.tsx`; the task UI's launcher composition and Stage-empty checks receive it automatically.
-3. Use the generic `stage:activity` event with a registered panel ID for Follow. If a runtime has a different event
-   (browser captions), `bind(host)` adapts it once per task page. The host resolves the current grid at delivery,
-   ignores other tasks/closed environments and does not transfer keyboard focus during Follow. Page-owned listeners
-   disappear with the task UI, not when a pane hides. Do not retain a grid/native window in these adapters.
-4. Implement task commands through the descriptor when needed. They invoke existing task-scoped core handles.
-   Declare new channel/state facts in the owning IPC contracts; do not replace type-specific checks with a generic
-   automation API. Shell menu projection still belongs to `renderer/lib/task-summary.ts`; adding a shell launcher
-   currently requires that adapter too.
-5. Supply `layout(context)` only for a scene needing native placement; DOM-only terminal scenes need none. Its keys
-   identify core-owned native surfaces, independently of Dockview IDs. Core validates placement revision, task and
-   viewport, scales/clips it and decides native visibility. Browser address/Pick handles remain browser-specific;
-   other scenes do not implement them. Main native registration still needs an adapter in `AppWindow`/`TaskViewHost`.
+1. Supply a unique kind/component, pane/header components and `panes(state)` returning stable IDs and current titles.
+   Preserve `profile:<id>`/`stage-terminal:<id>` IDs and `profile`/`stage-terminal` component names: Dockview stores them.
+2. Supply tile/strip launchers and their order. Add the descriptor to `stage-panes.tsx`; task UI composition and
+   empty-Stage checks then include its panes. Shell launchers still need an adapter in `renderer/lib/task-summary.ts`.
+3. Report `stage:activity` with the pane ID, or use `bind(host)` to adapt runtime events once per task page. The host
+   resolves the current grid and ignores other tasks/closed panes. Do not retain a grid/native window in listeners.
+4. Add `command` and `layout` only when needed. Commands call task-scoped core actions. Native placement uses
+   core-owned surface IDs; core validates/scales/clips it. Main native integration still needs a `TaskViewHost` adapter.
+   Browser address/Pick handles stay browser-specific. Capability-specific agent tools stay in the Kulisa plugin.
 
-The common grid receives membership, presentation and optional placement from registration; removing a panel only
-removes its UI. Hiding, tabbing, maximizing or moving a pane must never stop its processes. Explicit Close goes
-through a scene's core action; task close/delete use core resource cleanup, independently of renderer disposal.
-Browser Close saves its tabs/sign-ins; terminal Stop keeps output while Close removes its setup/buffer. Task close
-preserves reopenable setup. Account sign-in terminals continue using Terminal directly. Renderer recovery retains
-the existing protocol-service limits of #399.
-
-Telegram integration (#442) can register its own pane/header, launchers and activity adapter here. Native capture,
-private input, human-owned privacy pause, credentials and bot runtimes remain that integration's capabilities and
-core lifetime. In particular, closing its preview may restore the desktop without stopping bot runtimes; task close
-has separate cleanup. Registration does not implement or authorize those backends.
+Removing/hiding a pane's UI must not stop its processes. Explicit Close and task/project teardown call core cleanup
+independently of renderer disposal. Browser and terminal rules remain in [Profiles](../../docs/profiles.md) and
+[Window](../../docs/window.md#stage-terminals); renderer-loss limits remain in #399. A Telegram pane (#442) can use
+this registration without moving its privacy, credentials, input/capture or bot-process lifecycle into the grid.
+Its pane close and bot-process stop remain separate actions.
 
 ## Layout and drawing constraints
 
@@ -126,6 +107,6 @@ exit before its new ready handshake.
   `ipc.ts`: UI contracts; `shared/layout.ts`: saved-grid types, format checks and pruning.
 - `renderer/controller.ts`, `grid.ts`, `stage.ts`, `development.ts`: activation, composition and Editor/Diff sessions;
   `state.ts`: core projection; pane components: content bounds; `Artifacts.tsx`: File Viewer host.
-- `renderer/scenes.tsx`, `scene-contract.ts`, `browser-scene.tsx`, `terminal-scene.tsx`: built-in scene registration and
-  adapters; `shared/scenes.ts`: panel identity and membership.
+- `renderer/stage-panes.tsx`, `pane-contract.ts`, `browser-pane.tsx`, `terminal-pane.tsx`: built-in pane registration,
+  membership and adapters.
 - Core adapter: `src/main/window.ts`; authorization: `src/main/app.ts`.

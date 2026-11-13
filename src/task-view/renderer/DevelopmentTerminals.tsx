@@ -9,7 +9,7 @@ import { currentTask, store, useTask, useTaskActive } from './state';
 import { panelView, launchers, newTerminalItems, terminalItems, terminalMenu } from './terminals';
 import { withKeys } from '../../window-client/renderer';
 import { dialogsShown, onDialogs } from '../../layers/renderer';
-import { SceneLaunchers, hasScenes } from './scenes';
+import { StagePaneLaunchers, hasStagePanes } from './stage-panes';
 import { termFocus } from '../../terminal/renderer';
 
 const NEW_TITLE = 'New conversation of an agent, or a terminal';
@@ -18,7 +18,7 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
   const active = useTaskActive();
   const task = useTask((s) => s.key), front = useTask((s) => s.developmentTerminals.front);
   const empty = useTask((s) => !s.developmentTerminals.list.length);
-  const alone = useTask((s) => !hasScenes(s));
+  const alone = useTask((s) => !hasStagePanes(s));
   const loading = useTask((s) => s.loading);
   const focus = useTask((s) => s.developmentTerminalFocus);
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
@@ -101,8 +101,8 @@ function Launchers({ ref }: { ref: Ref<HTMLDivElement> }) {
           <ItemContent className="min-w-0"><ItemTitle>{l.name}</ItemTitle>{l.sub && <ItemDescription>{l.sub}</ItemDescription>}</ItemContent></Item>
       </Button>)}
     </nav>
-    <nav aria-label="Open an environment" className="flex flex-wrap justify-center gap-3">
-      <SceneLaunchers mode="tile" />
+    <nav aria-label="Open a pane" className="flex flex-wrap justify-center gap-3">
+      <StagePaneLaunchers mode="tile" />
     </nav>
   </div>;
 }

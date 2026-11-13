@@ -71,12 +71,12 @@ state, the window owns layout/menu/focus.
 - Shared home, credentials and settings are not identity isolation; real sign-ins remain human.
 - Find or Ctrl+Shift+F (⌘ on macOS) opens retained-output search; Enter/Shift+Enter navigate, Esc restores focus.
 - Send selection captures xterm text at menu opening; browser selection uses native `selectionText`, excluding
-  passwords. `Task.sendSelection` verifies shown-task ownership, strips terminal control codes, labels environment/tab
-  and appends through `typeForAgent` without Enter. Require an open agent; never log or save selected text.
+  passwords. `Task.sendSelection` verifies shown-task ownership, strips terminal control codes, labels the source
+  profile/terminal and tab, and appends through `typeForAgent` without Enter. Require an open agent; never log or save selected text.
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Open a shell | Stage Terminal; Stage → Open an environment | type a shell command through `terminal_input` in an open terminal; `terminal_run` requires a command | `StageTerminals.open` |
+| Open a shell | Stage Terminal; Stage → Open a pane | type a shell command through `terminal_input` in an open terminal; `terminal_run` requires a command | `StageTerminals.open` |
 | Save name and command | ⋯ → Settings… | command supplied with each `terminal_run`; the pane name selects the session | `configure` |
 | Run or rerun | header launch button; pane menu | `terminal_run` | `run` |
 | Resize or fit to pane | ⋯ → Settings…; Fit to pane | `terminal_resize`; optional size on `terminal_run` | `configure` |
@@ -194,7 +194,7 @@ Development terminals share one headerless Dockview panel, selected through Agen
 active-terminal identity together (`terminals`) to avoid combining asynchronous states.
 
 - Start/rescale only after Dockview and retained DOM dimensions agree, rounding fractional layout sizes.
-- Closing the last terminal keeps its panel's size, showing +. With no environments/terminals, show agent/shell
+- Closing the last terminal keeps its panel's size, showing +. With no Stage panes or development terminals, show agent/shell
   launchers and closed-profile buttons.
   Launchers are Tab/Enter targets; focus default only if no field/dialog already has it. Ctrl+` opens the task's
   agent or focuses no-default launchers.
@@ -402,7 +402,7 @@ Declare a new channel before its two ends; open-task changes still run serially 
 - `src/main/ipc/`, `ipc.ts`, `src/shared/ipc.ts`: handles and shared contracts. `src/preload/index.cjs` exposes the
   sandboxed window bridge without Node; shared helpers/types are imported from `src/shared/`.
 - [Task view](../src/task-view/README.md) owns retained screens, grids, native placement and recovery.
-  Its [scene registration](../src/task-view/README.md#scene-registration) supplies browser/application-terminal
+  Its [pane registration](../src/task-view/README.md#pane-registration) supplies browser/application-terminal
   presentation to the common Stage host; working agent terminals remain a separate Workbench surface.
   `components/settings/` is lazy-loaded through `index.ts`; UI structure: [ui.md](ui.md).
 - Renderer `lib/shell-cover.ts` adapts [Layers](../src/layers/README.md) to shell coverage;

@@ -18,7 +18,7 @@ import { TaskBoundary } from './TaskBoundary';
 import { useTask, TaskContext, store, useTaskActive, useTaskGrid } from './state';
 import { useStrip } from '../../tab-strip/renderer';
 import { termStyle, uiTextSize, useShade } from '../../appearance/renderer';
-import { SceneLaunchers, hasScenes, stageComponents, stageHeaders } from './scenes';
+import { StagePaneLaunchers, hasStagePanes, stageComponents, stageHeaders } from './stage-panes';
 import { panelView } from './terminals';
 import './Grid.css';
 
@@ -64,21 +64,21 @@ function Stage({ api }: IGridviewPanelProps) {
   </section>;
 }
 const areas = { development: Development, stage: Stage };
-function ClosedScenes() {
+function PaneLaunchStrip() {
   const row = useRef<HTMLElement>(null);
   useStrip(row, null);
-  return <nav ref={row} data-testid="closed-profiles" aria-label="Open an environment" className="flex flex-none gap-1 border-b bg-card px-2 py-1">
-    <SceneLaunchers mode="strip" />
+  return <nav ref={row} data-testid="closed-profiles" aria-label="Open a pane" className="flex flex-none gap-1 border-b bg-card px-2 py-1">
+    <StagePaneLaunchers mode="strip" />
   </nav>;
 }
 const Screen = memo(function Screen() {
   const grid = useTaskGrid(), workspace = useRef<HTMLDivElement>(null);
   const loading = useTask((s) => s.loading);
-  const showClosedScenes = useTask((s) => !hasScenes(s) && s.developmentTerminals.list.length > 0);
-  useLayoutEffect(() => grid.resize(), [grid, showClosedScenes]);
+  const showPaneLaunchStrip = useTask((s) => !hasStagePanes(s) && s.developmentTerminals.list.length > 0);
+  useLayoutEffect(() => grid.resize(), [grid, showPaneLaunchStrip]);
   return <section data-task-screen className="absolute inset-0 flex flex-col aria-busy:opacity-0"
     aria-busy={loading || undefined} inert={loading || undefined}>
-    {showClosedScenes && <ClosedScenes />}
+    {showPaneLaunchStrip && <PaneLaunchStrip />}
     <div ref={workspace} data-workspace className="min-h-0 flex-1">
       <GridviewReact components={areas} orientation={Orientation.VERTICAL} proportionalLayout
         onReady={(e) => grid.mount(e.api, workspace.current!)} />

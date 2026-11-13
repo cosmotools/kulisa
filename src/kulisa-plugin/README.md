@@ -12,7 +12,7 @@ lookup; `TaskAccess`/`ProfileAccess`/`TabAccess`/`TerminalAccess` expose live fa
 
 Core owns checks, questions, ownership and platform objects. The plugin owns tool behavior/instructions, sign-in
 waiting, highlights/annotations and transcript formatting. Playwright reaches pages through the supplied CDP proxy.
-`environmentUsed` reports browser/named terminal activity; the window owns Follow agent.
+`stagePaneUsed` reports browser/named terminal activity; the window owns Follow agent.
 
 `resources/` holds the shared skill and Claude plugin (`claude-plugin/.claude-plugin/`, manifest `kulisa`). Forge
 copies resources beside, not inside, the archive. `scripts/version.ts` synchronizes manifest version at `npm version`.

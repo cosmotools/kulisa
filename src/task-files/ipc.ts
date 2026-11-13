@@ -1,5 +1,5 @@
 // File records shared by Task Files halves (README.md). Task-specific channels stay in core.
-// A task result, including directories and ordinary files without environment provenance.
+// A task result, including directories and ordinary files without pane provenance.
 export interface Artifact {
   file: string;
   path: string; // relative, forward slashes; directories end in /
