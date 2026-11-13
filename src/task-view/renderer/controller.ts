@@ -4,7 +4,8 @@ import type { TaskGrid } from './grid';
 import { closeLayers } from '../../layers/renderer';
 import { forgetFrozen } from './views';
 import { forgetTerminals } from '../../terminal/renderer';
-import { panelId } from './layout';
+import { scenes } from './scenes';
+import type { SceneHost } from './scene-contract';
 let attached: TaskGrid | null = null;
 export function registerTaskGrid(grid: TaskGrid) {
   grid.connect();
@@ -13,6 +14,14 @@ export function registerTaskGrid(grid: TaskGrid) {
 }
 export const taskGrid = (task: string | null) => attached?.key === task ? attached : undefined;
 const current = () => taskGrid(currentTask());
+const sceneHost: SceneHost = {
+  show: (panel) => current()?.stage.api?.getPanel(panel)?.api.setActive(),
+  activity: (task, panel) => { if (task === currentTask()) taskGrid(task)?.stage.environmentActivity(panel); },
+};
+for (const scene of scenes.definitions) scene.bind?.(sceneHost);
+kulisa.on('task:command', (event) => {
+  for (const scene of scenes.definitions) if (scene.command?.(event, store.getState(), sceneHost)) break;
+});
 kulisa.on('task:dismiss', () => {
   void closeLayers('menus');
   for (const pane of current()?.panes.values() ?? []) pane.cancelAddress();
@@ -31,7 +40,6 @@ store.subscribe((next, previous) => {
   }
 });
 kulisa.on('stage:activity', ({ task, environment }) => { if (task === currentTask()) taskGrid(task)?.stage.environmentActivity(environment); });
-kulisa.on('agent:caption', ({ task, profile, caption }) => { if (caption && task === currentTask()) taskGrid(task)?.stage.environmentActivity(panelId(profile)); });
 kulisa.on('stage:follow:state', (stageFollow) => {
   store.setState({ stageFollowPaused: false });
   if (stageFollow) current()?.stage.follow();

@@ -7,7 +7,7 @@ import { ButtonMenu, RightClickMenu } from '../../menus/renderer';
 import { currentTask, store, useTask, act, useTaskActive } from './state';
 import { actionsFor } from '../../window-client/renderer';
 import { dialogsShown } from '../../layers/renderer';
-import { focusStageTerminal } from './environments';
+import { focusStageTerminal } from './stage-terminal-focus';
 import { EnvironmentFocus, environmentFocusItem } from './EnvironmentFocus';
 import { termStyle, useShade } from '../../appearance/renderer';
 import { View, termCopy, termPaste, termFocus } from '../../terminal/renderer';

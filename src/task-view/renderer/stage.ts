@@ -3,7 +3,8 @@ import { preferences } from '../../window-client/renderer';
 import type { DockviewApi, SerializedDockview } from 'dockview-react';
 import { currentTask, type TaskStore } from './state';
 import { environmentMinimum } from '../shared/layout';
-import { restoreDockview, panelId } from './layout';
+import { restoreDockview } from './layout';
+import { scenes } from './scenes';
 
 export class StageGrid {
   api: DockviewApi | null = null;
@@ -13,7 +14,7 @@ export class StageGrid {
   private followFrame = 0;
   private lastEnvironment: string | null = null;
   constructor(private readonly store: TaskStore, private readonly reportPages: () => void) {}
-  environmentIds = () => [...this.store.getState().profiles.map((p) => panelId(p.id)), ...this.store.getState().stageTerminals.map((a) => `stage-terminal:${a.id}`)];
+  environmentIds = () => scenes.panels(this.store.getState()).map((panel) => panel.id);
   attach(api: DockviewApi, viewport: HTMLElement) {
     this.api = api; this.viewport = viewport;
     this.layout();
@@ -51,10 +52,10 @@ export class StageGrid {
   };
   follow() { if (this.lastEnvironment) this.followEnvironment(this.lastEnvironment); }
   addEnvironment = (id: string, reference?: string, direction: 'right' | 'below' | 'within' = 'right', inactive = false) => {
-    const profile = id.startsWith('profile:');
-    this.api!.addPanel({ id, component: profile ? 'profile' : 'stage-terminal', tabComponent: profile ? 'profile' : 'stage-terminal',
+    const panel = scenes.panels(this.store.getState()).find((panel) => panel.id === id);
+    if (!panel) return;
+    this.api!.addPanel({ ...panel,
       minimumWidth: 0, minimumHeight: 0,
-      title: profile ? this.store.getState().profiles.find((p) => panelId(p.id) === id)?.name : this.store.getState().stageTerminals.find((a) => `stage-terminal:${a.id}` === id)?.name,
       ...(reference && { position: { referencePanel: reference, direction } }), inactive });
   };
 
@@ -85,11 +86,15 @@ export class StageGrid {
 
   syncStage = () => {
     if (!this.api) return;
-    const ids = this.environmentIds();
+    const panels = scenes.panels(this.store.getState()), ids = panels.map((panel) => panel.id);
     for (const p of this.api.panels) if (!ids.includes(p.id)) this.api.removePanel(p);
     for (const id of ids) if (!this.api.getPanel(id)) {
       const mode = this.store.getState().stageLayout;
       this.addEnvironment(id, this.api.panels.at(-1)?.id, mode === 'tabs' ? 'within' : mode === 'vertical' ? 'below' : 'right');
+    }
+    for (const panel of panels) {
+      const existing = this.api.getPanel(panel.id)!;
+      if (existing.title !== panel.title) existing.api.setTitle(panel.title);
     }
   };
 
@@ -110,6 +115,7 @@ export class StageGrid {
   };
 
   environmentActivity = (environment: string) => {
+    if (!this.environmentIds().includes(environment)) return;
     this.lastEnvironment = environment;
     clearTimeout(this.activityTimer);
     this.store.setState({ stageActivity: environment });

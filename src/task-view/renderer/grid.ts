@@ -3,14 +3,12 @@ import { Orientation, DockviewCompositeDisposable } from 'dockview-react';
 import type { DockviewApi, DockviewIDisposable, GridviewApi, GridviewPanelApi } from 'dockview-react';
 import type { TaskStore } from './state';
 import { splitLayout, type TaskLayout } from '../shared/layout';
-import type { Events, StagePosition } from '../../shared/ipc';
+import type { Events, PageLayout, StagePosition } from '../../shared/ipc';
 import { DevelopmentGrid, resourcesMinimumHeight } from './development';
 import { StageGrid } from './stage';
-import { pageRects, type PaneHandle } from './pages';
+import type { PaneHandle } from './pages';
+import { scenes } from './scenes';
 import { freeze, unfreeze, showViews } from './views';
-
-const samePanels = (a: { id: string | number }[], b: { id: string | number }[]) =>
-  a === b || a.length === b.length && a.every((panel, i) => panel.id === b[i]!.id);
 
 let viewportRevision = 0;
 kulisa.on('task:viewport', ({ revision }) => { viewportRevision = revision; taskViewportChanged(); });
@@ -40,7 +38,7 @@ export class TaskGrid {
     taskViewportChanged = this.resize;
     this.stop = this.state.subscribe((next, previous) => {
       if (!this.workspace || this.disposed) return;
-      if (!samePanels(next.profiles, previous.profiles) || !samePanels(next.stageTerminals, previous.stageTerminals)) {
+      if (scenes.changed(next, previous)) {
         this.sync(); this.scheduleSave();
       }
     });
@@ -196,7 +194,10 @@ export class TaskGrid {
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
       if (this.disposed) return;
-      kulisa.send('layout:apply', { task: this.key, revision: viewportRevision, viewport: { width: innerWidth, height: innerHeight }, rects: pageRects(this.stage.api, this.stage.viewport, this.state.getState().profiles, this.panes) });
+      const context = { state: this.state.getState(), api: this.stage.api, viewport: this.stage.viewport, panes: this.panes };
+      const rects: Record<string, PageLayout> = {};
+      for (const scene of scenes.definitions) Object.assign(rects, scene.layout?.(context));
+      kulisa.send('layout:apply', { task: this.key, revision: viewportRevision, viewport: { width: innerWidth, height: innerHeight }, rects });
     });
   };
   finishDrag = () => {

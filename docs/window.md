@@ -63,7 +63,7 @@ state, the window owns layout/menu/focus.
   Close removes setup/buffers. Task close stops processes but preserves setup.
 - Keep launch failures selectable in transient `launchError`; clear on retry, never persist them.
 - Human Open/launch requests focus after success, View and font readiness. New input, blur or task switch cancels
-  `task-view/renderer/environments.ts`'s pending request; delayed selection also rechecks intent, window focus and dialogs.
+  `task-view/renderer/stage-terminal-focus.ts`'s pending request; delayed selection also rechecks intent, window focus and dialogs.
   Agent launch/Follow never steals focus.
 - `terminal_read` flushes parsing and reads normal/alternate screen, with scrollback limited to 500 lines. Over
   40,000 characters spills to the caller’s temporary folder with a bounded preview. Fixed sizes: 2–500 columns, 2–200 rows, independent
@@ -402,6 +402,8 @@ Declare a new channel before its two ends; open-task changes still run serially 
 - `src/main/ipc/`, `ipc.ts`, `src/shared/ipc.ts`: handles and shared contracts. `src/preload/index.cjs` exposes the
   sandboxed window bridge without Node; shared helpers/types are imported from `src/shared/`.
 - [Task view](../src/task-view/README.md) owns retained screens, grids, native placement and recovery.
+  Its [scene registration](../src/task-view/README.md#scene-registration) supplies browser/application-terminal
+  presentation to the common Stage host; working agent terminals remain a separate Workbench surface.
   `components/settings/` is lazy-loaded through `index.ts`; UI structure: [ui.md](ui.md).
 - Renderer `lib/shell-cover.ts` adapts [Layers](../src/layers/README.md) to shell coverage;
   `lib/shell-keys.ts` executes shell commands. Task adapters belong to Task view; PTY/buffers to [Terminal](../src/terminal/README.md).
