@@ -47,22 +47,14 @@ not unfocused automation. Window `overflow: clip` keeps offscreen panels' `scrol
 
 ## Pane registration
 
-Terminology belongs to [UI](../../docs/ui.md#stage-and-panes). `renderer/stage-panes.tsx` composes the public
-[browser-pane](../browser-pane/README.md) and [terminal-pane](../terminal-pane/README.md) factories. Their narrow hosts
-receive read-only facts and task-scoped core actions; local state and handles belong to the pane packages.
-Workbench agent/working terminals remain in `DevelopmentTerminals.tsx`/`terminals.ts` and share the Terminal runtime.
+`renderer/stage-panes.tsx` creates [browser-pane](../browser-pane/README.md) and
+[terminal-pane](../terminal-pane/README.md) through their public entries, once per immutable task page.
+Hosts supply read-only facts, task-scoped core actions and maximize controls. Pane packages own local state/handles;
+page-scoped listeners bind once. Workbench terminals remain in `DevelopmentTerminals.tsx`/`terminals.ts`.
 
-`StagePaneKind` in `src/shared/stage-pane.ts` describes membership, components, launchers and optional
-command, placement, dismissal and transient-reset capabilities. To add a built-in kind, register its definition in
-`stage-panes.tsx` and supply its host facts/actions. Common grid/Follow code uses the definition without knowing its
-content. Preserve stored pane/component IDs: `profile:<id>`/`profile`, `stage-terminal:<id>`/`stage-terminal`.
-
-Task view supplies maximize controls and resolves the current grid for show/activity/placement callbacks. It owns
-snapshot handoff for all native content, including PDF. The shell's launch menu still needs its own adapter in
-`renderer/lib/task-summary.ts`; main native integration still uses the core-supplied `TaskViewHost`.
-
-Pane reset/disposal changes UI only. Explicit Close and task/project teardown retain core cleanup paths. Telegram's
-privacy, credentials, capture/input and bot-process lifecycle remain #442; terminal renderer-loss limits remain #399.
+A built-in kind implements `StagePaneKind` (`src/shared/stage-pane.ts`) and registers in `stage-panes.tsx`.
+Keep stored pane/component IDs stable. Reset/disposal changes UI only; core owns explicit Close and task cleanup.
+Shell launchers and main native integration still need adapters in `renderer/lib/task-summary.ts` and `TaskViewHost`.
 
 ## Layout and drawing constraints
 

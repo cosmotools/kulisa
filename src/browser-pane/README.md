@@ -1,28 +1,15 @@
 # Browser pane
 
-The browser profile's Stage UI: tabs, address drafts, navigation, dialogs, Pick, screenshots, header, launchers and
-native-page geometry. Browser sessions and native views remain in `browser`; core owns profiles, permissions and cleanup.
+Browser-profile Stage UI, including tab-bound address drafts, dialogs, Pick and caption state, keyboard handles
+and page geometry. [Browser](../browser/README.md) owns sessions/native views; core owns profiles and cleanup.
+[Task view](../task-view/README.md#pane-registration) supplies the host and owns native snapshot handoff, also used by PDF.
 
-`renderer/index.ts` exposes `createBrowserPane(host)` and `BrowserPaneHost`. Create one controller per immutable task
-page. The host supplies task-scoped actions, read-only profile/activity/snapshot facts and the common maximize control.
-The returned `definition` implements [Stage's registration contract](../task-view/README.md#pane-registration);
-`pane(profile)` exposes mounted keyboard handles and `screenshot` serves the keyboard's screenshot action.
-No Task, Project or TaskGrid is imported, including their types.
-
-The package owns caption timers, Pick indicators, mounted content handles and resize observation. `reset` clears
-transient UI/timers on task deactivation, coverage or failure; `dismiss` cancels address drafts. Page-scoped listeners
-are bound once and expire with that page. Unmount removes handles/observers without closing profiles.
-
-The host combines the returned page geometry with other native content and sends it to core for authorization,
-zoom and clipping. Snapshot capture/decoding stays with Task view because PDF content shares that handoff. Native
-attachment/visibility and profile storage/sign-in rules remain in [Profiles](../../docs/profiles.md).
-
-The header notch uses custom concave geometry outside shadcn shapes. Narrow panes move Back, Forward and Reload
-into the menu in that order; Pick and the menu stay reachable.
+`reset` clears transient state/timers; `dismiss` cancels address drafts. Unmount removes handles/observers without
+closing profiles. The header notch needs concave masks; narrow panes move Back, Forward and Reload into the menu
+in that order, keeping Pick and the menu reachable.
 
 ## The code
 
-- `renderer/pane.tsx`: public factory, Stage definition and launcher presentation.
-- `renderer/ProfilePane.tsx`, `ProfilePane.css`: pane/header and tab-bound drafts/dialogs.
-- `renderer/state.tsx`, `pages.ts`: host boundary, transient state/handles and native geometry.
+- `renderer/pane.tsx`, `state.tsx`: public factory, registration and local state/lifetime.
+- `renderer/ProfilePane.tsx`, `ProfilePane.css`, `pages.ts`: pane/header, drafts/dialogs and native geometry.
 - `renderer/launchers.ts`: closed-profile opening actions.
