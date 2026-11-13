@@ -27,7 +27,7 @@ export function allowFocus(wc: WebContents) {
 }
 
 // Kulisa gives the window's own page the keyboard for the human (the address of a tab they open,
-// task-view/ProfilePane.tsx): a page taking it next gives it back there, not to the page the human was in (Ctrl+T
+// browser-pane/renderer/ProfilePane.tsx): a page taking it next gives it back there, not to the page the human was in (Ctrl+T
 // from it, Linux).
 export function registerWindowUi(page: WebContents, window: () => BaseWindow) { owners.set(page, window); watchWindow(page); }
 export function focusWindow(page: WebContents) { const win = owners.get(page)?.(); if (win) held.set(win, page); page.focus(); }

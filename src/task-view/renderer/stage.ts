@@ -14,7 +14,7 @@ export class StageGrid {
   private followFrame = 0;
   private lastPane: string | null = null;
   constructor(private readonly store: TaskStore, private readonly reportPages: () => void) {}
-  paneIds = () => stagePanes(this.store.getState()).map((panel) => panel.id);
+  paneIds = () => stagePanes().map((panel) => panel.id);
   attach(api: DockviewApi, viewport: HTMLElement) {
     this.api = api; this.viewport = viewport;
     this.layout();
@@ -52,7 +52,7 @@ export class StageGrid {
   };
   follow() { if (this.lastPane) this.followPane(this.lastPane); }
   addPane = (id: string, reference?: string, direction: 'right' | 'below' | 'within' = 'right', inactive = false) => {
-    const panel = stagePanes(this.store.getState()).find((panel) => panel.id === id);
+    const panel = stagePanes().find((panel) => panel.id === id);
     if (!panel) return;
     this.api!.addPanel({ ...panel,
       minimumWidth: 0, minimumHeight: 0,
@@ -86,7 +86,7 @@ export class StageGrid {
 
   syncPanes = () => {
     if (!this.api) return;
-    const panels = stagePanes(this.store.getState()), ids = panels.map((panel) => panel.id);
+    const panels = stagePanes(), ids = panels.map((panel) => panel.id);
     for (const p of this.api.panels) if (!ids.includes(p.id)) this.api.removePanel(p);
     for (const id of ids) if (!this.api.getPanel(id)) {
       const mode = this.store.getState().stageLayout;

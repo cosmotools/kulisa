@@ -38,6 +38,8 @@ const packages: Record<string, { main: string[]; assets?: string[] }> = {
   layers: { main: [] },
   'window-client': { main: [] },
   'task-view': { main: ['ipc', 'log'] },
+  'browser-pane': { main: [] },
+  'terminal-pane': { main: [] },
 };
 const packageRules = (name: string, { main: uses, assets = [] }: { main: string[]; assets?: string[] }) => {
   const dir = `^src/${name}/`;

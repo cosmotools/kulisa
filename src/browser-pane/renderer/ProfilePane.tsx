@@ -1,4 +1,4 @@
-// A profile's pane, as a Chrome window, and its header in the grid (docs/profiles.md; ../README.md, The grid). The
+// A profile's pane, as a Chrome window, and its header in the grid (../README.md). The
 // page itself is a native view the main process lays over the content box (pages.ts tells it where); while a panel is
 // dragged or a menu is open, a picture of the page stands in for it. The pages draw above the window's HTML, so the
 // pane's and its header's hints are the OS's (title): a tooltip of the window's would be covered.
@@ -9,26 +9,27 @@ import { ArrowLeftIcon, ArrowRightIcon, CircleDotIcon, CircleIcon, EllipsisIcon,
 import { Avatar, AvatarImage, Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Toggle } from '@ui';
 import { ButtonMenu, RightClickMenu } from '../../menus/renderer';
 import { BrowserTab, TabStrip, grow, useStrip } from '../../tab-strip/renderer';
-import { screenshot, togglePick, useTask, store, act, useTaskActive, useTaskGrid } from './state';
+import { useStore } from 'zustand';
+import type { BrowserPanes } from './state';
 import { avatarSrc } from '../../appearance/renderer';
 import { keyText, withKeys, openSettings } from '../../window-client/renderer';
 import type { MenuItem } from '../../menus/renderer';
-import { PaneFocus, paneFocusItem } from './PaneFocus';
 import './ProfilePane.css';
 
 const profileOf = (panel: string) => panel.slice('profile:'.length);
-const useProfile = (id: string) => useTask((s) => s.profiles.find((p) => p.id === id));
+const useProfile = (browser: BrowserPanes, id: string) => useStore(browser.host.facts, (s) => s.profiles.find((p) => p.id === id));
 const fullUrl = (u = '') => (u === 'about:blank' ? '' : u);
 // Nothing to pick or take on an empty tab.
 const blank = (u?: string) => !fullUrl(u);
 
-export function ProfilePane({ api }: IDockviewPanelProps) {
-  const grid = useTaskGrid();
+export function ProfilePane({ api, browser }: IDockviewPanelProps & { browser: BrowserPanes }) {
+  const { act } = browser.host;
+  const { screenshot, togglePick } = browser;
   // Its active tab as the store has it now, for what acts (a handler, not a render).
-  const activeTab = useCallback((id: string) => { const p = store.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); }, []);
+  const activeTab = useCallback((id: string) => { const p = browser.getState().profiles.find((x) => x.id === id); return p?.tabs.find((t) => t.id === p.active); }, [browser]);
 
-  const id = profileOf(api.id), profile = useProfile(id);
-  const picking = useTask((s) => !!s.picking[id]), picture = useTask((s) => s.pictures[id]);
+  const id = profileOf(api.id), profile = useProfile(browser, id);
+  const picking = useStore(browser.ui, (s) => !!s.picking[id]), picture = useStore(browser.host.facts, (s) => s.pictures[id]);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
   const addr = useRef<HTMLInputElement>(null), strip = useRef<HTMLDivElement>(null);
   const nav = useRef<HTMLSpanElement>(null), reload = useRef<HTMLSpanElement>(null);
@@ -40,14 +41,14 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
   // Bind the draft to its tab so switching tabs cannot navigate another tab with it. Requests for an inactive tab
   // wait for its activation, including a human's new tab whose state can arrive before or after the IPC reply.
   const [editing, setEditing] = useState<{ tab: string; value: string } | null>(null);
-  const taskActive = useTaskActive(!!editing);
+  const taskActive = useStore(browser.host.facts, (s) => !!editing && s.active && !s.covered);
   const editAddress = useCallback((target = activeTab(id)?.id) => {
-    const p = store.getState().profiles.find((x) => x.id === id), t = p?.tabs.find((x) => x.id === target);
+    const p = browser.getState().profiles.find((x) => x.id === id), t = p?.tabs.find((x) => x.id === target);
     if (!t) return;
     if (p?.active !== t.id) { typeInto.current = t.id; void act('tab:activate', { profile: id, tab: t.id }); return; }
     selectAll.current = true;
     setEditing({ tab: t.id, value: fullUrl(t.url) });
-  }, [id, activeTab]);
+  }, [id, activeTab, browser, act]);
   useEffect(() => {
     if (typeInto.current && typeInto.current === active?.id) { typeInto.current = null; editAddress(); }
     else setEditing((draft) => draft?.tab === activeTab(id)?.id ? draft : null);
@@ -77,22 +78,22 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
       },
       // As a click on Pick: off on an empty tab; again cancels.
       pick() {
-        if (store.getState().picking[id] || !blank(activeTab(id)?.url)) void togglePick(id);
+        if (browser.ui.getState().picking[id] || !blank(activeTab(id)?.url)) void togglePick(id);
       },
     };
-    grid.panes.set(id, handle);
-    const observer = new ResizeObserver(grid.reportPages);
+    browser.panes.set(id, handle);
+    const observer = new ResizeObserver(browser.reportPages);
     observer.observe(content);
-    grid.reportPages();
-    return () => { observer.disconnect(); if (grid.panes.get(id) === handle) grid.panes.delete(id); };
-  }, [id, content, editAddress, activeTab, grid]);
+    browser.reportPages();
+    return () => { observer.disconnect(); if (browser.panes.get(id) === handle) browser.panes.delete(id); };
+  }, [id, content, editAddress, activeTab, browser, act, togglePick]);
 
   // The tab strip: a tab is chosen on the press, as in Chrome (not on its ×), or by Enter or Space. A tab opened grows
   // in, and the active tab is kept in sight (tab-strip/renderer/strip.ts). Tabs are kept by id: an element stays as its tab does.
   const activate = (t: string) => { if (t !== tab()) void act('tab:activate', { profile: id, tab: t }); };
   // A tab's right-click menu (the strip's: for the tab it was on).
   function tabMenu(e: globalThis.MouseEvent): MenuItem[] | null {
-    const t = (e.target as Element).closest<HTMLElement>('[data-tab]')?.dataset.tab, p = store.getState().profiles.find((x) => x.id === id);
+    const t = (e.target as Element).closest<HTMLElement>('[data-tab]')?.dataset.tab, p = browser.getState().profiles.find((x) => x.id === id);
     if (!t || !p) return null;
     const url = p.tabs.find((x) => x.id === t)?.url;
     return [
@@ -106,7 +107,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
     ];
   }
 
-  // The active tab's alert or confirm (profiles.ts), over a picture of its page, as Chrome shows it: not modal (the
+  // The active tab's alert or confirm (Browser runtime), over a picture of its page, as Chrome shows it: not modal (the
   // other panes and the rest of the window go on), so not a dialog layer of the window's, whose overlay would hide every
   // page (layers/renderer/cover.ts). The human's answer goes back when they close it (OK, Cancel, Esc), not when it goes for them
   // (answered by the agent, the page gone: the state has it no more). One answered is not shown again by a state sent
@@ -167,7 +168,7 @@ export function ProfilePane({ api }: IDockviewPanelProps) {
             </BrowserTab>)}
           </TabStrip>
         </RightClickMenu>
-        <Button variant="ghost" size="icon-sm" hidden={!profile.tabs.length} title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void grid.panes.get(id)?.newTab()}>
+        <Button variant="ghost" size="icon-sm" hidden={!profile.tabs.length} title={withKeys('New tab', 'tab.new')} aria-label="New tab" onClick={() => void browser.panes.get(id)?.newTab()}>
           <PlusIcon />
         </Button>
       </nav>
@@ -218,15 +219,15 @@ function PageDialog({ from, message, confirm, answer }: { from: string; message:
   </div>;
 }
 
-export function ProfileHeader({ api, containerApi }: IDockviewPanelHeaderProps) {
-  const grid = useTaskGrid();
-  const activity = useTask((s) => s.stageActivity === api.id);
-  const id = profileOf(api.id), profile = useProfile(id);
-  const caption = useTask((s) => s.captions[id] || '');
+export function ProfileHeader({ api, containerApi, browser }: IDockviewPanelHeaderProps & { browser: BrowserPanes }) {
+  const { act, controls: { Focus: PaneFocus, focusItem: paneFocusItem } } = browser.host;
+  const activity = useStore(browser.host.facts, (s) => s.stageActivity === api.id);
+  const id = profileOf(api.id), profile = useProfile(browser, id);
+  const caption = useStore(browser.ui, (s) => s.captions[id] || '');
   const status = profile?.signinMode ? 'Sign-in page · agent paused' : caption || (activity ? 'Agent active' : 'Idle');
   const StatusIcon = profile?.signinMode ? LockIcon : activity || caption ? CircleDotIcon : CircleIcon;
   const menu = (): MenuItem[] => [
-    { label: 'New tab', keys: keyText('tab.new'), run: () => grid.panes.get(id)?.newTab() },
+    { label: 'New tab', keys: keyText('tab.new'), run: () => browser.panes.get(id)?.newTab() },
     paneFocusItem(api),
     { label: 'About this profile…', run: () => openSettings('profiles', id) },
     { label: 'Sign In to Master…', run: () => act('profile:master', { profile: id }) },

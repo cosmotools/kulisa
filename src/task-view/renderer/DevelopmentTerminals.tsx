@@ -18,7 +18,7 @@ export function DevelopmentTerminals({ visible }: { visible: boolean }) {
   const active = useTaskActive();
   const task = useTask((s) => s.key), front = useTask((s) => s.developmentTerminals.front);
   const empty = useTask((s) => !s.developmentTerminals.list.length);
-  const alone = useTask((s) => !hasStagePanes(s));
+  const alone = useTask(() => !hasStagePanes());
   const loading = useTask((s) => s.loading);
   const focus = useTask((s) => s.developmentTerminalFocus);
   // The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which

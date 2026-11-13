@@ -74,7 +74,7 @@ function PaneLaunchStrip() {
 const Screen = memo(function Screen() {
   const grid = useTaskGrid(), workspace = useRef<HTMLDivElement>(null);
   const loading = useTask((s) => s.loading);
-  const showPaneLaunchStrip = useTask((s) => !hasStagePanes(s) && s.developmentTerminals.list.length > 0);
+  const showPaneLaunchStrip = useTask((s) => !hasStagePanes() && s.developmentTerminals.list.length > 0);
   useLayoutEffect(() => grid.resize(), [grid, showPaneLaunchStrip]);
   return <section data-task-screen className="absolute inset-0 flex flex-col aria-busy:opacity-0"
     aria-busy={loading || undefined} inert={loading || undefined}>

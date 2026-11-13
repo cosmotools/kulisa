@@ -91,6 +91,8 @@ entries by directory.
 | `src/task-files/` | ordinary files, confined actions, live results and a tree with bounded previews ([README](../src/task-files/README.md)) | `remove.ts` |
 | `src/activity-monitor/` | what Kulisa takes on the computer: the tasks' artifacts on the disk, every task's or some ([README](../src/activity-monitor/README.md)) | nothing |
 | `src/ui/` | shadcn/ui's components as its CLI writes them, and their theme: the window's alone, through `index.ts` ([README](../src/ui/README.md)) | (no main half) |
+| `src/browser-pane/` | browser-profile Stage UI, local state and native geometry ([README](../src/browser-pane/README.md)) | (renderer only) |
+| `src/terminal-pane/` | application-terminal Stage UI and launch focus ([README](../src/terminal-pane/README.md)) | (renderer only) |
 | `src/task-view/` | retained task screen, native attachment, placement and recovery ([README](../src/task-view/README.md)) | `ipc.ts`, `log.ts` |
 | `src/menus/` | shared menu rendering and point-menu state ([README](../src/menus/README.md)) | (renderer only) |
 | `src/tab-strip/` | browser-like tabs, overflow and growth ([README](../src/tab-strip/README.md)) | (renderer only) |
