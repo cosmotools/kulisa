@@ -1,6 +1,7 @@
 // Workbench navigation and its Dockview edge group (docs/tasks.md, The Workbench).
 import { DockviewCompositeDisposable } from 'dockview-react';
-import type { DockviewApi, GridviewPanelApi, SerializedDockview } from 'dockview-react';
+import type { DockviewApi, GridviewPanelApi } from 'dockview-react';
+import type { WorkbenchLayout } from '../shared/layout';
 import { shownTask } from './state';
 import type { TaskStore } from './state';
 import type { DiffSelection } from '../../diff/ipc';
@@ -48,25 +49,19 @@ export class DevelopmentGrid {
   screen = (): ActivityItem => this.store.getState().workbenchItem;
   attach(api: DockviewApi, parent: GridviewPanelApi) { this.api = api; this.parent = parent; }
   dispose() { this.subscriptions.dispose(); this.reviewSession?.client.clear(); this.reviewSession = null; this.editorSession?.dispose(); this.editorSession = null; this.api = null; this.parent = null; }
-  build(saved: SerializedDockview | null) {
+  build(saved: WorkbenchLayout | null) {
     const api = this.api!;
-    if (saved?.edgeGroups?.left) {
-      try { api.fromJSON(saved); }
-      catch (error) { console.warn('[layout] saved development grid unavailable:', error); api.clear(); }
-    }
-    if (!api.getPanel('terminal') || !api.getGroup('resources')) {
-      api.clear();
-      for (const edge of ['left', 'right', 'top', 'bottom'] as const) if (api.getEdgeGroup(edge)) api.removeEdgeGroup(edge);
-      api.addPanel({ id: 'terminal', component: 'terminal', title: 'Terminal' });
-      api.addEdgeGroup('left', resourcesEdge);
-      for (const [section, title] of Object.entries(activityItems)) api.addPanel({ id: `resources:${section}`, component: 'resources',
-        tabComponent: 'resources', title, params: { section }, position: { referenceGroup: 'resources' }, inactive: true });
-      api.getPanel(`resources:${this.screen()}`)!.api.setActive();
-    }
+    api.addPanel({ id: 'terminal', component: 'terminal', title: 'Terminal' });
+    api.addEdgeGroup('left', { ...resourcesEdge, initialSize: saved?.width });
+    for (const [section, title] of Object.entries(activityItems)) api.addPanel({ id: `resources:${section}`, component: 'resources',
+      tabComponent: 'resources', title, params: { section }, position: { referenceGroup: 'resources' }, inactive: true });
+    api.getPanel(`resources:${this.screen()}`)!.api.setActive();
     const terminal = api.getPanel('terminal')!;
     terminal.api.setRenderer('onlyWhenVisible');
     terminal.group.header.hidden = true;
     const resources = api.getEdgeGroup('left')!;
+    if (saved?.collapsed) resources.collapse();
+    if (saved?.visible === false) resources.setVisible(false);
     // The outer split must reserve room for the edge strip/content and the central terminal.
     const constrainParent = () => this.parent!.setConstraints({ minimumWidth: api.minimumWidth
       + (resources.isCollapsed() ? resourcesEdge.collapsedSize : resourcesEdge.minimumSize) });
@@ -76,6 +71,11 @@ export class DevelopmentGrid {
     this.subscriptions.addDisposables(resources.onDidActivePanelChange(this.resourceChanged), resources.onDidCollapsedChange(constrainParent),
       resources.onDidCollapsedChange(this.resourceChanged));
     this.resourceChanged();
+  }
+  layout(): WorkbenchLayout {
+    // Dockview's serialized size retains the expanded width while the edge is collapsed or hidden.
+    const edge = this.api!.toJSON().edgeGroups!.left!;
+    return { width: edge.size, ...(edge.collapsed && { collapsed: true }), ...(!edge.visible && { visible: false }) };
   }
   showItem(item: ActivityItem) {
     if (this.api?.getGroup('resources')?.activePanel?.params?.section !== item) {

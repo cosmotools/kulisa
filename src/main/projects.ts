@@ -78,7 +78,6 @@ class Project {
     const id = newId((x) => this.tasks.has(x) || fs.existsSync(this.store.taskDir(this, x)));
     const entry: TaskEntry = { id, name: 'New Task', resources: [{ kind: 'maintree', folder: this.folder }] };
     const data = this.store.taskOf(this, id);
-    data.saveProfiles(this.shell.profileStore.of(this.id).map((g) => ({ id: g.id, closed: true })));
     // null: the project has agents and none is the default; a project with none leaves it out: a shell starts.
     if (agent || this.agents().length) data.saveAgent({ agent });
     const task = new Task(this.shell, this, entry);

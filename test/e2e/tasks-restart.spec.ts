@@ -75,13 +75,12 @@ test('after a restart: Stage stays left and both grids keep their saved sizes', 
   } finally {
     await held.evaluate((h) => h.release()); await held.dispose();
   }
-  // Saved as laid out (the task's task.json, 300 ms after the grid's last change: lib/grid.ts), before the restart;
-  // the grid's shape from dockview's API.
+  // Saved after nested resizes settle, before the restart; fixed Workbench panels are reconstructed.
   await expect(async () => {
-    const now = await (await taskPage(ui)).evaluate(() => (window as any).__dock.toJSON().grid);
+    const now = await (await taskPage(ui)).evaluate(() => (window as any).__dock.toJSON().edgeGroups.left.size);
     const saved = files.json(files.pfile('task.json')).workspace;
     expect(saved.stagePosition).toBe('left');
-    expect(saved.developmentLayout.grid).toEqual(now);
+    expect(saved.sidebar.width).toBe(now);
   }).toPass({ timeout: 5000 });
 
   const saved = await resourcesHeight(ui);

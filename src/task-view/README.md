@@ -30,6 +30,8 @@ Restore settings before constructing grids; early Stage commands await restorati
 grids mount at final dimensions. Retain/reflow grids on window moves and flush layout on deactivation/close.
 Keep Dockview IDs stable and prune closed panes without losing active groups; core owns saving. Only the current
 saved layout format is supported.
+Workbench disables panel dragging and has fixed panels: rebuild them with Dockview APIs, restoring only Side bar
+width/collapse/visibility. Core supplies the selected Workbench item once; do not also save it in a panel layout.
 Empty Stage stays mounted through Gridview's visibility API to retain size; move panels/groups without replacing content.
 
 Overflow uses Dockview's aggregated group minimums on the scroll canvas, not a pane count. Apply constraints before

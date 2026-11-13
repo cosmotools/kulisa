@@ -267,7 +267,7 @@ test('workspace and stage presets each fit the window without changing the other
   expect(res.x < term.x && Math.abs(res.y - term.y) < 40, 'Resources beside the terminal').toBe(true);
   await dock(ui, (api) => api.getEdgeGroup('left').setSize({ width: 350 }));
   const resized = await dock(ui, (api) => api.getEdgeGroup('left').width);
-  await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.workspace.edgeGroups.left.size)).toBe(resized);
+  await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.workspace.width)).toBe(resized);
 
 });
 

@@ -25,7 +25,9 @@ test('task updates preserve history, setup, stable links and unknown metadata in
       { type: 'leaf', size: 400, data: { id: 'stage', component: 'stage', minimumWidth: 100, minimumHeight: 100 } },
       { type: 'leaf', size: 600, data: { id: 'development', component: 'development', minimumWidth: 100, minimumHeight: 100 } },
     ] } } };
-    f.task.saveLayout({ version: 3, workspace: { grid: { root: { type: 'branch', data: [] } }, panels: {} }, stage: null, split, stagePosition: 'left', stageLayout: 'tabs' });
+    f.task.saveLayout({ version: 4, workspace: { width: 420, collapsed: true }, stage: null, split, stagePosition: 'left', stageLayout: 'tabs' });
+    const artifact = path.join(f.task.artifacts, 'reports', 'result.html');
+    f.task.savePresentation({ ...f.task.presentation(), workbenchItem: 'artifacts', selectedArtifact: artifact });
     const d = f.read(), id = d.agents.conversations[0].id;
     d.future = { enabled: true };
     d.agents.conversations[0].future = 'adapter metadata';
@@ -37,6 +39,10 @@ test('task updates preserve history, setup, stable links and unknown metadata in
     assert.equal(layout.stagePosition, 'left');
     assert.deepEqual(layout.split, split);
     assert.equal(layout.stageLayout, 'tabs');
+    assert.deepEqual(f.read().workspace.sidebar, { width: 420, collapsed: true });
+    assert.equal(f.read().workspace.selectedArtifact, path.join('reports', 'result.html'));
+    assert.equal(f.task.presentation().selectedArtifact, artifact);
+    assert.equal(f.task.presentation().workbenchItem, 'artifacts');
     assert.equal(d.development.list[0].conversation, id);
     assert.equal('terminal' in d.agents.conversations[0], false);
     assert.deepEqual(f.task.profiles()[0], { id: 'browser', closed: true, zoom: { localhost: 1.5 }, future: 'profile metadata' });
@@ -58,7 +64,10 @@ test('only development distinguishes first load from deliberately empty; stable 
   try {
     assert.deepEqual(f.task.profiles(), []);
     assert.equal(f.task.developmentTerminals(), null);
-    f.task.saveProfiles([]);
+    f.task.saveProfiles([{ id: 'closed', closed: true }, { id: 'empty-zoom', closed: true, zoom: {} }]);
+    assert.deepEqual(f.task.profiles(), []);
+    assert.deepEqual(f.read().stage, { nextTerminalId: 1, items: [] });
+    assert.deepEqual(f.read().workspace, {});
     f.task.saveAgent({ conversations: [{ agent: 'a', from: 1 }, { agent: 'b', from: 2 }] });
     f.task.saveDevelopmentTerminals({ front: 4, list: [{ id: 4, conversation: 0 }] });
     const a = f.task.agent(); a.conversations.reverse(); f.task.saveAgent(a);

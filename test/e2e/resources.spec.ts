@@ -157,7 +157,7 @@ test('Resources restores its native collapsed group and selected section after r
   await dock(ui, (api) => api.getEdgeGroup('left').setSize({ width: 420 }));
   const width = (await (await resourcesGroup(ui)).boundingBox()).width;
   await (await resourcesGroup(ui)).getByRole('tab', { name: 'Artifacts', exact: true }).click();
-  await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.workspace.edgeGroups.left)).toMatchObject({ collapsed: true, size: width });
+  await expect.poll(() => core((k) => (k.shell.task.store.layout() as any)?.workspace)).toMatchObject({ collapsed: true, width });
   const next = await restart(), resources = (await resourcesGroup(next));
   await expect(resources.locator(':scope.dv-edge-collapsed')).toBeVisible();
   await expect(resources.getByRole('tab')).toHaveCount(4);
