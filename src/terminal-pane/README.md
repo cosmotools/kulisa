@@ -10,4 +10,5 @@ pane visibility. Unmount disposes the visible View without stopping the process.
 ## The code
 
 - `renderer/pane.tsx`, `state.tsx`: public factory, registration and launch focus.
+- `renderer/launchers.ts`: lightweight public action shared by Stage and shell menus; no PTY/xterm import.
 - `renderer/StageTerminalPane.tsx`: application-terminal controls, search and header.

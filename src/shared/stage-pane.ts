@@ -7,6 +7,10 @@ import type { Events, PageLayout } from './ipc.ts';
 // Packages can observe their facts without replacing or editing the task's store.
 export type PaneFacts<State> = Pick<StoreApi<State>, 'getState' | 'getInitialState' | 'subscribe'>;
 export type LauncherMode = 'tile' | 'strip';
+export interface PaneLauncher {
+  id: string; label: string; title?: string; avatar?: string;
+  run(): unknown;
+}
 export interface PaneControls {
   Focus: FunctionComponent<Pick<IDockviewPanelHeaderProps, 'api' | 'containerApi'>>;
   focusItem(api: IDockviewPanelHeaderProps['api']): { label: string; run(): void };

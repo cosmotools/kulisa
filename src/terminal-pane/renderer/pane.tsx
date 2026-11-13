@@ -3,13 +3,15 @@ import { PlusIcon, TerminalSquareIcon } from 'lucide-react';
 import { Button } from '@ui';
 import { StageTerminalPane, StageTerminalHeader } from './StageTerminalPane';
 import { TerminalPanes } from './state';
+import { terminalLauncher } from './launchers';
 import type { TerminalPaneHost } from './state';
 import type { LauncherMode, StagePaneKind } from '../../shared/stage-pane';
 
 function TerminalLaunchers({ mode, pane }: { mode: LauncherMode; pane: TerminalPanes }) {
+  const launcher = terminalLauncher(pane.open);
   return mode === 'tile'
-    ? <Button variant="outline" className="h-auto w-60 justify-start" onClick={() => void pane.open()}><PlusIcon />Stage Terminal</Button>
-    : <Button variant="ghost" size="sm" onClick={() => void pane.open()} aria-label="Stage Terminal"><TerminalSquareIcon />Stage Terminal</Button>;
+    ? <Button variant="outline" className="h-auto w-60 justify-start" onClick={() => void launcher.run()}><PlusIcon />{launcher.label}</Button>
+    : <Button variant="ghost" size="sm" onClick={() => void launcher.run()} aria-label={launcher.label}><TerminalSquareIcon />{launcher.label}</Button>;
 }
 export function createTerminalPane(host: TerminalPaneHost) {
   const terminal = new TerminalPanes(host);
