@@ -75,9 +75,9 @@ case "${1:-}" in
     # <folder>@<name> in the usual places, left by data already gone
     { [ -e "$data/projects.json" ] && node -e '
         const fs = require("fs"), path = require("path"), d = process.argv[1];
-        for (const p of JSON.parse(fs.readFileSync(path.join(d, "projects.json"), "utf8"))) {
+        for (const p of JSON.parse(fs.readFileSync(path.join(d, "projects.json"), "utf8")).list) {
           let t; try { t = JSON.parse(fs.readFileSync(path.join(d, "projects", p.id, "tasks.json"), "utf8")); } catch { continue; }
-          for (const k of t.list || []) for (const f of [k.home, ...(k.copies || []).map((c) => c.worktree)]) if (f) console.log(f);
+          for (const k of t.list) for (const r of k.resources) if (r.kind === "worktree") console.log(r.worktree);
         }' "$data" 2>/dev/null
       ls -d "$HOME"/IdeaProjects/*@* "$HOME"/Kulisa/*@* 2>/dev/null; } | sort -u | sed 's/^/task copy: /'
     git -C "$repo" worktree list | sed 's/^/worktree: /'

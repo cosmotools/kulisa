@@ -124,7 +124,7 @@ class Project {
     const branch = await freeBranch([repo], own);
     try {
       const c: Worktree = { kind: 'worktree', ...await createWorktree(repo, branch, path.join(home, copyName(worktreesOf(entry), repo)), this.shell.agentFiles) };
-      entry.resources!.push(c);
+      entry.resources.push(c);
       this.save();
       return c;
     } catch (e) {
@@ -144,7 +144,7 @@ class Project {
     const home = homeOf(task.entry);
     await removeWorktree(c);
     forgetFolder(this.shell, this.entry, task.entry, c.folder);
-    task.entry.resources = task.entry.resources!.filter((x) => x !== c);
+    task.entry.resources = task.entry.resources.filter((x) => x !== c);
     if (home && !homeOf(task.entry)) try { fs.rmdirSync(home); } catch { /* not empty */ } // its last copy there
     this.save();
   }
@@ -209,7 +209,7 @@ async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: 
 async function deleteClosedTask(shell: Shell, p: ProjectEntry, id: string, w: AppWindow): Promise<Result<{ id: string }>> {
   const entry = shell.store.tasksOf(p).list.find((e) => e.id === id && e.closedAt !== undefined);
   if (!entry) return { error: `no closed task ${id}` };
-  if (!await askDeleteTask(shell, entry, folderOf(entry, p.folders[0]!), w)) return { error: 'the human said no' };
+  if (!await askDeleteTask(shell, entry, folderOf(entry), w)) return { error: 'the human said no' };
   await deleteTask(shell, p, entry);
   const file = shell.store.tasksOf(p);
   shell.store.saveTasksOf(p, { list: file.list.filter((e) => e.id !== id) });
@@ -226,8 +226,8 @@ function forgetFolder(shell: Shell, p: ProjectEntry, entry: TaskEntry, folder: s
   const project = { folder: p.folders[0], ...store.tasksOf(p).list.flatMap(conversations).find((c) => c.transcript) };
   for (const saved of conversations(entry)) {
     try {
-      const a = shell.agentFor(saved.agent, { any: true });
-      (a?.configOrigin === 'kulisa' || !a?.configOrigin) && a?.forget?.({ folder, saved: folder === folderOf(entry, '') ? saved : { transcript: saved.transcript }, project, configDir: a.configDir });
+      const a = shell.agentFor(saved.agent);
+      (a?.configOrigin === 'kulisa' || !a?.configOrigin) && a?.forget?.({ folder, saved: folder === folderOf(entry) ? saved : { transcript: saved.transcript }, project, configDir: a.configDir });
     } catch (e) { console.warn('[agents] forget:', (e as Error).message); }
   }
 }
@@ -294,7 +294,7 @@ async function removeFolder(shell: Shell, id: string, folder: string): Promise<R
   const folders = p?.folders;
   if (!folders?.includes(folder)) return { error: `${folder} is not in the project` };
   if (folders.length === 1) return { error: 'a project needs a folder: add another one first' };
-  const using = shell.store.tasksOf(p!).list.filter((e) => e.resources?.some((r) => (r.kind === 'worktree' ? r.repo : r.folder) === folder));
+  const using = shell.store.tasksOf(p!).list.filter((e) => e.resources.some((r) => (r.kind === 'worktree' ? r.repo : r.folder) === folder));
   if (using.length) return { error: `Tasks work in it: ${using.map((e) => e.name).join(', ')}. Delete them first (Delete Task… in a task's menu).` };
   const left = folders.filter((f) => f !== folder);
   // Its GitHub account goes with it, unless another of the project's repositories has the same remote.

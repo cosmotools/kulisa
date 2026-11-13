@@ -34,7 +34,7 @@ import type { StageTerminalConfig } from '../shared/stage-terminal.ts';
 import path from 'path';
 import { removeTree } from './remove.ts';
 import { randomInt, randomUUID } from 'crypto';
-import { log, summary } from './log.ts';
+import { log } from './log.ts';
 import { splitLayout } from '../task-view/main/index.ts';
 import type { TaskLayout } from '../task-view/main/index.ts';
 import { z } from 'zod';
@@ -68,15 +68,15 @@ interface Copy { repo: string; worktree: string; branch: string; base: string | 
 type Resource = { kind: 'maintree'; folder: string } | ({ kind: 'worktree' } & Copy);
 // A task in its project's tasks.json. Where it works, its branch and its folder of copies are its resources'.
 interface TaskEntry {
-  id: string; name: string; named?: boolean; resources?: Resource[];
+  id: string; name: string; named?: boolean; resources: Resource[];
   closedAt?: number;
 }
 type Worktree = Extract<Resource, { kind: 'worktree' }>;
-const worktreesOf = (e: TaskEntry) => (e.resources || []).filter((r): r is Worktree => r.kind === 'worktree');
+const worktreesOf = (e: TaskEntry) => e.resources.filter((r): r is Worktree => r.kind === 'worktree');
 // Its own worktree, where it works, once it made one.
-const ownWorktree = (e: TaskEntry) => { const r = e.resources?.[0]; return r?.kind === 'worktree' ? r : null; };
-// Where it works; fallback: its project's folder, for an entry with no resources.
-const folderOf = (e: TaskEntry, fallback: string) => e.resources?.[0]?.folder ?? fallback;
+const ownWorktree = (e: TaskEntry) => { const r = e.resources[0]!; return r.kind === 'worktree' ? r : null; };
+// Every task starts with its working folder as its first resource.
+const folderOf = (e: TaskEntry) => e.resources[0]!.folder;
 const branchOf = (e: TaskEntry) => ownWorktree(e)?.branch ?? null;
 // Its folder of copies (<projects' home>/<project>@<branch>/, projects.ts), or null: the folder holding a copy that is
 // not beside its repository (<repo>@<branch>). Its repository's top: the copy's folder is the same subfolder of both.
@@ -156,29 +156,14 @@ class Store {
   saveWindows(windows: SavedWindow[]) { this.saveSettings({ ...this.settings(), windows }); }
 
   // A project's tasks (tasks.json) and each one's data.
-  tasksOf(p: { id: string }): TasksFile {
-    const file = path.join(this.dir, 'projects', p.id, 'tasks.json');
-    const tasks = (readJSON(file) || { list: [] }) as { list: (TaskEntry & { closed?: boolean; merged?: boolean })[] };
-    if (tasks.list.some((e) => 'closed' in e || 'merged' in e)) {
-      tasks.list = tasks.list.map(({ closed, closedAt, merged: _, ...entry }) => ({ ...entry,
-        ...((closed === true || closed === undefined && closedAt !== undefined) && { closedAt: closedAt ?? 0 }) }));
-      writeFileAtomic(file, JSON.stringify(tasks, null, 2));
-    }
-    return tasks;
-  }
+  tasksOf(p: { id: string }): TasksFile { return readJSON(path.join(this.dir, 'projects', p.id, 'tasks.json')) || { list: [] }; }
   saveTasksOf(p: { id: string }, w: TasksFile) { writeJSON(path.join(this.dirOf(p), 'tasks.json'), w); }
   // A task's data folder; taskOf makes it, taskDir only names it (an id still to be found free: Project.createTask).
   taskDir(p: { id: string }, id: string) { return path.join(this.dir, 'projects', p.id, id); }
   taskOf(p: { id: string }, id: string) { return new TaskStore(this.taskDir(p, id), this); }
   // Results owned by this task (docs/tasks.md, Artifacts and temporary files).
   artifactsOf(p: { id: string }, id: string) { return path.join(this.taskDir(p, id), ARTIFACTS); }
-  // Include unconverted working folders when measuring closed tasks; migration runs when a task prepares its files.
-  temporaryFoldersOf(p: { id: string }, id: string) {
-    const dir = this.taskDir(p, id);
-    const previous = fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true })
-      .filter((e) => e.isDirectory() && e.name.startsWith('tmp-agent-')).map((e) => path.join(dir, e.name)) : [];
-    return [path.join(dir, 'tmp'), ...previous];
-  }
+  temporaryFoldersOf(p: { id: string }, id: string) { return [path.join(this.taskDir(p, id), 'tmp')]; }
   // Every task of every project, loaded or not (the activity monitor's: app.ts).
   allTasks() { return this.projects().flatMap((p) => this.tasksOf(p).list.map((entry) => ({ project: p, entry, key: taskKey(p, entry.id) }))); }
   // A project gone from Kulisa: from the list, and its data (profiles with their sign-ins, tasks); never its
@@ -226,42 +211,9 @@ const taskDocumentSchema = z.object({
     presentation: z.object({ workbenchItem: z.enum(['terminals', 'project', 'diff', 'artifacts']), selectedArtifact: z.string().nullable() }).optional() }),
 });
 type TaskDocument = z.infer<typeof taskDocumentSchema>;
-const taskDocumentV2Schema = taskDocumentSchema.extend({ version: z.literal(2),
-  stage: taskDocumentSchema.shape.stage.extend({ profilesInitialized: z.boolean() }) });
-const taskDocumentV1Schema = taskDocumentSchema.extend({ version: z.literal(1),
-  stage: taskDocumentSchema.shape.stage.extend({ initialized: z.boolean(),
-    items: z.array(z.discriminatedUnion('type', [z.object({ type: z.literal('profile'), config: taskProfileSchema }),
-      z.object({ type: z.literal('terminal'), config: stageTerminalSchema })])) }) });
-const taskFiles = ['agent.json', 'terminals.json', 'profiles.json', 'applications.json', 'layout.json'];
-const legacyTaskSchema = z.tuple([agentFileSchema.optional(), terminalsFileSchema.optional(), z.array(taskProfileSchema).optional(),
-  z.object({ next: z.int().positive().nullish(), list: z.array(stageTerminalSchema) }).optional(), z.unknown()]);
 function strictJSON(file: string): unknown {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
   catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw new Error(`Cannot read task data ${file}: ${(e as Error).message}`); }
-}
-function withoutProfileDetails<T extends TaskProfile>(profile: T): T {
-  const state = { ...profile } as T & Record<string, unknown>;
-  // These runtime fields leaked from ProfileConfig; preserve unrelated extension metadata.
-  for (const key of ['name', 'avatar', 'description', 'dir', 'login', 'hasPassword']) delete state[key];
-  return state;
-}
-function migrateTask(current: unknown): unknown {
-  if ((current as { version?: number } | null)?.version === 1) {
-    if (!taskDocumentV1Schema.validate(current)) throw new Error('Invalid task.json format');
-    const { initialized, items, ...stage } = current.stage;
-    current = { ...current, version: 2, stage: { ...stage, profilesInitialized: initialized,
-      items: items.map(({ type, config }) => ({ ...config, type })) } };
-  }
-  if ((current as { version?: number } | null)?.version !== 2) return current;
-  if (!taskDocumentV2Schema.validate(current)) throw new Error('Invalid task.json format');
-  const { profilesInitialized, ...stage } = current.stage;
-  if (!profilesInitialized && stage.items.some((i) => i.type === 'profile')) throw new Error('Invalid uninitialized task profiles');
-  const { stageShare, ...workspace } = current.workspace as typeof current.workspace & { stageShare?: number };
-  const split = splitLayout({ version: 3, workspace: workspace.developmentLayout, stage: stage.layout,
-    split: workspace.splitLayout, stagePosition: workspace.stagePosition, stageShare })?.split;
-  return { ...current, version: 3, stage: { ...stage,
-    items: stage.items.map((item) => item.type === 'profile' ? withoutProfileDetails(item) : item) },
-    workspace: { ...workspace, ...(split !== undefined && { splitLayout: split }) } };
 }
 function validateTask(value: unknown): asserts value is TaskDocument {
   // Validate without parsing: preserve the original document and unknown metadata on section updates.
@@ -292,14 +244,6 @@ class TaskStore {
   prepareTemporary() {
     fs.mkdirSync(this.temporary, { recursive: true });
     if (fs.lstatSync(this.temporary).isSymbolicLink()) throw new Error('The task temporary folder must not be a symbolic link.');
-    for (const entry of fs.readdirSync(this.dir, { withFileTypes: true })) {
-      if (!entry.isDirectory() || !entry.name.startsWith('tmp-agent-')) continue;
-      const from = path.join(this.dir, entry.name), to = this.temporaryDir(entry.name.slice('tmp-agent-'.length));
-      // Never merge potentially different working material or overwrite either conversation folder.
-      if (fs.existsSync(to)) throw new Error(`Both temporary folders exist: ${from} and ${to}. Preserve their files and resolve the conflict before resuming.`);
-      fs.renameSync(from, to);
-      log.info(`[task-files] relocated temporary folder ${summary({ from, to })}`);
-    }
   }
   // What the task has of its project's profiles (project-profiles.ts): [{ id, zoom, closed }] (who a profile is:
   // profile-store.ts). Missing profiles stay closed, including before the task first loads.
@@ -326,41 +270,18 @@ class TaskStore {
     removeTree(this.profileDir(id));
   }
   private document(): TaskDocument {
-    const saved = strictJSON(this.file('task.json')), current = migrateTask(saved);
-    if (current !== undefined) {
-      if (current !== saved) {
-        this.writeDocument(current);
-        log.info(`[store] task data upgraded ${summary({ task: path.relative(this.store.dir, this.dir), version: current.version })}`);
-      } else validateTask(current);
-      this.cleanLegacy(); return current;
-    }
-    const legacy = taskFiles.map((f) => strictJSON(this.file(f)));
-    if (!legacyTaskSchema.validate(legacy)) throw new Error('Invalid legacy task data');
-    const [agent, t, p, savedStageTerminals, layout] = legacy;
-    const a: AgentFile = agent ?? {};
-    const conversations = (a.conversations ?? []).map(({ terminal: _terminal, ...c }) => ({ ...c, id: c.id ?? randomUUID() }));
-    const split = splitLayout(layout);
+    const current = strictJSON(this.file('task.json'));
+    if (current !== undefined) { validateTask(current); return current; }
     const d: TaskDocument = {
-      version: 3, agents: { ...(a.agent !== undefined && { agent: a.agent }), conversations },
-      development: t ? { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
-        ...(conversation !== undefined && { conversation: conversations[conversation]?.id ?? 'invalid-reference' }) })) } : null,
-      stage: { nextTerminalId: savedStageTerminals?.next ?? 1,
-        items: [...(p ?? []).map((config) => ({ ...withoutProfileDetails(config), type: 'profile' as const })), ...(savedStageTerminals?.list ?? []).map((config) => ({ ...config, type: 'terminal' as const }))],
-        view: split?.stageLayout ?? null, overflow: split?.stageOverflow ?? false, layout: split?.stage ?? null },
-      workspace: { stagePosition: split?.stagePosition ?? 'above', splitLayout: split?.split ?? null, developmentLayout: split?.workspace ?? null },
+      version: 3, agents: { conversations: [] }, development: null,
+      stage: { nextTerminalId: 1, items: [], view: null, overflow: false, layout: null },
+      workspace: { stagePosition: 'above', splitLayout: null, developmentLayout: null },
     };
     this.writeDocument(d);
-    this.cleanLegacy();
     log.info('[store] task data initialized');
     return d;
   }
-  private legacyCleaned = false;
-  private cleanLegacy() {
-    if (this.legacyCleaned) return;
-    for (const f of taskFiles) fs.rmSync(this.file(f), { force: true });
-    this.legacyCleaned = true;
-  }
-  private writeDocument(d: unknown): asserts d is TaskDocument {
+  private writeDocument(d: TaskDocument) {
     validateTask(d);
     writeFileAtomic(this.file('task.json'), JSON.stringify(d, null, 2));
   }

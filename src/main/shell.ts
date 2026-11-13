@@ -74,7 +74,7 @@ interface Shell {
   packages: string; // Kulisa's packages for the agents (app.ts, AGENT_PACKAGES)
   agentFiles: string[]; // the agents' local settings a task's copy gets (each agent's localFiles)
   dropAccount(a: Account): Promise<void>;
-  agentFor(id: string | null | undefined, opts?: { any?: boolean }): AgentChoice | null;
+  agentFor(id: string | null | undefined): AgentChoice | null;
   findAgent(agent: Agent, cwd: string): Promise<Found | null>;
   chooseAgent: ((task: Task, agent: AgentChoice | null) => Promise<AgentChoice | null>)
     & { cancel(task: Task): void };

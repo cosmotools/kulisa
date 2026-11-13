@@ -56,7 +56,7 @@ test('projects: made with the next free color and a first agent; settings change
   assert.equal(store.updateProject('gone', { name: 'x' }), null);
 });
 
-test("projects: an id is six random letters and digits, none a project's name, unique; any old id is read as it is", () => {
+test("projects: an id is six random letters and digits, none a project's name, unique; existing ids remain opaque", () => {
   const dir = path.join(root, 'ids-data'), store = new Store(dir);
   const ids = Array.from({ length: 50 }, (_, i) => store.projectFor(`/work/app-${i}`, 'app').id);
   for (const id of ids) assert.match(id, /^[a-z0-9]{6}$/);
@@ -64,7 +64,7 @@ test("projects: an id is six random letters and digits, none a project's name, u
   const [first] = store.projects();
   store.updateProject(first.id, { name: 'Renamed' });
   assert.equal(store.projectOf('/work/app-0').id, first.id, 'kept when the project is renamed');
-  // A project of an earlier format, its id made from its name: an opaque string as any other.
+  // Existing identifiers remain opaque strings when projects are found and renamed.
   fs.writeFileSync(store.projectsFile, JSON.stringify({ list: [...store.projects(), { id: 'd', name: 'ddd', folders: ['/work/d'], color: PROJECT_COLORS[0] }] }));
   assert.equal(store.projectFor('/work/d').id, 'd');
   assert.equal(store.updateProject('d', { name: 'eee' }).id, 'd');
@@ -95,7 +95,7 @@ test("store: a profile's tabs come back with the one in front; a bare list of ad
 // projects list their profiles; ids are opaque).
 const profileStore = (dir: string, ...projects: string[]) => {
   const store = new Store(dir);
-  fs.writeFileSync(store.projectsFile, JSON.stringify({ list: projects.map((p, i) => ({ id: p, name: p, folder: `/work/${p}`, color: PROJECT_COLORS[i] })) }));
+  fs.writeFileSync(store.projectsFile, JSON.stringify({ list: projects.map((p, i) => ({ id: p, name: p, folders: [`/work/${p}`], color: PROJECT_COLORS[i] })) }));
   return new ProfileStore(store);
 };
 
@@ -254,11 +254,10 @@ test('project profiles: a task has its own copy of each, made at its first open;
 test("a task's folder, branch and folder of copies are its resources': the first where it works; the folder of copies never a repository's parent", () => {
   const wt = (repo: string, worktree: string, sub = '') => ({ kind: 'worktree' as const, repo: path.join(repo, sub), worktree, branch: 'fix', base: null as string | null, folder: path.join(worktree, sub) });
   const main: TaskEntry = { id: 't1', name: 'New Task', resources: [{ kind: 'maintree', folder: '/src/api' }] };
-  assert.deepEqual([folderOf(main, '/src/web'), branchOf(main), homeOf(main)], ['/src/api', null, null], 'where it opened, whatever the default is now');
-  assert.equal(folderOf({ id: 't2', name: 'x' }, '/src/web'), '/src/web');
+  assert.deepEqual([folderOf(main), branchOf(main), homeOf(main)], ['/src/api', null, null], 'where it opened, whatever the default is now');
   // Beside its repository (<repo>@<branch>): no folder of copies, even for a repository in a subfolder of its git.
   const beside: TaskEntry = { id: 't3', name: 'Fix', resources: [wt('/src/api', '/src/api@fix')] };
-  assert.deepEqual([folderOf(beside, ''), branchOf(beside), homeOf(beside)], [path.join('/src/api@fix'), 'fix', null]);
+  assert.deepEqual([folderOf(beside), branchOf(beside), homeOf(beside)], [path.join('/src/api@fix'), 'fix', null]);
   assert.equal(homeOf({ id: 't4', name: 'Fix', resources: [wt('/src/mono', '/src/mono@fix', 'app')] }), null, 'never /src');
   // In a folder of copies, its own and one added; an added one beside a worktree made beside its repository.
   const home: TaskEntry = { id: 't5', name: 'Fix', resources: [wt('/src/api', '/home/K/shop@fix/api'), wt('/src/web', '/home/K/shop@fix/web')] };

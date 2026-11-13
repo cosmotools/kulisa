@@ -99,7 +99,7 @@ function taskAccess(task: Task): TaskAccess {
     makeWorktree: (name) => task.makeWorktree(name), addRepository: (repo) => task.addRepository(repo), removeRepository: (repo) => task.removeRepository(repo),
     codeProgress: () => Promise.all(task.worktrees.map(async (c) => ({ folder: c.folder, repo: c.repo, ...await progress(c) }))),
     conversations: () => task.conversations().map((c) => {
-      const agent = task.shell.agentFor(c.agent, { any: true }), t = c.terminal === undefined ? undefined : task.developmentTerminals.get(c.terminal);
+      const agent = task.shell.agentFor(c.agent), t = c.terminal === undefined ? undefined : task.developmentTerminals.get(c.terminal);
       const name = agent?.name || c.agent || 'an agent';
       return { from: c.from, to: c.to, transcript: c.transcript, name, tab: t ? task.label(t) : c.title || agent?.cli || name,
         open: !!t, read: agent?.conversation };

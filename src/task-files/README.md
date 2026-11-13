@@ -7,11 +7,11 @@ MCP routing, desktop actions and window state stay outside.
 ## Storage
 
 The filesystem is authoritative: ordinary files, nested directories and empty directories need no registration.
-Legacy tool filenames preserve optional provenance. Reads and actions reject symbolic links at every path component;
+Generated tool filenames preserve optional provenance. Reads and actions reject symbolic links at every path component;
 recursive deletion uses the shared removal helper. `readFileRange` returns at most 4 MiB of a regular file with
 its size and listing-compatible revision, rejecting replacement or mutation during the read. Generated filenames use exclusive creation across concurrent writers.
-The caller chooses the results or working folder; this package applies no quota or expiry. Ownership, folder layout,
-migration and cleanup policy belong to [tasks](../../docs/tasks.md#artifacts-and-temporary-files).
+The caller chooses the results or working folder; this package applies no quota or expiry. Ownership, folder layout
+and cleanup policy belong to [tasks](../../docs/tasks.md#artifacts-and-temporary-files).
 
 ## Live results
 
@@ -49,5 +49,5 @@ and `ipc.ts`.
 - `main/results.ts`, `preview.ts`: live listing lifecycle, bounded preview queue/cache and raster validation.
 - `renderer/ArtifactTree.tsx`, `rows.css`: Trees adaptation and shadow layout; `renderer/index.ts`: entry.
 - `files.test.ts`, `read.test.ts`: filesystem, bounded-read and preview guards. E2e: `task-files.spec.ts`, `agent-reports.spec.ts`, `profiles.spec.ts`.
-- Core integration: `tasks.ts` supplies ownership/lifecycle/actions, `store.ts` owns paths and migration,
+- Core integration: `tasks.ts` supplies ownership/lifecycle/actions, `store.ts` owns storage paths,
   `plugin.ts` binds agent contracts, and `task-view/Resources.tsx` supplies Workbench controls and callbacks.

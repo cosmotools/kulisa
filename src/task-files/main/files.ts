@@ -49,9 +49,9 @@ async function listArtifacts(dir: string): Promise<FileEntry[]> {
       const stat = await fs.promises.lstat(file).catch((): null => null);
       if (!stat || (!stat.isFile() && !stat.isDirectory())) continue;
       const directory = stat.isDirectory();
-      // Legacy tool names preserve provenance; ordinary user filenames need no registration or sidecar.
+      // Generated tool names preserve provenance; ordinary user filenames need no registration or sidecar.
       const m = !directory && /^\d+-([^-]+)-([^-]+)-(screenshot|snapshot|request|response|terminal)\.\w+$/.exec(name);
-      const source = m ? ((m[1] === 'application' || m[1] === 'terminal') && m[3] === 'terminal'
+      const source = m ? (m[1] === 'terminal' && m[3] === 'terminal'
         ? { kind: 'stage-terminal' as const, id: Number(m[2]) }
         : { kind: 'profile' as const, id: m[1]!, tab: m[2]! }) : undefined;
       result.push({ file, path: path.relative(dir, file).split(path.sep).join('/') + (directory ? '/' : ''),

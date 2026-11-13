@@ -44,12 +44,10 @@ test("accounts: one store, kept until deleted; its folder a fixed id, random, th
   const undraw = drawing('claude', 'aaaaaa', 'bbbbbb', 'cccccc');
   try { assert.equal((accounts.prepare('claude') as { id: string }).id, 'cccccc'); } finally { undraw(); }
   accounts.drop('aaaaaa');
-  // At start: a sign-in that did not end, and the format before (accounts.json), go.
-  fs.writeFileSync(path.join(data, 'accounts.json'), '[]');
+  // Startup removes sign-in folders whose registration did not finish.
   const bob = accounts.create((accounts.prepare('claude') as { id: string }).id, 'claude', 'bob@shop.com');
   new Accounts(data, defs, (d) => { marked.push(d); }).clean();
   assert.deepEqual(fs.readdirSync(path.join(data, 'agents')), [`claude-${bob.id}`]);
-  assert.ok(!fs.existsSync(path.join(data, 'accounts.json')));
 });
 
 test('accounts: the log names an id by its agent and its email, shortened', () => {
@@ -64,7 +62,7 @@ test('accounts: the log names an id by its agent and its email, shortened', () =
   assert.equal(accounts.label('gone12'), 'gone12');
 });
 
-test('accounts: external references survive startup cleanup and disconnect without touching their files; old records remain owned', () => {
+test('accounts: external references survive startup cleanup and disconnect without touching their files', () => {
   const data = path.join(root, 'mixed-data'), external = path.join(root, 'external-config');
   fs.mkdirSync(external, { recursive: true });
   const file = path.join(external, 'settings.json');
@@ -72,8 +70,7 @@ test('accounts: external references survive startup cleanup and disconnect witho
   const defs = [{ id: 'claude', name: 'Claude Code', config: { env: 'CLAUDE_CONFIG_DIR' } }] as Agent[];
   const accounts = new Accounts(data, defs);
   const own = accounts.prepare('claude') as { id: string; dir: string };
-  // The format written before explicit ownership existed.
-  accounts.save([{ id: own.id, agent: 'claude', email: 'same@shop.com' }]);
+  accounts.create(own.id, 'claude', 'same@shop.com');
   const linked = accounts.connect('claude', external, 'same@shop.com', true);
   assert.equal(linked.origin, 'external');
   assert.equal(linked.dir, external);
