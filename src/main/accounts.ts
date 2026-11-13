@@ -1,5 +1,5 @@
-// Agent connections and configuration ownership (docs/tasks.md, Choosing the agent). Old records without an origin are
-// Kulisa-owned. External records reference the original directory; forgetting one never owns its files or login.
+// Agent connections and explicit configuration ownership (docs/tasks.md, Choosing the agent). External records
+// reference the original directory; forgetting one never owns its files or login.
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -16,7 +16,7 @@ import type { AgentInfo, ListOptions, ExistingAgentSetup } from '../shared/types
 
 const canonical = (dir: string) => { try { return fs.realpathSync(dir); } catch { return path.resolve(dir); } };
 
-interface Stored { id: string; agent: string; email: string | null; origin?: 'kulisa' | 'external'; directory?: string; defaultConfig?: boolean }
+interface Stored { id: string; agent: string; email: string | null; origin: 'kulisa' | 'external'; directory?: string; defaultConfig?: boolean }
 // An agent itself (own) or one of its accounts, as all() lists them.
 interface Account {
   id: string; agent: Agent; name: string; dir: string | null; own: boolean; choosable: boolean; email?: string | null; origin: 'kulisa' | 'external' | null; defaultConfig?: boolean;
@@ -48,7 +48,7 @@ class Accounts {
     return this.agents.flatMap((a) => [
       { id: a.id, agent: a, name: a.name, dir: null as string | null, own: true, origin: null as Account['origin'], choosable: !a.config },
       ...stored.filter((x) => x.agent === a.id).map((x) => ({ id: x.id, agent: a, name: `${a.name} · ${x.email || x.id}`, email: x.email,
-        dir: x.origin === 'external' ? x.directory! : this.folderOf(x), origin: x.origin ?? 'kulisa', defaultConfig: x.defaultConfig, own: false, choosable: true })),
+        dir: x.origin === 'external' ? x.directory! : this.folderOf(x), origin: x.origin, defaultConfig: x.defaultConfig, own: false, choosable: true })),
     ]);
   }
   choosable() { return this.all().filter((x) => x.choosable); }
@@ -96,11 +96,9 @@ class Accounts {
     this.markDeleted(dir);
     try { removeTree(dir); } catch (e) { console.warn('[accounts]', (e as Error).message); }
   }
-  // At start: what no account stores goes: a folder of a sign-in that did not end (Kulisa quit meanwhile), and the
-  // accounts of the format before (accounts.json, named by hand; no migration: old data is deleted).
+  // Sign-in folders with no saved account belong to attempts interrupted before registration.
   clean() {
-    const keep = new Set(this.stored().filter((x) => x.origin !== 'external').map((x) => path.basename(this.folderOf(x))));
-    fs.rmSync(path.join(this.dir, 'accounts.json'), { force: true });
+    const keep = new Set(this.stored().filter((x) => x.origin === 'kulisa').map((x) => path.basename(this.folderOf(x))));
     let folders: string[] = [];
     try { folders = fs.readdirSync(path.join(this.dir, 'agents')); } catch {}
     for (const f of folders) if (!keep.has(f)) this.remove(path.join(this.dir, 'agents', f));

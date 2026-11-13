@@ -207,8 +207,8 @@ operations and transcripts. Renderer `lib/agents.ts` and `lib/agent-setup.ts` sh
   main memory, show them immediately, then refresh through the user's login shell/`--version`; first lookup waits.
   Probe each CLI once per list even when several accounts use it. Windows discovery uses
   `where.exe` and runs `.cmd` via `cmd.exe`.
-- Connections explicitly record configuration ownership in `agents.json`. Records without an origin retain their
-  existing Kulisa-owned behavior. **Created in Kulisa** starts with an empty, immutable folder
+- Connections explicitly record configuration ownership in `agents.json`. **Created in Kulisa** starts with an empty,
+  immutable folder
   (`agents/<agent>-<six-character id>/`); macOS keychain identity depends on its path, so never rename it.
   **External configuration** references the adapter's existing home/environment-selected directory directly, with
   its login, settings and skills shared with ordinary CLI sessions. Never copy configurations or credentials.
@@ -343,7 +343,7 @@ profiles.json                     the profiles, one store (profiles.md): { list:
                                   profile and never changed; its name unique within each of its projects
 profiles/<id>/                    a profile's master, a Chromium profile, where the human signs in once for every task;
                                   kept in no project too, gone when the human deletes the profile (Settings → Profiles)
-agents.json                       the agents' accounts (accounts.ts): { list: [{ id, agent, email }] }
+agents.json                       the agents' accounts (accounts.ts): { list: [{ id, agent, email, origin, directory?, defaultConfig? }] }
 github.json                       the GitHub accounts (src/github): { list: [{ id, login, kind, secret }] }; secret: its
                                   tokens encrypted with the OS keyring, none without one (kept in memory then) or when
                                   signed out; an account goes when the human deletes it (Settings → GitHub)
@@ -375,7 +375,7 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   (development layout, Stage position and native outer split). Terminal conversation references
                                   use stable IDs; history numbers follow conversation order. Live processes and screen
                                   buffers stay in memory. File and owned environment data go with the task/project.
-    artifacts/                    ordinary final files/folders, including legacy numbered tool results
+    artifacts/                    ordinary final files/folders, including numbered tool results
     tmp/                          temporary working material, outside artifacts
       agent-<conversation id>/    one working directory per stable Kulisa conversation
         claude-settings.json      Claude's per-conversation launch settings, refreshed at launch
@@ -479,12 +479,10 @@ working material goes in `tmp/agent-<conversation id>/`, determined by the stabl
 Resume reuses it; a new conversation gets another. These folders survive closing terminals,
 conversations and tasks, and app restarts. Task/project deletion removes them with other task data, deferring locked
 files through `deleted-folders.json`. There is no disk quota, age limit or automatic eviction (the author's choice).
-When task files are prepared, previous top-level `tmp-agent-<id>/` folders move intact into `tmp/agent-<id>/`.
-Existing destinations stop conversion with an explicit error; neither folder is overwritten or merged. Closed tasks count previous folders until conversion.
 The human deletes results manually or requests agent cleanup; agents remove their own unneeded temporary work,
 retaining useful diagnostics and continuation material. They must not clean another conversation's work unasked.
 
-The filesystem is authoritative, with no registration or metadata file required. Legacy tool filenames retain optional provenance. Links are excluded rather than followed into other folders.
+The filesystem is authoritative, with no registration or metadata file required. Generated tool filenames retain optional provenance. Links are excluded rather than followed into other folders.
 Prepare a file or directory in temporary storage, then move the finished result into artifacts. Direct writes there
 become visible immediately; Kulisa does not infer completeness. Keep code, dependencies and build output in the
 project, respect an explicit human destination, copy human-owned originals, and avoid unintended overwrites.
@@ -563,13 +561,13 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 Task state uses Zod schemas for stored field shapes and TypeScript types, with core checks for unique IDs,
 conversation links and Stage setup. Validation retains unknown metadata; each section update reads the current
 document, preserves its peers and writes atomically. Dockview owns serialized layout formats.
-A new task retains uninitialized profiles/development separately from deliberately empty collections. Layout
-lifecycle belongs to [Task view](../src/task-view/README.md#the-grid). Legacy task files are imported only when
-`task.json` is absent; a verified document is authoritative, and leftover source files are cleaned on reopening.
-Malformed source data stops migration with an error and retains the source files. Browser storage, profile tabs,
+A new task retains uninitialized development terminals separately from a deliberately empty collection: only
+the former starts its initial agent. Missing profile entries stay closed. Task profile entries store only ID,
+site zoom and closed state; shared identity and sign-in details belong to the profile store. Layout
+lifecycle belongs to [Task view](../src/task-view/README.md#the-grid). Only the current task document and layout
+formats are supported; the application does not import or upgrade earlier configurations. A missing `task.json`
+initializes an empty document; an invalid document is rejected without overwriting it. Browser storage, profile tabs,
 transcripts and artifacts keep their own formats and owners.
 
 Task indexes use `closedAt` as the closed-state marker; absence means open, and zero means a closed task whose
-closing time is unknown. Task documents use format version 2, flat Stage items and `profilesInitialized` to preserve
-first-load behavior independently of terminal environments. Each TaskStore cleans legacy files once, after the
-current document is validated; a new store retries cleanup left incomplete by an error.
+closing time is unknown. Task documents use format version 3 and flat Stage items.

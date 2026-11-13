@@ -58,14 +58,10 @@ export class DevelopmentGrid {
       api.clear();
       for (const edge of ['left', 'right', 'top', 'bottom'] as const) if (api.getEdgeGroup(edge)) api.removeEdgeGroup(edge);
       api.addPanel({ id: 'terminal', component: 'terminal', title: 'Terminal' });
-      // Import the choices from a saved movable Resources panel.
-      const previous = saved?.panels.resources?.params;
-      const resources = api.addEdgeGroup('left', { ...resourcesEdge, initialSize: previous?.expandedWidth });
+      api.addEdgeGroup('left', resourcesEdge);
       for (const [section, title] of Object.entries(activityItems)) api.addPanel({ id: `resources:${section}`, component: 'resources',
         tabComponent: 'resources', title, params: { section }, position: { referenceGroup: 'resources' }, inactive: true });
-      const section = previous?.section && Object.hasOwn(activityItems, previous.section) ? previous.section : this.screen();
-      api.getPanel(`resources:${section}`)!.api.setActive();
-      if (previous?.section === null) resources.collapse();
+      api.getPanel(`resources:${this.screen()}`)!.api.setActive();
     }
     const terminal = api.getPanel('terminal')!;
     terminal.api.setRenderer('onlyWhenVisible');

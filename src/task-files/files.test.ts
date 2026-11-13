@@ -21,7 +21,7 @@ test('generated results use exclusive creation across concurrent writers and exi
   assert.equal(path.basename(await saveArtifact(dir, 'p-t1-snapshot.yml', '')), '51-p-t1-snapshot.yml');
 });
 
-test('results beyond the previous 100 MiB quota stay, including after another result is saved', async () => {
+test('large results stay, including after another result is saved', async () => {
   const dir = path.join(root, 'large'); fs.mkdirSync(dir);
   const large = path.join(dir, 'report.bin');
   const fd = fs.openSync(large, 'w'); fs.ftruncateSync(fd, 110 * 1024 * 1024); fs.closeSync(fd);
@@ -44,13 +44,12 @@ test('ordinary filenames, nested files and empty folders appear without registra
   assert.deepEqual(await listArtifacts(path.join(root, 'absent')), []);
 });
 
-test('legacy screenshots and terminal files retain their optional source metadata', async () => {
-  const dir = path.join(root, 'legacy');
-  await saveArtifact(dir, 'application-3-terminal.txt', 'terminal');
+test('generated screenshots and terminal files retain their optional source metadata', async () => {
+  const dir = path.join(root, 'provenance');
   await saveArtifact(dir, 'terminal-4-terminal.txt', 'terminal');
   await saveArtifact(dir, 'application-t1-screenshot.jpg', 'image');
   assert.deepEqual((await listArtifacts(dir)).map((a) => a.source), [
-    { kind: 'stage-terminal', id: 3 }, { kind: 'stage-terminal', id: 4 }, { kind: 'profile', id: 'application', tab: 't1' },
+    { kind: 'stage-terminal', id: 4 }, { kind: 'profile', id: 'application', tab: 't1' },
   ]);
 });
 

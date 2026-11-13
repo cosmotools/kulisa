@@ -43,25 +43,6 @@ test('Stage has fixed positions, keeps development panels together and stays hid
   await expect((await taskPage(next)).locator('[data-task-view][data-active]').getByTestId('stage')).toBeHidden();
 });
 
-test('flat saved layouts restore browser panes inside the stage and development panels outside it', async ({ core, ui, call, restart }) => {
-  await call('profile_create', { name: 'Layout.browser' });
-  await expect((await taskPage(ui)).locator('[data-task-view][data-active] [data-panel^="profile:"]')).toHaveCount(1);
-  const legacy = await (await taskPage(ui)).evaluate(() => {
-    const w = (window as any).__dock.toJSON(), s = (window as any).__stage.toJSON();
-    return { grid: { ...w.grid, orientation: 'VERTICAL', root: { type: 'branch', data: [s.grid.root, w.grid.root] } }, panels: { ...w.panels, ...s.panels } };
-  });
-  await expect.poll(() => core((k) => (k.shell.task.store.layout() as { version?: number })?.version)).toBe(3);
-  await core((k, saved) => k.shell.task.store.saveLayout(saved), legacy);
-  const next = await restart();
-  await notLoading(next);
-  await expect((await taskPage(next)).locator('[data-task-view][data-active]').getByTestId('stage').locator('[data-panel^="profile:"]')).toHaveCount(1);
-  expect(await (await taskPage(next)).evaluate(() => (window as any).__dock.panels.map((p: any) => p.id).sort())).toEqual(['resources:artifacts', 'resources:diff', 'resources:project', 'resources:terminals', 'terminal']);
-  expect(await (await taskPage(next)).evaluate(() => (window as any).__stage.panels.every((p: any) => p.id.startsWith('profile:')))).toBe(true);
-  await expect.poll(() => core((k) => k.profile('Layout.browser').view.getVisible())).toBe(true);
-  await call('profile_close', { profile: 'Layout.browser' });
-});
-
-
 test('restored Stage headers stay visible when the saved layout hides them', async ({ core, ui, call, restart }) => {
   await call('profile_create', { name: 'Header.browser' });
   await expect.poll(() => core((k) => Object.keys((k.shell.task.store.layout() as any)?.stage?.panels ?? {}).length)).toBe(1);

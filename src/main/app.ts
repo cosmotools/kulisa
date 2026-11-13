@@ -445,12 +445,11 @@ function start(options: Options = {}) {
     await shell.accounts.disposeAccount(a);
     shell.sendProjects(); // the last of all: nothing left for Settings
   };
-  // An agent or account a task may run (any: also an agent itself that has accounts, as for installing it, or a task
-  // that ran it before accounts were Kulisa's: its configDir the human's own folder).
-  shell.agentFor = (id, { any = false } = {}) => {
+  // Configured CLIs run through explicit connections with known credential ownership.
+  shell.agentFor = (id) => {
     const a = shell.accounts.find(id ?? custom?.id);
-    if (!a || (!a.choosable && !any)) return null;
-    return { ...a.agent, id: a.id, agentId: a.agent.id, cli: a.agent.name, name: a.name, configOrigin: a.origin, configDir: a.own ? a.agent.config?.home() ?? null : a.dir,
+    if (!a?.choosable) return null;
+    return { ...a.agent, id: a.id, agentId: a.agent.id, cli: a.agent.name, name: a.name, configOrigin: a.origin, configDir: a.dir,
       env: a.own ? {} : { [a.agent.config!.env]: a.defaultConfig ? undefined : a.dir! } };
   };
   shell.findAgent = findAgent;

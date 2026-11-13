@@ -115,6 +115,9 @@ Workbench UI names and the bar + item convention: [UI terminology](docs/ui.md#wo
 - Hand-written protocol code is limited to `cdp-proxy.ts`, which exposes `webContents.debugger` over CDP.
 - Prefer lower RAM use; measure rather than guess (`ps -eo pid,rss,args`). Discuss noticeable increases with the
   author before building, including extra processes, retained hidden views and large buffers.
+- Support only current Kulisa-owned storage and configuration formats; do not add runtime migrations or legacy
+  readers. Update existing local configurations once, with a backup, when the author authorizes it. External CLI
+  formats and supported operating systems retain their own compatibility requirements.
 - Give every stored file an owner and a cleanup path. Delete it with its profile, task or project, including git
   and agent records; defer locked files through `deleted-folders.json`. Bound growing data except task results and
   agent working folders: these have no disk quota or automatic expiry (the author’s choice; `docs/tasks.md`, Artifacts

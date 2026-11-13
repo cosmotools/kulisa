@@ -28,7 +28,8 @@ Proportional layout requires Dockview >= 8.6.0 (issues 1691/1692).
 
 Restore settings before constructing grids; early Stage commands await restoration in order. Reveal only after both
 grids mount at final dimensions. Retain/reflow grids on window moves and flush layout on deactivation/close.
-Keep Dockview IDs stable, import legacy layouts and prune closed panes without losing active groups; core owns saving.
+Keep Dockview IDs stable and prune closed panes without losing active groups; core owns saving. Only the current
+saved layout format is supported.
 Empty Stage stays mounted through Gridview's visibility API to retain size; move panels/groups without replacing content.
 
 Overflow uses Dockview's aggregated group minimums on the scroll canvas, not a pane count. Apply constraints before
@@ -66,7 +67,7 @@ exit before its new ready handshake.
 ## The code
 
 - `main/task-view.ts`: native attachment/lifetime and ready/drained handlers under core IPC authority;
-  `ipc.ts`: UI contracts; `shared/layout.ts`: pure saved-grid compatibility.
+  `ipc.ts`: UI contracts; `shared/layout.ts`: saved-grid types, format checks and pruning.
 - `renderer/controller.ts`, `grid.ts`, `stage.ts`, `development.ts`: activation, composition and Editor/Diff sessions;
   `state.ts`: core projection; pane components: content bounds; `Artifacts.tsx`: File Viewer host.
 - Core adapter: `src/main/window.ts`; authorization: `src/main/app.ts`.

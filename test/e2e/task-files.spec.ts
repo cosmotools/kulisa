@@ -96,10 +96,7 @@ test('conversation IDs determine temporary paths across task closure and app res
   const env = await core((k, id) => k.shell.task.env(k.shell.task.developmentTerminals.get(id)), terminal);
   expect(env.KULISA_TMP_DIR).toBe(first.tmp); expect(env.KULISA_ARTIFACTS_DIR).toBe(first.artifacts);
   await invoke(ui, 'task:close', key);
-  const previous = path.join(path.dirname(first.artifacts), `tmp-agent-${first.session}`);
-  fs.renameSync(first.tmp, previous);
   await showTask(core, ui, key);
-  expect(fs.existsSync(previous)).toBe(false);
   expect(JSON.parse((await call('task_files', {}, { terminal })).text).tmp).toBe(first.tmp);
   const nextUI = await restart();
   expect(JSON.parse((await call('task_files', {}, { terminal })).text).tmp).toBe(first.tmp);

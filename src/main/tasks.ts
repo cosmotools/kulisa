@@ -150,7 +150,7 @@ class Task {
   }
   // Where its agent works: its first resource, its own worktree once it has one (ensureWorktree), else the project's
   // folder it opened in (the human's; a task without git stays there). It changes when the agent makes the worktree.
-  get folder() { return folderOf(this.entry, this.project.folder); }
+  get folder() { return folderOf(this.entry); }
   get branch() { return branchOf(this.entry); }
   get worktrees() { return worktreesOf(this.entry); }
   // The task's own git worktree, made on demand (the agent's task_worktree), idempotent: created the first time (a
@@ -851,7 +851,7 @@ class Task {
   // (the main tree is the human's, its own worktree goes with the task); an added repository's worktree is
   // (task_remove_repository).
   resources(): Sent.TaskResource[] {
-    return (this.entry.resources || []).map((r, i): Sent.TaskResource => (r.kind === 'maintree'
+    return this.entry.resources.map((r, i): Sent.TaskResource => (r.kind === 'maintree'
       ? { kind: r.kind, label: path.basename(r.folder), folder: r.folder, branch: null, removable: false }
       : { kind: r.kind, label: path.basename(r.repo), folder: r.folder, branch: r.branch, removable: i > 0 }));
   }
