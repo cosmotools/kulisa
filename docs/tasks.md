@@ -563,13 +563,16 @@ rm -rf ~/.config/Kulisa/projects/<project id>   # all its tasks with their profi
 Task state uses Zod schemas for stored field shapes and TypeScript types, with core checks for unique IDs,
 conversation links and Stage setup. Validation retains unknown metadata; each section update reads the current
 document, preserves its peers and writes atomically. Dockview owns serialized layout formats.
-A new task retains uninitialized profiles/development separately from deliberately empty collections. Layout
+A new task retains uninitialized development terminals separately from a deliberately empty collection: only
+the former starts its initial agent. Missing profile entries stay closed. Task profile entries store only ID,
+site zoom and closed state; shared identity and sign-in details belong to the profile store. Layout
 lifecycle belongs to [Task view](../src/task-view/README.md#the-grid). Legacy task files are imported only when
 `task.json` is absent; a verified document is authoritative, and leftover source files are cleaned on reopening.
 Malformed source data stops migration with an error and retains the source files. Browser storage, profile tabs,
 transcripts and artifacts keep their own formats and owners.
 
 Task indexes use `closedAt` as the closed-state marker; absence means open, and zero means a closed task whose
-closing time is unknown. Task documents use format version 2, flat Stage items and `profilesInitialized` to preserve
-first-load behavior independently of terminal environments. Each TaskStore cleans legacy files once, after the
-current document is validated; a new store retries cleanup left incomplete by an error.
+closing time is unknown. Task documents use format version 3 and flat Stage items. Earlier documents are upgraded
+atomically, removing redundant profile details and the unused profile initialization marker; legacy Stage fractions
+become native split layouts. Unknown metadata is retained. Each TaskStore cleans legacy files once, after the current
+document is validated; a new store retries cleanup left incomplete by an error.

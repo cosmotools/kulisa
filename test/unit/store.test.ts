@@ -176,7 +176,7 @@ test('project profiles: a task has its own copy of each, made at its first open;
   const bob = (all.create('shop', { name: 'Bob', avatar: 'owl' }) as StoredProfile).id;
   const task = (n: number) => {
     const dir = path.join(root, 'pp-data', 'task', String(n));
-    let saved: TaskProfile[] = null;
+    let saved: TaskProfile[] = [];
     const copied: string[] = [];
     const store = { profiles: () => saved, saveProfiles: (l: TaskProfile[]) => { saved = l; }, tabs: (f: string) => ({ urls: f === bob ? ['https://b/'] : [], active: 0 }), saveTabs() {},
       profileDir: (f: string) => path.join(dir, f), markDeleted() {} } as unknown as TaskStore;
@@ -192,11 +192,14 @@ test('project profiles: a task has its own copy of each, made at its first open;
   assert.deepEqual([...a.list.profiles.keys()], []);
   assert.deepEqual([...a.list.closed.keys()], [ann, bob]);
   assert.deepEqual(a.copied, [], 'nothing copied before it is opened');
+  assert.deepEqual(a.saved(), [{ id: ann, closed: true }, { id: bob, closed: true }], 'shared profile details are not task state');
   await a.list.open(ann); await a.list.open(bob);
+  a.list.profiles.get(ann).siteZoom = { 'https://shop.test': 1.5 };
   assert.deepEqual(a.copied, [ann, bob]);
   assert.equal(path.basename(a.list.profiles.get(ann).dir), ann, 'its copy named by its id');
   assert.deepEqual((a.list.profiles.get(bob) as Fake).saved.urls, ['https://b/'], "the master's tabs");
   await a.list.close(ann);
+  assert.deepEqual(a.saved(), [{ id: ann, zoom: { 'https://shop.test': 1.5 }, closed: true }, { id: bob }], 'closing keeps task zoom without copying profile identity');
   assert.match((await a.list.close(ann) as { error: string }).error, /Ann is not open/, 'named as the agent names it');
   await a.list.open(ann);
   assert.equal(a.copied.length, 2, 'opened again: its copy is there');

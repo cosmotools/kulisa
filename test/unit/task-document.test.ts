@@ -19,7 +19,7 @@ test('task migration preserves history, setup and stable links, removes legacy f
   try {
     f.write('agent.json', { agent: 'custom', conversations: [{ agent: 'custom', from: 123, sessionId: 'resume', terminal: 7, future: 'adapter metadata' }] });
     f.write('terminals.json', { front: 7, list: [{ id: 7, conversation: 0 }] });
-    f.write('profiles.json', [{ id: 'browser', closed: true, zoom: { localhost: 1.5 } }]);
+    f.write('profiles.json', [{ id: 'browser', closed: true, zoom: { localhost: 1.5 }, name: 'Old name', dir: '/old/profile', future: 'profile metadata' }]);
     const split = { grid: { width: 1000, height: 1000, orientation: 'HORIZONTAL', root: { type: 'branch', size: 1000, data: [
       { type: 'leaf', size: 400, data: { id: 'stage', component: 'stage', minimumWidth: 100, minimumHeight: 100 } },
       { type: 'leaf', size: 600, data: { id: 'development', component: 'development', minimumWidth: 100, minimumHeight: 100 } },
@@ -29,14 +29,16 @@ test('task migration preserves history, setup and stable links, removes legacy f
     assert.equal(f.task.agent().conversations[0].terminal, 7);
     const d = f.read(), id = d.agents.conversations[0].id;
     assert.equal(typeof id, 'string');
-    f.write('task.json', { ...d, future: { enabled: true } });
+    f.write('task.json', { ...d, version: 2, future: { enabled: true }, stage: { ...d.stage, profilesInitialized: true },
+      workspace: { ...d.workspace, splitLayout: null, stageShare: 0.4 } });
     const layout = f.task.layout() as { stagePosition: string; split: unknown; stageLayout: string };
     assert.equal(layout.stagePosition, 'left');
     assert.deepEqual(layout.split, split);
     assert.equal(layout.stageLayout, 'tabs');
+    assert.equal('stageShare' in f.read().workspace, false);
     assert.equal(d.development.list[0].conversation, id);
     assert.equal('terminal' in d.agents.conversations[0], false);
-    assert.equal(f.task.profiles()[0].closed, true);
+    assert.deepEqual(f.task.profiles()[0], { id: 'browser', closed: true, zoom: { localhost: 1.5 }, future: 'profile metadata' });
     assert.equal(f.task.stageTerminals().next, 10);
     for (const name of ['agent', 'terminals', 'profiles', 'applications', 'layout']) assert.equal(fs.existsSync(f.task.file(name+'.json')), false);
     f.task.saveProfiles([]);
@@ -54,10 +56,13 @@ test('task migration preserves history, setup and stable links, removes legacy f
   } finally { f.close(); }
 });
 
-test('new and deliberately empty tasks remain distinct; stable references survive history reorder', () => {
+test('only development distinguishes first load from deliberately empty; stable references survive history reorder', () => {
   const f = fixture();
   try {
-    assert.equal(f.task.profiles(), null);
+    f.task.profiles();
+    const d = f.read();
+    f.write('task.json', { ...d, version: 2, stage: { ...d.stage, profilesInitialized: false } });
+    assert.deepEqual(f.task.profiles(), []);
     assert.equal(f.task.developmentTerminals(), null);
     f.task.saveProfiles([]);
     f.task.saveAgent({ conversations: [{ agent: 'a', from: 1 }, { agent: 'b', from: 2 }] });
@@ -89,16 +94,19 @@ test('malformed source and failed atomic migration preserve original data', () =
 });
 
 
-test('version 1 task documents upgrade flat Stage items without changing IDs, layout or history', () => {
+test('version 1 task documents upgrade to the current format, retaining task state and unknown profile metadata', () => {
   const f = fixture();
   try {
-    f.task.saveProfiles([{ id: 'browser', closed: true }]);
+    f.task.saveProfiles([{ id: 'browser', closed: true, zoom: { localhost: 1.5 } }]);
     f.task.saveStageTerminals({ next: 8, list: [{ id: 7, name: 'CLI', command: 'node cli.js', size: null }] });
-    const current = f.read();
-    const { profilesInitialized, items, ...stage } = current.stage;
-    f.write('task.json', { ...current, version: 1, stage: { ...stage, initialized: profilesInitialized,
+    f.task.saveAgent({ agent: 'custom', conversations: [{ agent: 'custom', from: 123, sessionId: 'resume', transcript: '/agent/transcript' }] });
+    f.task.saveDevelopmentTerminals({ front: 4, list: [{ id: 4, conversation: 0 }] });
+    const current = f.read(), details = { name: 'Old', avatar: 'fox', description: 'Old description', dir: '/old/profile', login: 'old-user', hasPassword: true };
+    current.stage.items[0].future = 'profile metadata';
+    const items = current.stage.items.map((item: { type: string }) => item.type === 'profile' ? { ...item, ...details } : item);
+    f.write('task.json', { ...current, version: 1, stage: { ...current.stage, initialized: true,
       items: items.map(({ type, ...config }: { type: string; [key: string]: unknown }) => ({ type, config })) } });
-    assert.equal(f.task.profiles()[0].id, 'browser');
+    f.task.profiles();
     assert.deepEqual(f.read(), current);
     f.write('agent.json', { agent: 'stale' });
     f.task.agent();

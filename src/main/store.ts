@@ -210,11 +210,11 @@ class Store {
 // One task's data: its profiles (each a folder, named by its id), grid and agent session.
 const stageTerminalSchema = z.object({ id: z.int(), name: z.string(), command: z.string(), size: z.custom<StageTerminalConfig['size']>() });
 const taskDocumentSchema = z.object({
-  version: z.literal(2),
+  version: z.literal(3),
   agents: agentFileSchema.extend({ conversations: z.array(conversationSchema.omit({ terminal: true }).extend({ id: z.string().min(1) })) }),
   development: terminalsFileSchema.extend({ list: z.array(savedTerminalSchema.extend({ conversation: z.string().optional() })) }).nullable(),
   stage: z.object({
-    profilesInitialized: z.boolean(), nextTerminalId: z.int().positive(),
+    nextTerminalId: z.int().positive(),
     items: z.array(z.discriminatedUnion('type', [taskProfileSchema.extend({ type: z.literal('profile') }),
       stageTerminalSchema.extend({ type: z.literal('terminal') })])),
     view: z.enum(['vertical', 'tabs', 'horizontal']).nullish(), overflow: z.boolean(),
@@ -226,12 +226,42 @@ const taskDocumentSchema = z.object({
     presentation: z.object({ workbenchItem: z.enum(['terminals', 'project', 'diff', 'artifacts']), selectedArtifact: z.string().nullable() }).optional() }),
 });
 type TaskDocument = z.infer<typeof taskDocumentSchema>;
+const taskDocumentV2Schema = taskDocumentSchema.extend({ version: z.literal(2),
+  stage: taskDocumentSchema.shape.stage.extend({ profilesInitialized: z.boolean() }) });
+const taskDocumentV1Schema = taskDocumentSchema.extend({ version: z.literal(1),
+  stage: taskDocumentSchema.shape.stage.extend({ initialized: z.boolean(),
+    items: z.array(z.discriminatedUnion('type', [z.object({ type: z.literal('profile'), config: taskProfileSchema }),
+      z.object({ type: z.literal('terminal'), config: stageTerminalSchema })])) }) });
 const taskFiles = ['agent.json', 'terminals.json', 'profiles.json', 'applications.json', 'layout.json'];
 const legacyTaskSchema = z.tuple([agentFileSchema.optional(), terminalsFileSchema.optional(), z.array(taskProfileSchema).optional(),
   z.object({ next: z.int().positive().nullish(), list: z.array(stageTerminalSchema) }).optional(), z.unknown()]);
 function strictJSON(file: string): unknown {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
   catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw new Error(`Cannot read task data ${file}: ${(e as Error).message}`); }
+}
+function withoutProfileDetails<T extends TaskProfile>(profile: T): T {
+  const state = { ...profile } as T & Record<string, unknown>;
+  // These runtime fields leaked from ProfileConfig; preserve unrelated extension metadata.
+  for (const key of ['name', 'avatar', 'description', 'dir', 'login', 'hasPassword']) delete state[key];
+  return state;
+}
+function migrateTask(current: unknown): unknown {
+  if ((current as { version?: number } | null)?.version === 1) {
+    if (!taskDocumentV1Schema.validate(current)) throw new Error('Invalid task.json format');
+    const { initialized, items, ...stage } = current.stage;
+    current = { ...current, version: 2, stage: { ...stage, profilesInitialized: initialized,
+      items: items.map(({ type, config }) => ({ ...config, type })) } };
+  }
+  if ((current as { version?: number } | null)?.version !== 2) return current;
+  if (!taskDocumentV2Schema.validate(current)) throw new Error('Invalid task.json format');
+  const { profilesInitialized, ...stage } = current.stage;
+  if (!profilesInitialized && stage.items.some((i) => i.type === 'profile')) throw new Error('Invalid uninitialized task profiles');
+  const { stageShare, ...workspace } = current.workspace as typeof current.workspace & { stageShare?: number };
+  const split = splitLayout({ version: 3, workspace: workspace.developmentLayout, stage: stage.layout,
+    split: workspace.splitLayout, stagePosition: workspace.stagePosition, stageShare })?.split;
+  return { ...current, version: 3, stage: { ...stage,
+    items: stage.items.map((item) => item.type === 'profile' ? withoutProfileDetails(item) : item) },
+    workspace: { ...workspace, ...(split !== undefined && { splitLayout: split }) } };
 }
 function validateTask(value: unknown): asserts value is TaskDocument {
   // Validate without parsing: preserve the original document and unknown metadata on section updates.
@@ -272,10 +302,10 @@ class TaskStore {
     }
   }
   // What the task has of its project's profiles (project-profiles.ts): [{ id, zoom, closed }] (who a profile is:
-  // profile-store.ts); null before the task first loads.
-  profiles(): TaskProfile[] | null { const s = this.document().stage; return s.profilesInitialized ? s.items.filter((i) => i.type === 'profile').map(({ type: _type, ...config }) => config) : null; }
+  // profile-store.ts). Missing profiles stay closed, including before the task first loads.
+  profiles(): TaskProfile[] { return this.document().stage.items.filter((i) => i.type === 'profile').map(({ type: _type, ...config }) => config); }
   saveProfiles(list: TaskProfile[]) {
-    this.update((d) => { d.stage.profilesInitialized = true; d.stage.items = [...d.stage.items.filter((i) => i.type !== 'profile'), ...list.map((config) => ({ ...config, type: 'profile' as const }))]; });
+    this.update((d) => { d.stage.items = [...d.stage.items.filter((i) => i.type !== 'profile'), ...list.map((config) => ({ ...config, type: 'profile' as const }))]; });
   }
   // A profile's tabs, in its own folder.
   tabs(id: string): SavedTabs { return readTabs(this.profileDir(id)); }
@@ -290,21 +320,20 @@ class TaskStore {
   // next start too, in case a file of it is still open).
   dropProfile(id: string) {
     const saved = this.profiles();
-    if (saved) this.saveProfiles(saved.filter((x) => x.id !== id));
+    if (saved.some((x) => x.id === id)) this.saveProfiles(saved.filter((x) => x.id !== id));
     if (!fs.existsSync(this.profileDir(id))) return;
     this.markDeleted(id);
     removeTree(this.profileDir(id));
   }
   private document(): TaskDocument {
-    let current = strictJSON(this.file('task.json'));
-    if ((current as { version?: number } | null)?.version === 1) {
-      const old = current as { stage: { initialized: boolean; items: { type: 'profile' | 'terminal'; config: TaskProfile | StageTerminalConfig }[] } };
-      const { initialized, items, ...stage } = old.stage;
-      current = { ...old, version: 2, stage: { ...stage, profilesInitialized: initialized,
-        items: items.map(({ type, config }) => ({ ...config, type })) } };
-      this.writeDocument(current);
+    const saved = strictJSON(this.file('task.json')), current = migrateTask(saved);
+    if (current !== undefined) {
+      if (current !== saved) {
+        this.writeDocument(current);
+        log.info(`[store] task data upgraded ${summary({ task: path.relative(this.store.dir, this.dir), version: current.version })}`);
+      } else validateTask(current);
+      this.cleanLegacy(); return current;
     }
-    if (current !== undefined) { validateTask(current); this.cleanLegacy(); return current; }
     const legacy = taskFiles.map((f) => strictJSON(this.file(f)));
     if (!legacyTaskSchema.validate(legacy)) throw new Error('Invalid legacy task data');
     const [agent, t, p, savedStageTerminals, layout] = legacy;
@@ -312,11 +341,11 @@ class TaskStore {
     const conversations = (a.conversations ?? []).map(({ terminal: _terminal, ...c }) => ({ ...c, id: c.id ?? randomUUID() }));
     const split = splitLayout(layout);
     const d: TaskDocument = {
-      version: 2, agents: { ...(a.agent !== undefined && { agent: a.agent }), conversations },
+      version: 3, agents: { ...(a.agent !== undefined && { agent: a.agent }), conversations },
       development: t ? { front: t.front, list: t.list.map(({ conversation, ...rest }) => ({ ...rest,
         ...(conversation !== undefined && { conversation: conversations[conversation]?.id ?? 'invalid-reference' }) })) } : null,
-      stage: { profilesInitialized: p !== undefined, nextTerminalId: savedStageTerminals?.next ?? 1,
-        items: [...(p ?? []).map((config) => ({ ...config, type: 'profile' as const })), ...(savedStageTerminals?.list ?? []).map((config) => ({ ...config, type: 'terminal' as const }))],
+      stage: { nextTerminalId: savedStageTerminals?.next ?? 1,
+        items: [...(p ?? []).map((config) => ({ ...withoutProfileDetails(config), type: 'profile' as const })), ...(savedStageTerminals?.list ?? []).map((config) => ({ ...config, type: 'terminal' as const }))],
         view: split?.stageLayout ?? null, overflow: split?.stageOverflow ?? false, layout: split?.stage ?? null },
       workspace: { stagePosition: split?.stagePosition ?? 'above', splitLayout: split?.split ?? null, developmentLayout: split?.workspace ?? null },
     };
@@ -331,10 +360,9 @@ class TaskStore {
     for (const f of taskFiles) fs.rmSync(this.file(f), { force: true });
     this.legacyCleaned = true;
   }
-  private writeDocument(d: unknown) {
+  private writeDocument(d: unknown): asserts d is TaskDocument {
     validateTask(d);
     writeFileAtomic(this.file('task.json'), JSON.stringify(d, null, 2));
-    validateTask(strictJSON(this.file('task.json')));
   }
   private update(change: (d: TaskDocument) => void) { const d = this.document(); change(d); this.writeDocument(d); }
   stageTerminals(): { next: number; list: StageTerminalConfig[] } {
@@ -356,8 +384,7 @@ class TaskStore {
   layout(): unknown {
     const d = this.document();
     return d.workspace.developmentLayout ? splitLayout({ version: 3, workspace: d.workspace.developmentLayout, stage: d.stage.layout,
-      split: d.workspace.splitLayout, stageLayout: d.stage.view, stageOverflow: d.stage.overflow, stagePosition: d.workspace.stagePosition,
-      stageShare: (d.workspace as { stageShare?: number }).stageShare }) : null;
+      split: d.workspace.splitLayout, stageLayout: d.stage.view, stageOverflow: d.stage.overflow, stagePosition: d.workspace.stagePosition }) : null;
   }
   saveLayout(layout: unknown) {
     const l = splitLayout(layout);

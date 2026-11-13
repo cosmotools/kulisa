@@ -1,7 +1,7 @@
 // The profiles of a task: its project's profiles (profile-store.ts: who each is, its master), in their order, open
 // ones (a Profile: tabs, automation) and closed ones (their settings and the URLs of their tabs only; still signed
 // in). What the task has of each is its own: a copy of the master, made when the profile is first opened here, its tabs,
-// open or closed, its sites' zoom (TaskStore: profiles.json, the copy's folder). Creates, renames, describes (for the
+// open or closed, its sites' zoom (TaskStore: task.json, the copy's folder). Creates, renames, describes (for the
 // whole store), closes, opens and lets go of them. `profiles` (open ones: Profile) and `closed` (closed ones: their
 // entry) are maps by id, in the list's order, for everything that looks a profile up (Task: profiles, closed); `named`
 // finds one by its name, as the agent gives it.
@@ -51,7 +51,7 @@ class ProjectProfiles {
   // maps) and started behind, together (their cookies, tabs, automation: a site's answer away): the task's grid waits
   // for none of them. Saved once they have started.
   load() {
-    const state = new Map((this.store.profiles() || []).map((x) => [x.id, x]));
+    const state = new Map(this.store.profiles().map((x) => [x.id, x]));
     this.entries = this.all.of(this.project).map((g) => ({ cfg: this._cfg(g, state.get(g.id)), tabs: this.store.tabs(g.id),
       profile: null as Profile | null, closed: !state.has(g.id) || !!state.get(g.id)!.closed }));
     this._sync();
@@ -105,7 +105,7 @@ class ProjectProfiles {
     if (!e.profile) return { id };
     const p = e.profile;
     e.tabs = this.hooks.tabsOf(p);
-    e.cfg = this._cfgOf(e);
+    e.cfg.zoom = p.siteZoom;
     e.profile = null;
     this._sync();
     await this.hooks.unload(p);
@@ -160,7 +160,12 @@ class ProjectProfiles {
       this.store.saveTabs(e.cfg.id, e.profile && !e.starting ? this.hooks.tabsOf(e.profile) : e.tabs);
     }
   }
-  save() { this.store.saveProfiles(this.entries.map((e): TaskProfile => (e.profile ? this._cfgOf(e) : { ...e.cfg, closed: true }))); }
+  save() {
+    this.store.saveProfiles(this.entries.map(({ cfg, profile }): TaskProfile => {
+      const zoom = profile ? profile.siteZoom : cfg.zoom;
+      return { id: cfg.id, ...(zoom && { zoom }), ...(!profile && { closed: true }) };
+    }));
+  }
 
   // Open: its copy made from the master the first time here; the Profile is in the maps at once; its tabs are opening
   // until `starting` settles.
@@ -173,9 +178,6 @@ class ProjectProfiles {
   }
   _cfg(g: StoredProfile, state?: TaskProfile): ProfileConfig {
     return { id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', ...loginOf(g), dir: this.store.profileDir(g.id), zoom: state?.zoom };
-  }
-  _cfgOf({ cfg, profile: p }: Entry): ProfileConfig {
-    return p ? { id: p.id, name: p.name, avatar: p.avatar, description: p.description, dir: p.dir, zoom: p.siteZoom } : cfg;
   }
   // The profile of this name, whatever its case (names are unique within a project: profile-store.ts), or why none.
   named(name: string): Result<{ id: string }> {
