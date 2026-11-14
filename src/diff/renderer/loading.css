@@ -1,18 +1,5 @@
-/* Shadcn leaves indeterminate motion to the caller; transform avoids layout work on each frame. */
-.diff-loading [data-slot="progress-indicator"] {
-  flex: none;
-  width: 40%;
-  animation: diff-loading 1.2s ease-in-out infinite;
-}
-
+/* Transform-only indeterminate motion; Loading.tsx supplies timing and reduced-motion behavior. */
 @keyframes diff-loading {
   from { transform: translateX(-100%); }
   to { transform: translateX(250%); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .diff-loading [data-slot="progress-indicator"] {
-    animation: none;
-    transform: translateX(75%) !important;
-  }
 }

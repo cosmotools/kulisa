@@ -14,7 +14,6 @@ import { highlighterOptions, poolOptions } from './review-theme';
 import { comparisonKey, useDiff } from './session';
 import type { Notice } from './review';
 import { Loading } from './Loading';
-import './ReviewDocument.css';
 
 const empty: DiffFile[] = [];
 
@@ -168,7 +167,14 @@ function ReviewContent({ session, selection, shade, fontSize }: DiffPanelProps) 
       {data && !files.length && <p className="absolute inset-0 z-10 bg-card p-3 text-sm text-muted-foreground">{!data.git ? 'This folder is not a Git repository.' : data.files.length ? 'No files match' : 'No changes'}</p>}
       <CodeView ref={viewer} containerRef={viewport} items={items} options={viewOptions} onScroll={onScroll}
         renderHeaderPrefix={renderHeaderPrefix} renderHeaderFilenameSuffix={renderHeaderFilenameSuffix} renderHeaderMetadata={renderHeaderMetadata}
-        renderAnnotation={renderAnnotation} className="diff-review h-full overflow-auto px-4"
+        renderAnnotation={renderAnnotation} className="h-full overflow-auto px-4
+          [--diffs-font-family:'JetBrains_Mono',monospace] [--diffs-header-font-family:var(--font-sans)]
+          [--diffs-gap-block:0px] [--diffs-overflow-override:clip]
+          [--diffs-addition-color-override:var(--success)] [--diffs-deletion-color-override:var(--destructive)]
+          [--diffs-modified-color-override:var(--primary)] [--diffs-selection-color-override:var(--ring)]
+          [--diffs-bg-selection-override:color-mix(in_oklch,var(--ring)_20%,var(--card))] [--diffs-fg-number-override:var(--muted-foreground)]
+          [&_diffs-container[role=article]]:rounded-(--radius) [&_diffs-container[role=article]]:outline
+          [&_diffs-container[role=article]]:outline-border [&_diffs-container[role=article]]:overflow-clip"
         style={{ '--diffs-font-size': `${fontSize}px`, '--diffs-line-height': `${lineHeight}px` } as CSSProperties} />
     </div>
     <footer className="flex gap-2 border-t px-4 py-1 text-xs text-muted-foreground"><span className="min-w-0 truncate">{data ? `${data.from} → ${data.to}` : 'From → To'}</span><span className="ms-auto shrink-0">Read only</span></footer>

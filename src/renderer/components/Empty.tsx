@@ -7,7 +7,7 @@ import { useWindow, pageOf } from '../lib/store';
 
 export function Empty() {
   const page = useWindow(pageOf);
-  return <div id="empty" data-page={page} className="flex min-h-0 min-w-0 border-t bg-card">
+  return <div id="empty" data-page={page} className="col-start-1 row-start-2 flex min-h-0 min-w-0 border-t bg-card">
     {page === 'welcome' ? <Welcome /> : <>
       <DockedSidebar />
       <Nothing aria-label="No task open" role="region" className="flex-1">

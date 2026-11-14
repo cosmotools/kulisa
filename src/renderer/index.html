@@ -9,6 +9,7 @@
   <script type="module" src="./main.tsx"></script>
 </head>
 <body>
-  <div id="app"></div>
+  <!-- Keep the workspace sized under Settings so native task views do not reflow. -->
+  <div id="app" class="grid grid-rows-[auto_minmax(0,1fr)_auto] text-sm [&:has(>#settings)>:is(#workspace,#empty,#taskbar)]:invisible"></div>
 </body>
 </html>
