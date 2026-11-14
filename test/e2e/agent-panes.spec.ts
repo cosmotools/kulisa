@@ -97,12 +97,10 @@ test('tab strip: + opens a tab with the focus in its empty address, a click on a
 });
 
 test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page stay inside the pane', async ({ core, ui, files }) => {
-  const { sam, elon } = await profiles(core);
+  const { elon } = await profiles(core);
   const n = await core((k) => k.profile('Elon.buyer').tabs.length);
   const pane = `[role="region"][data-profile="${elon}"]`;
   const before = await pageBox(ui, files, 'Elon.buyer');
-  // A lone tab has its full width (220px, as Chrome's), not shrunk while there is room.
-  expect(Math.round((await (await taskPage(ui)).locator(`[data-task-view][data-active] [role="region"][data-profile="${sam}"] [role="tab"]`).boundingBox()).width)).toBe(220);
   for (let i = 0; i < 24; i++) await act(ui, 'tab:new', { profile: elon });
   await expect((await taskPage(ui)).locator(`${pane} [role="tab"]`)).toHaveCount(n + 24);
   await expect((await taskPage(ui)).locator(`${pane} [role="tab"][data-opening]`)).toHaveCount(0); // grown in

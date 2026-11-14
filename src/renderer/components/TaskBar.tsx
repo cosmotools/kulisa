@@ -149,7 +149,7 @@ export function TaskBar() {
     },
   };
 
-  return <nav id="taskbar" aria-label="Open tasks" className="flex w-full min-w-0 items-center gap-1 bg-background px-2 py-1">
+  return <nav id="taskbar" aria-label="Open tasks" className="col-start-1 row-start-3 flex w-full min-w-0 items-center gap-1 bg-background px-2 py-1">
     {/* Its tooltip beside it, as the +'s: above or under, it would open over the pages. */}
     <Tip text="Projects and tasks" side="right">
       <Button variant="ghost" size="icon-sm" aria-label="Projects and tasks" onClick={toggleSidebar}><PanelLeftIcon /></Button>

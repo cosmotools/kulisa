@@ -47,7 +47,7 @@ function DevelopmentContent(props: IDockviewPanelProps) {
 }
 function Development({ api }: IGridviewPanelProps) {
   const grid = useTaskGrid();
-  return <div data-development-grid className="h-full">
+  return <div data-development-grid className="h-full [--dv-tabs-and-actions-container-height:--spacing(10)]">
     <DockviewReact theme={developmentTheme} disableAutoResizing disableFloatingGroups disableDnd components={components}
       tabComponents={tabComponents} rightHeaderActionsComponent={ResourceActions}
       onReady={(e) => grid.mountDevelopment(e.api, api)} />

@@ -59,7 +59,8 @@ export function CodeEditor({ session, active, shade, fontSize }: { session: Edit
       </div>
     </AlertDescription></Alert>}
     {doc && editStateKey && state.selected ? <div role="region" aria-label={`Editor document: ${doc.path}`} aria-busy={!comparing && ready !== editStateKey} className="relative min-h-0 flex-1">
-      <EditProvider createEditor={createEditor}><Virtualizer className="h-full overflow-auto" style={{ '--diffs-font-family': '"JetBrains Mono", monospace', '--diffs-font-size': `${fontSize}px`, '--diffs-line-height': `${Math.ceil(fontSize * 1.4)}px`, '--diffs-font-features': '"liga" 0, "calt" 0' } as CSSProperties}>
+      <EditProvider createEditor={createEditor}><Virtualizer className="h-full overflow-auto [--diffs-font-family:'JetBrains_Mono',monospace] [--diffs-font-features:'liga'_0,'calt'_0]"
+        style={{ '--diffs-font-size': `${fontSize}px`, '--diffs-line-height': `${Math.ceil(fontSize * 1.4)}px` } as CSSProperties}>
       {comparing && doc.disk ? <div aria-label="Conflicting versions">
         <MultiFileDiff oldFile={{ name: `On disk: ${basename(doc.path)}`, contents: doc.disk.text }} newFile={{ name: `Your changes: ${basename(doc.path)}`, contents: doc.text }}
           options={{ theme: editorTheme[shade], preferredHighlighter: 'shiki-js', diffStyle: 'unified', overflow: 'wrap', unsafeCSS: 'pre { user-select: text; }' }} />

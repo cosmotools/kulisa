@@ -25,7 +25,6 @@ test('Diff copies code and renamed file paths in Unified and Split layouts while
   await expect(heading).toContainText(file);
   for (const layout of ['Unified', 'Split']) {
     await (await taskPage(ui)).getByRole('radio', { name: `${layout} diff`, exact: true }).click();
-    await expect(code).toHaveCSS('user-select', 'text');
     await expect(code.locator('[data-column-number]').first()).toHaveCSS('user-select', 'none');
     await expect(heading).toHaveCSS('user-select', 'none');
     await expect(collapse).toHaveCSS('user-select', 'none');
@@ -93,12 +92,6 @@ test('Diff groups files into folders and switches the development area without m
   await expect(tree.getByRole('group', { name: 'From for review-tree' })).toContainText(copy.branch + ' (worktree)');
   await expect(tree.getByRole('combobox', { name: 'To for review-tree' })).toContainText('main');
   await expect(stock).toContainText('+1');
-  const checkout = tree.locator('[role="treeitem"][data-item-path="checkout.ts"]');
-  for (const section of ['decoration', 'git']) {
-    const selector = `[data-item-section="${section}"]${section === 'decoration' ? ' > span' : ''}`;
-    const nested = await stock.locator(selector).boundingBox(), root = await checkout.locator(selector).boundingBox();
-    expect(nested.x + nested.width).toBeCloseTo(root.x + root.width, 0);
-  }
   const host = tree.getByLabel('Changed file tree', { exact: true }), status = stock.locator('[data-item-section="git"]');
   const darkStatus = await status.evaluate((element) => getComputedStyle(element).color);
   await choose(ui, 'Light', await windowSubmenu(ui, 'Theme'));

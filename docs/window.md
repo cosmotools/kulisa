@@ -11,6 +11,8 @@ The shell normally sits below the selected group in the workspace. Global overla
 transparent HTML reveal the task while intercepting pointer input. [Layers](../src/layers/README.md) coordinates coverage.
 
 `index.html`/`main.tsx` boot the shell; `task.html` loads the task bootstrap. Keep their stores/controllers separate.
+The shell's `#app` is both the React mount and its three-row grid. Tailwind classes place its children and hide
+the underlying shell content under Settings without changing workspace bounds.
 The shell receives navigation facts and a selected-task summary; main owns [sender authorization/routing](#ipc),
 task navigation keys and file-dialog ownership. Core shutdown callers share one completion promise.
 

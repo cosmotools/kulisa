@@ -57,6 +57,8 @@ Fixtures and app lifecycle live in `test/e2e/fixtures.ts`:
   The fixture shares an app within a file.
 - Name the behavior and expected outcome. Make failures show the observed state (`termShows`, `termDump` for
   terminals); keep assertions focused on that behavior rather than duplicating unrelated coverage.
+- Avoid checks that merely repeat decorative styles or library layout constants. Keep rendering checks for integration
+  boundaries and known regressions; when an action already proves an outcome, do not also assert its CSS implementation.
 
 ### Using Kulisa's harness
 

@@ -32,7 +32,7 @@ function Workspace() {
     const observer = new ResizeObserver(report); observer.observe(host.current!); report();
     return () => observer.disconnect();
   }, [current, zoom]);
-  return <main ref={host} id="workspace" className="relative min-h-0 min-w-0">
+  return <main ref={host} id="workspace" className="col-start-1 row-start-2 min-w-0">
     {summary?.failure && <div className="h-full bg-background"><EmptyState role="alert" className="h-full"><EmptyHeader>
       <EmptyTitle>This task’s screen could not be displayed</EmptyTitle>
       <EmptyDescription>The task stays open. Terminal replies may be unavailable until its screen recovers. Reloading preserves received edits and running processes; terminal screens start with new output.</EmptyDescription>
@@ -43,27 +43,19 @@ export function App() {
   const open = useWindow((s) => s.current !== null), settings = useSettings();
   const [Settings, setSettings] = useState<SettingsView | null>(null);
   useEffect(() => { if (settings && !Settings) void import('./settings').then((m) => setSettings(() => m.default)); }, [settings, Settings]);
-  // Rows: the title bar, the grid (or the empty window), the tasks' bar. Under Settings the grid stays laid out
-  // (dockview's sizes, the terminals) and its agents work on, the tasks' bar keeping its place: a row resized as
-  // Settings closes moved the terminal. Hidden once Settings is drawn (it draws nothing until filled), not as it is
-  // asked for. Hidden to the last element (dockview makes parts of its own visible again inside a hidden box), at
-  // once (a transition of all of a button's properties would keep it visible meanwhile).
   return <TooltipProvider>
-    <div className="grid h-screen grid-rows-[auto_minmax(0,1fr)_auto] text-sm text-foreground
-      [&:has(>#settings)>:is(#workspace,#empty,#taskbar)]:invisible [&:has(>#settings)>:is(#workspace,#empty,#taskbar)_*]:invisible! [&:has(>#settings)>:is(#workspace,#empty,#taskbar)_*]:transition-none! [&>:is(#workspace,#empty)]:[grid-area:2/1] [&>#taskbar]:[grid-area:3/1]">
-      <TopBar />
-      {open ? <Workspace /> : <Empty />}
-      {open && <Sidebar />}
-      {open && <TaskBar />}
-      {settings && Settings && <Settings at={settings} className="[grid-area:2/1/-1]" />}
-      <NewProject />
-      <TaskRename />
-      <StageTerminalSettings />
-      <AgentPicker />
-      <HandOver />
-      <Shortcuts />
-      <Ask />
-      <PointMenu />
-    </div>
+    <TopBar />
+    {open ? <Workspace /> : <Empty />}
+    {open && <Sidebar />}
+    {open && <TaskBar />}
+    {settings && Settings && <Settings at={settings} className="[grid-area:2/1/-1]" />}
+    <NewProject />
+    <TaskRename />
+    <StageTerminalSettings />
+    <AgentPicker />
+    <HandOver />
+    <Shortcuts />
+    <Ask />
+    <PointMenu />
   </TooltipProvider>;
 }
