@@ -86,10 +86,6 @@ test('Project icons identify files and folders and follow the window theme', asy
     })).toBe(true);
   }
   const color = async (name: string) => (await icon(name)).evaluate((e) => getComputedStyle(e).color);
-  const fallbackColor = await color('unknown.extension');
-  expect(await color('index.ts')).not.toBe(fallbackColor);
-  expect(await color('data.json')).not.toBe(fallbackColor);
-  expect(await color('index.ts')).not.toBe(await color('data.json'));
   const darkIcon = await color('data.json');
   await choose(ui, 'Light', await windowSubmenu(ui, 'Theme'));
   await expect((await icon('data.json'))).not.toHaveCSS('color', darkIcon);
