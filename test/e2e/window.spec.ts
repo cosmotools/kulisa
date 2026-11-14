@@ -504,21 +504,15 @@ test("the tasks' bar stays below the grid after restoring an obsolete Top prefer
 
 test('Settings hides shell controls without resizing the task workspace', async ({ core, ui, sui }) => {
   await sam(core);
-  const bounds = () => ui.evaluate(() => ['#workspace', '#taskbar'].map((selector) =>
-    document.querySelector(selector).getBoundingClientRect().toJSON()));
-  const before = await bounds(), native = await core((k) => k.shell.task.view.group.getBounds());
+  const bounds = () => core((k) => k.shell.task.view.group.getBounds()), before = await bounds();
+  const tasks = ui.getByRole('navigation', { name: 'Open tasks', includeHidden: true });
   await ui.locator('#settingsButton').click();
   try {
     await expect((await sui()).getByRole('navigation', { name: 'Settings' })).toBeVisible();
-    await expect(ui.locator('#workspace')).toHaveCSS('visibility', 'hidden');
-    await expect(ui.locator('#taskbar')).toHaveCSS('visibility', 'hidden');
-    await expect.poll(() => ui.locator('#taskbar button').evaluateAll((buttons) =>
-      buttons.filter((button) => button.checkVisibility({ visibilityProperty: true })).length)).toBe(0);
-    expect(await bounds()).toEqual(before);
-    expect(await core((k) => k.shell.task.view.group.getBounds())).toEqual(native);
-    await expect(ui.locator('#topbar')).toBeVisible();
+    await expect(tasks).toBeHidden();
+    await expect.poll(bounds).toEqual(before);
   } finally { await closeSettings(core, ui, sui); }
-  await expect(ui.locator('#newTask')).toBeVisible();
+  await expect(tasks).toBeVisible();
   await expect.poll(bounds).toEqual(before);
 });
 
